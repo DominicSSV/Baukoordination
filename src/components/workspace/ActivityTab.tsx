@@ -1,0 +1,99 @@
+'use client';
+
+import { useState } from 'react';
+import { useFeedback } from '@/components/Feedback';
+import type { MessageDraft } from '@/components/workspace/MessageModal';
+import { post } from '@/lib/client/api';
+import { fmtDate } from '@/lib/format';
+import type { ProjectDetail } from '@/types';
+
+type NotifyResponse = {
+  sent: boolean;
+  reason?: string;
+  recipientCount?: number;
+  email: string;
+  subject: string;
+  body: string;
+};
+
+export default function ActivityTab({
+  detail,
+  isAdmin,
+  onMessage,
+}: {
+  detail: ProjectDetail;
+  isAdmin: boolean;
+  onMessage: (draft: MessageDraft) => void;
+}) {
+  const { toast, reportError } = useFeedback();
+  const [busy, setBusy] = useState(false);
+
+  async function sendUpdate() {
+    setBusy(true);
+    try {
+      const result = await post<NotifyResponse>(
+        `/api/projects/${detail.project.id}/notify`,
+      );
+
+      if (result.sent) {
+        toast(
+          `✉️ Update an ${result.recipientCount ?? 0} Empfänger verschickt.`,
+        );
+        return;
+      }
+
+      // Konnte nicht automatisch verschickt werden: Text zum Kopieren anbieten.
+      onMessage({
+        title: 'Update versenden',
+        reason: result.reason,
+        email: result.email,
+        subject: result.subject,
+        body: result.body,
+      });
+    } catch (error) {
+      reportError(error, 'Update konnte nicht verschickt werden.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="section-head">
+        <h2>Aktivität</h2>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn btn-accent btn-sm"
+            onClick={sendUpdate}
+            disabled={busy}
+          >
+            {busy ? 'Wird versendet…' : '📧 Update senden'}
+          </button>
+        )}
+      </div>
+
+      <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', margin: '-6px 0 14px' }}>
+        Automatisch protokolliert: erledigte Aufgaben, Kommentare und hochgeladene Dateien.
+      </p>
+
+      {detail.activity.length ? (
+        detail.activity.map((a) => (
+          <div key={a.id} className="activity-row">
+            <div className="activity-icon">{a.icon ?? '•'}</div>
+            <div>
+              <div className="activity-text">
+                <strong>{a.actor_name}</strong> {a.text}
+              </div>
+              <div className="activity-meta">{fmtDate(a.created_at)}</div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="empty-state" style={{ padding: '36px 10px' }}>
+          <p>Noch keine Aktivität in diesem Projekt.</p>
+        </div>
+      )}
+    </div>
+  );
+}

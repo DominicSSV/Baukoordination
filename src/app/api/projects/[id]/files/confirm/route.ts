@@ -1,0 +1,100 @@
+import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
+import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
+import { logActivity } from '@/lib/activity';
+import { serviceClient } from '@/lib/supabase/service';
+
+export const dynamic = 'force-dynamic';
+
+type Params = { params: Promise<{ id: string }> };
+
+/**
+ * Schritt 2 des Uploads: Nach dem direkten Storage-Upload den Datensatz anlegen.
+ *
+ * Die vom Browser gemeldeten Pfade werden gegen das erwartete Muster geprüft, damit
+ * niemand über diese Route eine fremde Datei aus dem Bucket in sein Projekt hängt.
+ */
+export const POST = handler(async (request: Request, { params }: Params) => {
+  const { id: projectId } = await params;
+  const ctx = await requireSession();
+  await requireProjectAccess(ctx, projectId);
+
+  const body = await readJson<{
+    fileId?: string;
+    name?: string;
+    mimeType?: string;
+    sizeBytes?: number;
+    storagePath?: string;
+    thumbPath?: string;
+    todoId?: string;
+  }>(request);
+
+  const fileId = requireString(body.fileId, 'fileId', 64);
+  const name = requireString(body.name, 'Dateiname', 300);
+  const storagePath = requireString(body.storagePath, 'storagePath', 500);
+  const thumbPath = optionalString(body.thumbPath, 500);
+  const todoId = optionalString(body.todoId, 64);
+
+  if (!storagePath.startsWith(`${projectId}/${fileId}-`)) {
+    throw new ApiError('Der gemeldete Speicherpfad passt nicht zum Projekt.', 400);
+  }
+  if (thumbPath && thumbPath !== `${projectId}/thumbs/${fileId}.jpg`) {
+    throw new ApiError('Der gemeldete Vorschaupfad passt nicht zum Projekt.', 400);
+  }
+
+  if (todoId) {
+    const { data } = await serviceClient()
+      .from('todos')
+      .select('id')
+      .eq('id', todoId)
+      .eq('project_id', projectId)
+      .maybeSingle();
+    if (!data) throw new ApiError('Die Aufgabe gehört nicht zu diesem Projekt.');
+  }
+
+  const { data, error } = await ctx.db
+    .from('files')
+    .insert({
+      id: fileId,
+      project_id: projectId,
+      todo_id: todoId,
+      name,
+      mime_type: optionalString(body.mimeType, 200) ?? 'application/octet-stream',
+      size_bytes:
+        typeof body.sizeBytes === 'number' && body.sizeBytes >= 0
+          ? Math.round(body.sizeBytes)
+          : null,
+      storage_path: storagePath,
+      thumb_path: thumbPath,
+      uploaded_by: ctx.session.name,
+      uploaded_by_supplier_id:
+        ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+    })
+    .select(
+      'id, project_id, todo_id, name, mime_type, size_bytes, uploaded_by, uploaded_by_supplier_id, uploaded_at',
+    )
+    .single();
+
+  if (error) {
+    throw new ApiError(`Datei konnte nicht gespeichert werden: ${error.message}`, 500);
+  }
+
+  const isImage = (body.mimeType ?? '').startsWith('image/');
+  let where = '';
+  if (todoId) {
+    const { data: todo } = await serviceClient()
+      .from('todos')
+      .select('text')
+      .eq('id', todoId)
+      .maybeSingle();
+    if (todo) where = ` zu To-Do "${todo.text}"`;
+  }
+
+  const warning = await logActivity(ctx.db, {
+    projectId,
+    actorName: ctx.session.name,
+    text: `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
+    icon: isImage ? '📷' : '📄',
+  });
+
+  return ok({ file: data, warning }, { status: 201 });
+});
