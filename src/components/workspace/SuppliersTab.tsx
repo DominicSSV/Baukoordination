@@ -30,12 +30,10 @@ export default function SuppliersTab({
   detail,
   reload,
   onMessage,
-  mailEnabled,
 }: {
   detail: ProjectDetail;
   reload: () => Promise<void>;
   onMessage: (draft: MessageDraft) => void;
-  mailEnabled: boolean;
 }) {
   const { toast, reportError, confirm } = useFeedback();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -228,14 +226,6 @@ export default function SuppliersTab({
         <div className="section-head">
           <h2>Lieferanten mit Zugriff auf dieses Projekt</h2>
         </div>
-
-        {!mailEnabled && (
-          <div className="info-banner" style={{ marginBottom: 14 }}>
-            ✉️ Automatischer Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).
-            Einladungen erzeugen weiterhin einen fertigen Text zum Kopieren bzw. einen
-            mailto-Link.
-          </div>
-        )}
 
         {detail.suppliers.length ? (
           detail.suppliers.map((s) =>

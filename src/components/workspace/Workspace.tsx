@@ -253,13 +253,6 @@ function WorkspaceInner({
                 </div>
               </div>
 
-              <div className="info-banner">
-                ℹ️{' '}
-                {isAdmin
-                  ? 'Lieferanten sehen nach der Anmeldung mit ihrem Zugangscode ausschliesslich die Projekte, für die du sie freigibst – und dort keine Zugangscodes oder Kontaktdaten anderer Lieferanten.'
-                  : 'Du siehst nur die Projekte, für die du freigegeben bist. Aufgaben abhaken, kommentieren sowie Fotos und Dokumente hochladen ist jederzeit möglich.'}
-              </div>
-
               <div className="tabs">
                 {isAdmin && (
                   <button
@@ -298,7 +291,6 @@ function WorkspaceInner({
                   detail={detail}
                   reload={reload}
                   onMessage={setMessage}
-                  mailEnabled={session.mailEnabled}
                 />
               )}
               {tab === 'todos' && (
