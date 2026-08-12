@@ -81,6 +81,15 @@ export async function GET() {
       const seed = await db.from('admin_seed').select('email').limit(1);
       const view = await db.from('admin_public').select('user_id').limit(1);
 
+      const frist = await db.from('todos').select('due_date').limit(1);
+      report.migration_0004 = {
+        fristen: !frist.error,
+        hinweis: frist.error
+          ? 'Migration 0004 fehlt. Ohne sie lassen sich keine Aufgaben anlegen, ' +
+            'weil die Spalte für die Frist noch nicht existiert.'
+          : undefined,
+      };
+
       report.migration_0002 = {
         profilspalten: !profil.error,
         namensliste: !seed.error,
