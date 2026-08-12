@@ -123,11 +123,43 @@ async function readAdminSession(): Promise<AdminSession | null> {
 
   // Ein Auth-Account allein reicht nicht – der Benutzer muss als Admin freigeschaltet
   // sein. Die Prüfung läuft über service_role, damit sie nicht an RLS scheitert.
-  const { data: admin } = await serviceClient()
+  //
+  // Die Profilspalten firma und funktion kommen erst mit Migration 0002. Solange sie
+  // fehlen, würde die Abfrage komplett fehlschlagen und der Admin sähe fälschlich
+  // "Konto noch nicht freigeschaltet". Deshalb der zweite, schlankere Versuch.
+  const db = serviceClient();
+
+  type AdminRow = {
+    user_id: string;
+    name: string | null;
+    email: string | null;
+    firma?: string | null;
+    funktion?: string | null;
+  };
+
+  let admin: AdminRow | null = null;
+
+  const full = await db
     .from('admins')
     .select('user_id, name, email, firma, funktion')
     .eq('user_id', user.id)
     .maybeSingle();
+
+  if (full.error) {
+    console.warn(
+      '[auth] Profilspalten nicht verfügbar, Rückfall ohne firma/funktion. ' +
+        'Migration 0002 noch nicht eingespielt?',
+      full.error.message,
+    );
+    const basic = await db
+      .from('admins')
+      .select('user_id, name, email')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    admin = (basic.data as AdminRow | null) ?? null;
+  } else {
+    admin = (full.data as AdminRow | null) ?? null;
+  }
 
   if (!admin) return null;
 

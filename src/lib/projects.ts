@@ -190,12 +190,21 @@ export async function loadProjectDetail(
 
   // Die Bauherrenvertreter darf auch ein Lieferant sehen – er muss ihnen eine
   // Aufgabe zuweisen können. Die View gibt keine E-Mail-Adressen heraus.
+  //
+  // Sie entsteht erst mit Migration 0002. Fehlt sie noch, bleibt die Liste leer und
+  // es lässt sich nur der Firma allgemein zuweisen – das Projekt selbst muss
+  // deswegen nicht unbenutzbar werden.
   const adminsRes = await db
     .from('admin_public')
     .select('user_id, name, firma, funktion')
     .order('name', { ascending: true });
 
-  if (adminsRes.error) throw new Error(`Bauherrenvertreter: ${adminsRes.error.message}`);
+  if (adminsRes.error) {
+    console.warn(
+      '[projects] admin_public nicht verfügbar. Migration 0002 noch nicht eingespielt?',
+      adminsRes.error.message,
+    );
+  }
 
   return {
     project,
@@ -205,6 +214,6 @@ export async function loadProjectDetail(
     accessIds,
     suppliers,
     otherSuppliers,
-    admins: (adminsRes.data ?? []) as AdminProfile[],
+    admins: (adminsRes.error ? [] : (adminsRes.data ?? [])) as AdminProfile[],
   };
 }
