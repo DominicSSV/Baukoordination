@@ -101,7 +101,7 @@ export function buildInvite(supplier: Supplier) {
     ``,
     `Viel Spass beim ausprobieren ;)`,
     ``,
-    `Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst`,
+    `Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst.`,
   ].join('\n');
 
   const html = wrapHtml('Zugriff auf die Baukoordination-App', `
@@ -122,7 +122,7 @@ export function buildInvite(supplier: Supplier) {
     </p>
     <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">Viel Spass beim ausprobieren ;)</p>
     <p style="font-size:13px;line-height:1.6;color:#6B6B69;margin:0;">
-      Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst
+      Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst.
     </p>
   `);
 
