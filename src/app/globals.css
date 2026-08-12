@@ -1532,3 +1532,47 @@ button:disabled {
   align-items: center;
   gap: 5px;
 }
+
+/* --- Sammel-Auswahl im Protokoll ------------------------------------------ */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.bulk-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.bulk-count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-left: auto;
+}
+
+.activity-check {
+  margin: 3px 0 0;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.activity-row.selected {
+  background: var(--accent-soft);
+  border-radius: 8px;
+}

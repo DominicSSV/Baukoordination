@@ -31,14 +31,55 @@ export default function ActivityTab({
 }) {
   const { toast, reportError, confirm } = useFeedback();
   const [busy, setBusy] = useState(false);
+  const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
+
+  const alleGewaehlt =
+    detail.activity.length > 0 && gewaehlt.size === detail.activity.length;
+
+  function umschalten(id: string) {
+    setGewaehlt((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function alleUmschalten() {
+    setGewaehlt(alleGewaehlt ? new Set() : new Set(detail.activity.map((a) => a.id)));
+  }
 
   /** Nur die Swiss Solar Ventures AG darf Einträge aus dem Protokoll entfernen. */
   function removeEntry(id: string) {
     confirm('Diesen Eintrag aus der Aktivität löschen?', async () => {
       await del(`/api/activity/${id}`);
+      setGewaehlt((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
       await reload();
       toast('🗑️ Eintrag gelöscht.');
     });
+  }
+
+  function removeSelected() {
+    const ids = Array.from(gewaehlt);
+    if (!ids.length) return;
+
+    confirm(
+      ids.length === 1
+        ? 'Diesen Eintrag aus der Aktivität löschen?'
+        : `${ids.length} Einträge aus der Aktivität löschen?`,
+      async () => {
+        const { deleted } = await post<{ deleted: number }>('/api/activity/delete', {
+          ids,
+        });
+        setGewaehlt(new Set());
+        await reload();
+        toast(`🗑️ ${deleted} Eintrag${deleted === 1 ? '' : 'e'} gelöscht.`);
+      },
+    );
   }
 
   async function sendUpdate() {
@@ -90,12 +131,56 @@ export default function ActivityTab({
         Automatisch protokolliert: erledigte Aufgaben, Kommentare und hochgeladene Dateien.
       </p>
 
+      {/* Sammel-Auswahl. Die Leiste erscheint erst, wenn es etwas auszuwählen gibt. */}
+      {isAdmin && detail.activity.length > 0 && (
+        <div className="bulk-bar">
+          <label className="bulk-check">
+            <input type="checkbox" checked={alleGewaehlt} onChange={alleUmschalten} />
+            Alle auswählen
+          </label>
+
+          {gewaehlt.size > 0 && (
+            <>
+              <span className="bulk-count">
+                {gewaehlt.size} ausgewählt
+              </span>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={removeSelected}
+              >
+                🗑️ Löschen
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setGewaehlt(new Set())}
+              >
+                Auswahl aufheben
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {detail.activity.length ? (
         detail.activity.map((a) => {
           const person = findPerson(detail, { name: a.actor_name });
 
           return (
-          <div key={a.id} className="activity-row">
+          <div
+            key={a.id}
+            className={`activity-row ${gewaehlt.has(a.id) ? 'selected' : ''}`}
+          >
+            {isAdmin && (
+              <input
+                type="checkbox"
+                className="activity-check"
+                checked={gewaehlt.has(a.id)}
+                onChange={() => umschalten(a.id)}
+                aria-label="Eintrag auswählen"
+              />
+            )}
             {/* Bild der Person, das Symbol daneben sagt, worum es ging. */}
             <div className="activity-person">
               <Avatar url={person.avatarUrl} name={person.name} size={30} />
