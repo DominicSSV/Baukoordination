@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import type { MessageDraft } from '@/components/workspace/MessageModal';
-import { post } from '@/lib/client/api';
+import { del, post } from '@/lib/client/api';
 import { fmtDate } from '@/lib/format';
 import type { ProjectDetail } from '@/types';
 
@@ -19,14 +19,25 @@ type NotifyResponse = {
 export default function ActivityTab({
   detail,
   isAdmin,
+  reload,
   onMessage,
 }: {
   detail: ProjectDetail;
   isAdmin: boolean;
+  reload: () => Promise<void>;
   onMessage: (draft: MessageDraft) => void;
 }) {
-  const { toast, reportError } = useFeedback();
+  const { toast, reportError, confirm } = useFeedback();
   const [busy, setBusy] = useState(false);
+
+  /** Nur die Swiss Solar Ventures AG darf Einträge aus dem Protokoll entfernen. */
+  function removeEntry(id: string) {
+    confirm('Diesen Eintrag aus der Aktivität löschen?', async () => {
+      await del(`/api/activity/${id}`);
+      await reload();
+      toast('🗑️ Eintrag gelöscht.');
+    });
+  }
 
   async function sendUpdate() {
     setBusy(true);
@@ -81,12 +92,22 @@ export default function ActivityTab({
         detail.activity.map((a) => (
           <div key={a.id} className="activity-row">
             <div className="activity-icon">{a.icon ?? '•'}</div>
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div className="activity-text">
                 <strong>{a.actor_name}</strong> {a.text}
               </div>
               <div className="activity-meta">{fmtDate(a.created_at)}</div>
             </div>
+            {isAdmin && (
+              <button
+                type="button"
+                className="icon-btn"
+                title="Eintrag löschen"
+                onClick={() => removeEntry(a.id)}
+              >
+                ✕
+              </button>
+            )}
           </div>
         ))
       ) : (

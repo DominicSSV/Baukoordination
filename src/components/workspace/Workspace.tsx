@@ -166,15 +166,21 @@ function WorkspaceInner({
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="brand-logo" src="/logo.png" alt="Swiss Solar Ventures AG" />
-          <div>
+          <div className="brand-titles">
             <div className="brand-name">Baukoordination – Swiss Solar Ventures AG</div>
             <div className="brand-sub">Projekte · Lieferanten · To-Dos · Dateien</div>
           </div>
         </div>
 
+        {/* Auf dem Handy bleibt rechts nur das Personen-Symbol und ein kleiner
+            Abmelde-Knopf – Name und Funktion würden dem Firmennamen den Platz
+            nehmen, den er für eine einzige Zeile braucht. */}
         <div className="me-badge">
-          <span>
-            {session.kind === 'supplier' ? '🧰' : '👤'} {session.name}
+          <span className="me-icon" aria-hidden="true">
+            {session.kind === 'supplier' ? '🧰' : '👤'}
+          </span>
+          <span className="me-text">
+            {session.name}
             <span style={{ opacity: 0.6 }}>
               {session.kind === 'supplier'
                 ? ' (Lieferant)'
@@ -183,8 +189,11 @@ function WorkspaceInner({
                   : ''}
             </span>
           </span>
-          <button type="button" onClick={logout}>
-            abmelden
+          <button type="button" onClick={logout} aria-label="Abmelden" title="Abmelden">
+            <span className="me-logout-text">abmelden</span>
+            <span className="me-logout-icon" aria-hidden="true">
+              ⏻
+            </span>
           </button>
         </div>
       </div>
@@ -308,6 +317,7 @@ function WorkspaceInner({
                 <ActivityTab
                   detail={detail}
                   isAdmin={isAdmin}
+                  reload={reload}
                   onMessage={setMessage}
                 />
               )}
