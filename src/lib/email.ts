@@ -18,10 +18,6 @@ function notifyOnEveryActivity(): boolean {
   return process.env.NOTIFY_ON_EVERY_ACTIVITY === 'true';
 }
 
-function supplierLabel(s: Pick<Supplier, 'name' | 'firma'>): string {
-  return s.name?.trim() || s.firma?.trim() || 'Unbekannt';
-}
-
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -78,39 +74,55 @@ async function send(params: {
 // Einladung
 // ---------------------------------------------------------------------------
 
-export function buildInvite(supplier: Supplier, project: Project) {
+/** Nur der Vorname – die Anrede im Einladungstext ist bewusst persönlich gehalten. */
+function firstName(supplier: Pick<Supplier, 'name' | 'firma'>): string {
+  const full = supplier.name?.trim() || supplier.firma?.trim() || '';
+  return full.split(/\s+/)[0] || 'zusammen';
+}
+
+export function buildInvite(supplier: Supplier) {
   const link = appBaseUrl();
-  const subject = `Zugriff auf Bauprojekt "${project.name}" – Baukoordination Swiss Solar Ventures AG`;
+  const code = supplier.access_code ?? '';
+  const subject = 'Zugriff auf Baukoordination-App / Swiss Solar Ventures AG';
+
+  // Wortlaut wie von der Swiss Solar Ventures AG vorgegeben. Bewusst ohne
+  // Grussformel: die Signatur hängt das Mailprogramm selbst an.
   const body = [
-    `Hallo ${supplierLabel(supplier)}`,
+    `Ciao ${firstName(supplier)}`,
     ``,
-    `du hast Zugriff auf das Projekt "${project.name}"${project.ort ? ` (${project.ort})` : ''} in unserer Baukoordination-App erhalten.`,
+    `Du hast nun Zugriff auf unsere Baukoordination-App!`,
     ``,
     `So meldest du dich an:`,
     `1. Link öffnen: ${link}`,
-    `2. Im Feld, das sich direkt öffnet, diesen Zugangscode eingeben: ${supplier.access_code ?? ''}`,
+    `2. Im Feld, das sich direkt öffnet, diesen Zugangscode eingeben: ${code}`,
     ``,
-    `Du siehst danach nur die Projekte, für die du freigegeben bist, und kannst dort Aufgaben abhaken, kommentieren sowie Fotos und Dokumente hochladen.`,
+    `Dann siehst du die Projekte welche dir zugeordnet sind.`,
+    `Du kannst dort To-Dos erstellen, diese abhaken, kommentieren sowie Fotos und Dokumente hinzufügen.`,
     ``,
-    `Freundliche Grüsse`,
-    `Swiss Solar Ventures AG`,
+    `Viel Spass beim ausprobieren ;)`,
+    ``,
+    `Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst`,
   ].join('\n');
 
-  const html = wrapHtml(`Zugriff auf "${project.name}"`, `
-    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">Hallo ${escapeHtml(supplierLabel(supplier))}</p>
-    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">
-      du hast Zugriff auf das Projekt <strong>${escapeHtml(project.name)}</strong>${project.ort ? ` (${escapeHtml(project.ort)})` : ''} erhalten.
+  const html = wrapHtml('Zugriff auf die Baukoordination-App', `
+    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">Ciao ${escapeHtml(firstName(supplier))}</p>
+    <p style="font-size:14px;line-height:1.6;margin:0 0 18px;">
+      Du hast nun Zugriff auf unsere Baukoordination-App!
     </p>
     <p style="font-size:14px;line-height:1.6;margin:0 0 8px;">Dein persönlicher Zugangscode:</p>
     <div style="font-family:Helvetica,Arial,sans-serif;font-size:26px;font-weight:700;letter-spacing:0.14em;color:#00BF63;background:#DFF6E9;border-radius:8px;padding:14px 18px;text-align:center;margin:0 0 18px;">
-      ${escapeHtml(supplier.access_code ?? '')}
+      ${escapeHtml(code)}
     </div>
     <p style="margin:0 0 18px;">
       <a href="${escapeHtml(link)}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">App öffnen und Code eingeben</a>
     </p>
+    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">
+      Dann siehst du die Projekte welche dir zugeordnet sind.<br />
+      Du kannst dort To-Dos erstellen, diese abhaken, kommentieren sowie Fotos und Dokumente hinzufügen.
+    </p>
+    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">Viel Spass beim ausprobieren ;)</p>
     <p style="font-size:13px;line-height:1.6;color:#6B6B69;margin:0;">
-      Du siehst nur die Projekte, für die du freigegeben bist, und kannst dort Aufgaben abhaken,
-      kommentieren sowie Fotos und Dokumente hochladen.
+      Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst
     </p>
   `);
 
@@ -119,14 +131,11 @@ export function buildInvite(supplier: Supplier, project: Project) {
   return { subject, body, html, mailtoUrl };
 }
 
-export async function sendInvite(
-  supplier: Supplier,
-  project: Project,
-): Promise<void> {
+export async function sendInvite(supplier: Supplier): Promise<void> {
   if (!supplier.email) {
     throw new Error('Für diesen Lieferanten ist keine E-Mail-Adresse hinterlegt.');
   }
-  const { subject, body, html } = buildInvite(supplier, project);
+  const { subject, body, html } = buildInvite(supplier);
   await send({ to: [supplier.email], subject, text: body, html });
 }
 

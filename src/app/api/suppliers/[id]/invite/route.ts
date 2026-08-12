@@ -1,7 +1,7 @@
 import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireAdmin } from '@/lib/auth/guards';
 import { buildInvite, mailEnabled, sendInvite } from '@/lib/email';
-import type { Project, Supplier } from '@/types';
+import type { Supplier } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +33,9 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     .maybeSingle();
   if (!project) throw new ApiError('Projekt nicht gefunden.', 404);
 
-  const invite = buildInvite(supplier as Supplier, project as Project);
+  // Das Projekt wird weiterhin geladen, damit die Freigabe geprüft ist – im Text
+  // selbst kommt es nach der neuen Fassung nicht mehr vor.
+  const invite = buildInvite(supplier as Supplier);
 
   if (!mailEnabled()) {
     return ok({
@@ -48,7 +50,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   }
 
   try {
-    await sendInvite(supplier as Supplier, project as Project);
+    await sendInvite(supplier as Supplier);
   } catch (error) {
     return ok({
       sent: false,
