@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createHash, randomBytes } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPPLIER_COOKIE, SUPPLIER_SESSION_DAYS } from '@/lib/env';
+import { INTERNAL_PARTY } from '@/lib/branding';
 import { serviceClient } from '@/lib/supabase/service';
 import { adminAuthClient } from '@/lib/supabase/admin-auth';
 import { supplierDb } from '@/lib/supabase/supplier';
@@ -131,7 +132,7 @@ async function readAdminSession(): Promise<AdminSession | null> {
   return {
     kind: 'admin',
     userId: user.id,
-    name: admin.name?.trim() || user.email?.split('@')[0] || 'Bauherrenvertreter',
+    name: admin.name?.trim() || user.email?.split('@')[0] || INTERNAL_PARTY,
     email: admin.email ?? user.email ?? null,
   };
 }

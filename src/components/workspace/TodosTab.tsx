@@ -5,6 +5,7 @@ import { useFeedback } from '@/components/Feedback';
 import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtDate, supplierLabel } from '@/lib/format';
+import { INTERNAL_PARTY } from '@/lib/branding';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
 
 export default function TodosTab({
@@ -48,7 +49,7 @@ export default function TodosTab({
   }
 
   function assigneeName(todo: Todo): string {
-    if (todo.assigned_to === 'internal') return 'Bauherrenvertreter';
+    if (todo.assigned_to === 'internal') return INTERNAL_PARTY;
     const match = detail.suppliers.find((s) => s.id === todo.assigned_to);
     return match ? supplierLabel(match) : 'Unbekannt';
   }
@@ -209,7 +210,7 @@ export default function TodosTab({
                         fontSize: 12.5,
                       }}
                     >
-                      <option value="internal">Bauherrenvertreter (wir)</option>
+                      <option value="internal">{INTERNAL_PARTY} (wir)</option>
                       {assigneeOptions}
                     </select>
                   )}
@@ -493,7 +494,7 @@ export default function TodosTab({
             placeholder="Neue Aufgabe, z.B. „Fenster im OG kontrollieren“"
           />
           <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)}>
-            <option value="internal">Bauherrenvertreter (wir)</option>
+            <option value="internal">{INTERNAL_PARTY} (wir)</option>
             {assigneeOptions}
           </select>
           <button

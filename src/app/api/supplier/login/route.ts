@@ -27,7 +27,7 @@ export const POST = handler(async (request: Request) => {
   if (error) throw new ApiError(`Anmeldung fehlgeschlagen: ${error.message}`, 500);
   if (!supplier) {
     throw new ApiError(
-      'Code ungültig. Bitte beim Bauherrenvertreter nachfragen.',
+      'Code ungültig. Bitte bei der Swiss Solar Ventures AG nachfragen.',
       401,
     );
   }

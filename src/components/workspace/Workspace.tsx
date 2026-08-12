@@ -222,7 +222,7 @@ function WorkspaceInner({
                   ? 'Wähle links ein Projekt aus.'
                   : isAdmin
                     ? 'Leg links dein erstes Projekt an, z.B. „Tägerwilen“.'
-                    : 'Dir wurde noch kein Projekt zugewiesen. Bitte wende dich an deinen Bauherrenvertreter.'}
+                    : 'Dir wurde noch kein Projekt zugewiesen. Bitte wende dich an die Swiss Solar Ventures AG.'}
               </p>
             </div>
           ) : (

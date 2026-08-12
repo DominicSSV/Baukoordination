@@ -48,7 +48,7 @@ export default function SupplierLogin() {
           <div className="eyebrow">Baukoordination</div>
           <h1>Als Lieferant anmelden</h1>
           <p>
-            Gib den Zugangscode ein, den du per E-Mail von deinem Bauherrenvertreter
+            Gib den Zugangscode ein, den du per E-Mail von der Swiss Solar Ventures AG
             erhalten hast. Du siehst danach nur die Projekte, für die du freigegeben bist.
           </p>
 
