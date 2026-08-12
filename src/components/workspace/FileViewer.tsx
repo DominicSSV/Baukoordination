@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { api } from '@/lib/client/api';
+import Spinner from '@/components/Spinner';
 
 type FileUrl = { url: string; name: string; mimeType: string | null };
 
@@ -66,9 +67,7 @@ export default function FileViewer({
         </div>
 
         {!file ? (
-          <p>
-            <span className="spin">⏳</span> Datei wird geladen…
-          </p>
+          <Spinner size={40} label="Datei wird geladen…" />
         ) : isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img className="modal-img" src={file.url} alt={file.name} />

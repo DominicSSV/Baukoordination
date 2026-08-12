@@ -10,6 +10,7 @@ import FilesTab from '@/components/workspace/FilesTab';
 import ActivityTab from '@/components/workspace/ActivityTab';
 import MessageModal, { type MessageDraft } from '@/components/workspace/MessageModal';
 import FileViewer from '@/components/workspace/FileViewer';
+import Spinner from '@/components/Spinner';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
@@ -174,9 +175,13 @@ function WorkspaceInner({
         <div className="me-badge">
           <span>
             {session.kind === 'supplier' ? '🧰' : '👤'} {session.name}
-            {session.kind === 'supplier' && (
-              <span style={{ opacity: 0.6 }}> (Lieferant)</span>
-            )}
+            <span style={{ opacity: 0.6 }}>
+              {session.kind === 'supplier'
+                ? ' (Lieferant)'
+                : session.funktion
+                  ? ` · ${session.funktion}`
+                  : ''}
+            </span>
           </span>
           <button type="button" onClick={logout}>
             abmelden
@@ -196,10 +201,8 @@ function WorkspaceInner({
         <div className="content">
           {loading ? (
             <div className="empty-state">
-              <span className="spin" style={{ fontSize: 22 }}>
-                ⏳
-              </span>
-              <p style={{ marginTop: 10 }}>Lade Daten…</p>
+              <Spinner size={56} />
+              <p style={{ marginTop: 14 }}>Lade Daten…</p>
             </div>
           ) : detailError && !detail ? (
             <div className="empty-state">

@@ -92,6 +92,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const warning = await logActivity(ctx.db, {
     projectId,
     actorName: ctx.session.name,
+    actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
     text: `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
     icon: isImage ? '📷' : '📄',
   });

@@ -14,7 +14,10 @@ export const GET = handler(async () => {
     session.kind === 'admin'
       ? {
           kind: 'admin',
+          userId: session.userId,
           name: session.name,
+          firma: session.firma,
+          funktion: session.funktion,
           email: session.email,
           rlsEnforced: isRlsEnforcedForSuppliers(),
           mailEnabled: mailEnabled(),

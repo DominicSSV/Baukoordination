@@ -1,35 +1,24 @@
 import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
-import { requireAdmin } from '@/lib/auth/guards';
-import { serviceClient } from '@/lib/supabase/service';
+import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
+import { resolveAssignee } from '@/lib/auth/assignTarget';
+import { logActivity } from '@/lib/activity';
 
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Neue Aufgabe anlegen – laut Spezifikation ausschliesslich durch den Admin. */
+/**
+ * Neue Aufgabe anlegen. Beide Seiten dürfen das – wen sie als Zuständigen wählen
+ * dürfen, entscheidet resolveAssignee(), zusätzlich zur RLS-Policy todos_insert.
+ */
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: projectId } = await params;
-  const ctx = await requireAdmin();
+  const ctx = await requireSession();
+  await requireProjectAccess(ctx, projectId);
 
   const body = await readJson<{ text?: string; assignedTo?: string }>(request);
   const text = requireString(body.text, 'Aufgabe', 1000);
-  const assignedTo = (body.assignedTo ?? 'internal').trim() || 'internal';
-
-  // Zuweisung nur an "intern" oder an einen Lieferanten mit Zugriff auf dieses Projekt.
-  if (assignedTo !== 'internal') {
-    const { data } = await serviceClient()
-      .from('project_access')
-      .select('supplier_id')
-      .eq('project_id', projectId)
-      .eq('supplier_id', assignedTo)
-      .maybeSingle();
-
-    if (!data) {
-      throw new ApiError(
-        'Dieser Lieferant hat keinen Zugriff auf das Projekt und kann keine Aufgabe erhalten.',
-      );
-    }
-  }
+  const assignedTo = await resolveAssignee(ctx.session, projectId, body.assignedTo);
 
   // Neue Aufgaben landen unten – die Reihenfolge ändert der Admin per Pfeiltasten.
   const { data: last } = await ctx.db
@@ -47,6 +36,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       text,
       assigned_to: assignedTo,
       created_by: ctx.session.name,
+      created_by_supplier_id:
+        ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
       order_index: (last?.order_index ?? 0) + 1,
     })
     .select(
@@ -58,5 +49,13 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     throw new ApiError(`Aufgabe konnte nicht angelegt werden: ${result.error.message}`, 500);
   }
 
-  return ok({ todo: { ...result.data, comments: [] } }, { status: 201 });
+  const warning = await logActivity(ctx.db, {
+    projectId,
+    actorName: ctx.session.name,
+    actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
+    text: `hat To-Do "${text}" angelegt`,
+    icon: '📝',
+  });
+
+  return ok({ todo: { ...result.data, comments: [] }, warning }, { status: 201 });
 });

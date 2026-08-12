@@ -15,6 +15,8 @@ export async function logActivity(
   params: {
     projectId: string;
     actorName: string;
+    /** Wird von der Benachrichtigung ausgenommen – niemand braucht Post über sich selbst. */
+    actorEmail?: string | null;
     text: string;
     icon: string;
     notify?: boolean;
@@ -39,6 +41,7 @@ export async function logActivity(
       await sendActivityNotification({
         projectId: params.projectId,
         actorName: params.actorName,
+        actorEmail: params.actorEmail,
         text: params.text,
       });
     } catch (e) {

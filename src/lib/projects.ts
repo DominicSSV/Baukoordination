@@ -5,6 +5,7 @@ import type { Ctx } from '@/lib/auth/guards';
 import { unwrap } from '@/lib/api';
 import type {
   ActivityEntry,
+  AdminProfile,
   Project,
   ProjectDetail,
   ProjectFile,
@@ -187,6 +188,15 @@ export async function loadProjectDetail(
     ).map((s) => ({ ...s, kontakt: null, email: null }));
   }
 
+  // Die Bauherrenvertreter darf auch ein Lieferant sehen – er muss ihnen eine
+  // Aufgabe zuweisen können. Die View gibt keine E-Mail-Adressen heraus.
+  const adminsRes = await db
+    .from('admin_public')
+    .select('user_id, name, firma, funktion')
+    .order('name', { ascending: true });
+
+  if (adminsRes.error) throw new Error(`Bauherrenvertreter: ${adminsRes.error.message}`);
+
   return {
     project,
     todos,
@@ -195,5 +205,6 @@ export async function loadProjectDetail(
     accessIds,
     suppliers,
     otherSuppliers,
+    admins: (adminsRes.data ?? []) as AdminProfile[],
   };
 }

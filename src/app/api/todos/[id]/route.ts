@@ -1,6 +1,7 @@
 import { ApiError, forbidden, handler, ok, readJson, requireString } from '@/lib/api';
-import { requireAdmin, requireSession, type Ctx } from '@/lib/auth/guards';
+import { requireSession, type Ctx } from '@/lib/auth/guards';
 import { requireProjectAccess } from '@/lib/auth/guards';
+import { resolveAssignee } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
 import { serviceClient } from '@/lib/supabase/service';
 
@@ -66,21 +67,11 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   }
 
   if (body.assignedTo !== undefined) {
-    const assignedTo = String(body.assignedTo).trim() || 'internal';
-    if (assignedTo !== 'internal') {
-      const { data } = await serviceClient()
-        .from('project_access')
-        .select('supplier_id')
-        .eq('project_id', todo.project_id)
-        .eq('supplier_id', assignedTo)
-        .maybeSingle();
-      if (!data) {
-        throw new ApiError(
-          'Dieser Lieferant hat keinen Zugriff auf das Projekt und kann keine Aufgabe erhalten.',
-        );
-      }
-    }
-    patch.assigned_to = assignedTo;
+    patch.assigned_to = await resolveAssignee(
+      ctx.session,
+      todo.project_id,
+      body.assignedTo,
+    );
   }
 
   if (wantsContentChange) patch.edited_at = new Date().toISOString();
@@ -109,6 +100,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     warning = await logActivity(ctx.db, {
       projectId: todo.project_id,
       actorName: ctx.session.name,
+      actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
       text: `hat To-Do "${data.text}" als erledigt markiert`,
       icon: '✓',
     });
@@ -117,10 +109,18 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   return ok({ todo: data, warning });
 });
 
-/** Aufgaben löschen bleibt dem Admin vorbehalten. */
+/** Löschen: der Admin alles, ein Lieferant nur selbst erstellte Aufgaben. */
 export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const { id } = await params;
-  const ctx = await requireAdmin();
+  const ctx = await requireSession();
+  const todo = await loadTodo(ctx, id);
+
+  if (
+    ctx.session.kind === 'supplier' &&
+    todo.created_by_supplier_id !== ctx.session.supplierId
+  ) {
+    throw forbidden('Du kannst nur selbst erstellte Aufgaben löschen.');
+  }
 
   const { error } = await ctx.db.from('todos').delete().eq('id', id);
   if (error) throw new ApiError(`Löschen fehlgeschlagen: ${error.message}`, 500);

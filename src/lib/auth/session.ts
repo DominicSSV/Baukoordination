@@ -12,6 +12,8 @@ export type AdminSession = {
   kind: 'admin';
   userId: string;
   name: string;
+  firma: string;
+  funktion: string | null;
   email: string | null;
 };
 
@@ -123,7 +125,7 @@ async function readAdminSession(): Promise<AdminSession | null> {
   // sein. Die Prüfung läuft über service_role, damit sie nicht an RLS scheitert.
   const { data: admin } = await serviceClient()
     .from('admins')
-    .select('user_id, name, email')
+    .select('user_id, name, email, firma, funktion')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -133,6 +135,8 @@ async function readAdminSession(): Promise<AdminSession | null> {
     kind: 'admin',
     userId: user.id,
     name: admin.name?.trim() || user.email?.split('@')[0] || INTERNAL_PARTY,
+    firma: admin.firma?.trim() || INTERNAL_PARTY,
+    funktion: admin.funktion?.trim() || null,
     email: admin.email ?? user.email ?? null,
   };
 }

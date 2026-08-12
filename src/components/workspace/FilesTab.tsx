@@ -5,6 +5,7 @@ import { useFeedback } from '@/components/Feedback';
 import { del } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize } from '@/lib/format';
+import Spinner from '@/components/Spinner';
 import type { ProjectDetail } from '@/types';
 
 export default function FilesTab({
@@ -62,7 +63,9 @@ export default function FilesTab({
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <div className="dz-icon">{uploading ? <span className="spin">⏳</span> : '📥'}</div>
+        <div className="dz-icon">
+          {uploading ? <Spinner size={36} /> : '📥'}
+        </div>
         <div>
           {uploading ? (
             <strong>Dateien werden hochgeladen…</strong>

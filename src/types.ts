@@ -19,6 +19,14 @@ export type Supplier = {
   created_at?: string;
 };
 
+/** Bauherrenvertreter, wie ihn auch ein Lieferant sehen darf – ohne E-Mail. */
+export type AdminProfile = {
+  user_id: string;
+  name: string;
+  firma: string;
+  funktion: string | null;
+};
+
 export type TodoComment = {
   id: string;
   todo_id: string;
@@ -32,7 +40,8 @@ export type Todo = {
   id: string;
   project_id: string;
   text: string;
-  assigned_to: string; // 'internal' oder suppliers.id
+  /** 'internal' | 'admin:<user_id>' | 'supplier:<supplier_id>' – siehe lib/assignee.ts */
+  assigned_to: string;
   done: boolean;
   done_by: string | null;
   done_at: string | null;
@@ -71,7 +80,10 @@ export type ActivityEntry = {
 export type SessionInfo =
   | {
       kind: 'admin';
+      userId: string;
       name: string;
+      firma: string;
+      funktion: string | null;
       email: string | null;
       /** false = SUPABASE_JWT_SECRET fehlt, RLS greift für Lieferanten nicht. */
       rlsEnforced: boolean;
@@ -95,4 +107,6 @@ export type ProjectDetail = {
   suppliers: Supplier[];
   /** Weitere Lieferanten ohne Zugriff – nur für den Admin gefüllt. */
   otherSuppliers: Supplier[];
+  /** Bauherrenvertreter, denen eine Aufgabe zugewiesen werden kann. */
+  admins: AdminProfile[];
 };

@@ -6,6 +6,8 @@ import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtDate, supplierLabel } from '@/lib/format';
 import { INTERNAL_PARTY } from '@/lib/branding';
+import { adminAssignee, assigneeLabel, supplierAssignee } from '@/lib/assignee';
+import Spinner from '@/components/Spinner';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
 
 export default function TodosTab({
@@ -49,9 +51,7 @@ export default function TodosTab({
   }
 
   function assigneeName(todo: Todo): string {
-    if (todo.assigned_to === 'internal') return INTERNAL_PARTY;
-    const match = detail.suppliers.find((s) => s.id === todo.assigned_to);
-    return match ? supplierLabel(match) : 'Unbekannt';
+    return assigneeLabel(todo.assigned_to, detail.admins, detail.suppliers);
   }
 
   /** Admin darf alle Aufgaben bearbeiten, ein Lieferant nur selbst erstellte. */
@@ -92,7 +92,7 @@ export default function TodosTab({
       if (!text) throw new Error('Die Aufgabe darf nicht leer sein.');
       await patch(`/api/todos/${todo.id}`, {
         text,
-        ...(isAdmin ? { assignedTo: editAssignee } : {}),
+        assignedTo: editAssignee,
       });
       setEditingId(null);
       await reload();
@@ -154,11 +154,34 @@ export default function TodosTab({
     }
   }
 
-  const assigneeOptions = detail.suppliers.map((s) => (
-    <option key={s.id} value={s.id}>
-      {supplierLabel(s)}
-    </option>
-  ));
+  /**
+   * Auswahl der Zuständigen. Ein Lieferant kann nur der Swiss Solar Ventures AG
+   * zuweisen – allgemein oder einer bestimmten Person. Andere Lieferanten stehen
+   * nur dem Bauherrenvertreter zur Auswahl.
+   */
+  function assigneeOptions(includeSuppliers: boolean) {
+    return (
+      <>
+        <optgroup label={INTERNAL_PARTY}>
+          <option value="internal">{INTERNAL_PARTY} (allgemein)</option>
+          {detail.admins.map((a) => (
+            <option key={a.user_id} value={adminAssignee(a.user_id)}>
+              {a.funktion ? `${a.name} · ${a.funktion}` : a.name}
+            </option>
+          ))}
+        </optgroup>
+        {includeSuppliers && detail.suppliers.length > 0 && (
+          <optgroup label="Lieferanten">
+            {detail.suppliers.map((s) => (
+              <option key={s.id} value={supplierAssignee(s.id)}>
+                {supplierLabel(s)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="card">
@@ -199,21 +222,18 @@ export default function TodosTab({
                     }}
                     autoFocus
                   />
-                  {isAdmin && (
-                    <select
-                      value={editAssignee}
-                      onChange={(e) => setEditAssignee(e.target.value)}
-                      style={{
-                        padding: '6px 8px',
-                        border: '1px solid var(--line)',
-                        borderRadius: 6,
-                        fontSize: 12.5,
-                      }}
-                    >
-                      <option value="internal">{INTERNAL_PARTY} (wir)</option>
-                      {assigneeOptions}
-                    </select>
-                  )}
+                  <select
+                    value={editAssignee}
+                    onChange={(e) => setEditAssignee(e.target.value)}
+                    style={{
+                      padding: '6px 8px',
+                      border: '1px solid var(--line)',
+                      borderRadius: 6,
+                      fontSize: 12.5,
+                    }}
+                  >
+                    {assigneeOptions(isAdmin)}
+                  </select>
                   <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
                     <button
                       type="button"
@@ -410,7 +430,11 @@ export default function TodosTab({
                       onClick={() => fileInputs.current[todo.id]?.click()}
                       disabled={uploadingTodo === todo.id}
                     >
-                      {uploadingTodo === todo.id ? '⏳ Lädt…' : '📎 Datei'}
+                      {uploadingTodo === todo.id ? (
+                        <Spinner size={14} label="Lädt…" />
+                      ) : (
+                        '📎 Datei'
+                      )}
                     </button>
                     <button
                       type="button"
@@ -482,8 +506,9 @@ export default function TodosTab({
         </div>
       )}
 
-      {isAdmin && (
-        <div className="todo-add-row">
+      {/* Aufgaben anlegen dürfen beide Seiten – ein Lieferant kann sie aber nur der
+          Swiss Solar Ventures AG zuweisen, nicht einem anderen Lieferanten. */}
+      <div className="todo-add-row">
           <input
             type="text"
             value={newText}
@@ -494,8 +519,7 @@ export default function TodosTab({
             placeholder="Neue Aufgabe, z.B. „Fenster im OG kontrollieren“"
           />
           <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)}>
-            <option value="internal">{INTERNAL_PARTY} (wir)</option>
-            {assigneeOptions}
+            {assigneeOptions(isAdmin)}
           </select>
           <button
             type="button"
@@ -505,8 +529,7 @@ export default function TodosTab({
           >
             + Aufgabe
           </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

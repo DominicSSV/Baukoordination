@@ -13,9 +13,13 @@ export function mailEnabled(): boolean {
   return Boolean(resendApiKey());
 }
 
-/** Sofort-Benachrichtigung pro Aktion – standardmässig aus, um Postfächer zu schonen. */
+/**
+ * Sofort-Benachrichtigung bei jeder Aktivität. Standardmässig an – so verlangt vom
+ * Auftraggeber. Mit NOTIFY_ON_EVERY_ACTIVITY=false lässt sie sich abschalten, falls
+ * die Menge an Post im Betrieb doch zu viel wird.
+ */
 function notifyOnEveryActivity(): boolean {
-  return process.env.NOTIFY_ON_EVERY_ACTIVITY === 'true';
+  return process.env.NOTIFY_ON_EVERY_ACTIVITY !== 'false';
 }
 
 function escapeHtml(value: string): string {
@@ -217,6 +221,29 @@ export async function projectRecipients(projectId: string): Promise<string[]> {
   );
 }
 
+/**
+ * Alle am Projekt Beteiligten: die freigegebenen Lieferanten und sämtliche
+ * Bauherrenvertreter. Wer die Aktion selbst ausgelöst hat, bekommt keine Mail –
+ * eine Benachrichtigung über das eigene Tun ist nur Lärm.
+ */
+export async function allProjectParties(
+  projectId: string,
+  exceptEmail?: string | null,
+): Promise<string[]> {
+  const suppliers = await projectRecipients(projectId);
+
+  const { data: admins } = await serviceClient().from('admins').select('email');
+  const adminMails = (admins ?? [])
+    .map((a: { email: string | null }) => a.email?.trim())
+    .filter((e): e is string => Boolean(e));
+
+  const ausgeschlossen = exceptEmail?.trim().toLowerCase();
+
+  return Array.from(new Set([...suppliers, ...adminMails])).filter(
+    (mail) => mail.toLowerCase() !== ausgeschlossen,
+  );
+}
+
 export async function sendDigest(
   project: Project,
   entries: ActivityEntry[],
@@ -234,6 +261,7 @@ export async function sendDigest(
 export async function sendActivityNotification(params: {
   projectId: string;
   actorName: string;
+  actorEmail?: string | null;
   text: string;
 }): Promise<void> {
   if (!mailEnabled() || !notifyOnEveryActivity()) return;
@@ -245,7 +273,7 @@ export async function sendActivityNotification(params: {
     .maybeSingle();
   if (!project) return;
 
-  const to = await projectRecipients(params.projectId);
+  const to = await allProjectParties(params.projectId, params.actorEmail);
   if (!to.length) return;
 
   const subject = `${project.name}: ${params.actorName} ${params.text}`.slice(0, 120);

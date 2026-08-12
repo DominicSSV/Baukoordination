@@ -21,7 +21,10 @@ export default async function AppPage() {
     ctx.session.kind === 'admin'
       ? {
           kind: 'admin',
+          userId: ctx.session.userId,
           name: ctx.session.name,
+          firma: ctx.session.firma,
+          funktion: ctx.session.funktion,
           email: ctx.session.email,
           rlsEnforced: isRlsEnforcedForSuppliers(),
           mailEnabled: mailEnabled(),
