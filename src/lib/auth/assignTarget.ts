@@ -13,6 +13,29 @@ import type { Session } from '@/lib/auth/session';
  *   - an einen Lieferanten: nur der Bauherrenvertreter, und nur wenn dieser
  *     Lieferant auch Zugriff auf das Projekt hat
  */
+/** Klartextname eines Zuständigen, für Protokoll und Benachrichtigung. */
+export async function assigneeDisplayName(value: string): Promise<string> {
+  const assignee = parseAssignee(value);
+  if (assignee.kind === 'internal') return 'Swiss Solar Ventures AG';
+
+  if (assignee.kind === 'admin') {
+    const { data } = await serviceClient()
+      .from('admins')
+      .select('name')
+      .eq('user_id', assignee.id)
+      .maybeSingle();
+    return data?.name?.trim() || 'Swiss Solar Ventures AG';
+  }
+
+  const { data } = await serviceClient()
+    .from('suppliers')
+    .select('name, firma')
+    .eq('id', assignee.id)
+    .maybeSingle();
+
+  return data?.name?.trim() || data?.firma?.trim() || 'Unbekannt';
+}
+
 export async function resolveAssignee(
   session: Session,
   projectId: string,

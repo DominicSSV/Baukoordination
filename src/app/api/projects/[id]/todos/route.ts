@@ -1,6 +1,6 @@
 import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
-import { resolveAssignee } from '@/lib/auth/assignTarget';
+import { assigneeDisplayName, resolveAssignee } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
 
 export const dynamic = 'force-dynamic';
@@ -49,11 +49,13 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     throw new ApiError(`Aufgabe konnte nicht angelegt werden: ${result.error.message}`, 500);
   }
 
+  const empfaenger = await assigneeDisplayName(assignedTo);
+
   const warning = await logActivity(ctx.db, {
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
-    text: `hat To-Do "${text}" angelegt`,
+    text: `hat To-Do "${text}" für ${empfaenger} angelegt`,
     icon: '📝',
   });
 

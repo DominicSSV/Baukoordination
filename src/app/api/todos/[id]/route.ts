@@ -1,7 +1,7 @@
 import { ApiError, forbidden, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireSession, type Ctx } from '@/lib/auth/guards';
 import { requireProjectAccess } from '@/lib/auth/guards';
-import { resolveAssignee } from '@/lib/auth/assignTarget';
+import { assigneeDisplayName, resolveAssignee } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
 import { serviceClient } from '@/lib/supabase/service';
 
@@ -95,15 +95,34 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
+  const actorEmail = ctx.session.kind === 'admin' ? ctx.session.email : null;
   let warning: string | null = null;
+
   if (body.done === true && !todo.done) {
     warning = await logActivity(ctx.db, {
       projectId: todo.project_id,
       actorName: ctx.session.name,
-      actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
+      actorEmail,
       text: `hat To-Do "${data.text}" als erledigt markiert`,
       icon: '✓',
     });
+  }
+
+  // Wird eine Aufgabe an jemand anderen übergeben, erfährt der neue Zuständige
+  // sonst nichts davon – deshalb ein eigener Protokolleintrag samt Benachrichtigung.
+  if (
+    patch.assigned_to !== undefined &&
+    patch.assigned_to !== todo.assigned_to
+  ) {
+    const empfaenger = await assigneeDisplayName(String(patch.assigned_to));
+    warning =
+      (await logActivity(ctx.db, {
+        projectId: todo.project_id,
+        actorName: ctx.session.name,
+        actorEmail,
+        text: `hat To-Do "${data.text}" an ${empfaenger} übergeben`,
+        icon: '➡️',
+      })) ?? warning;
   }
 
   return ok({ todo: data, warning });
