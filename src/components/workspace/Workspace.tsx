@@ -11,6 +11,7 @@ import ActivityTab from '@/components/workspace/ActivityTab';
 import MessageModal, { type MessageDraft } from '@/components/workspace/MessageModal';
 import FileViewer from '@/components/workspace/FileViewer';
 import Spinner from '@/components/Spinner';
+import ProjectHeader from '@/components/workspace/ProjectHeader';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
@@ -122,6 +123,27 @@ function WorkspaceInner({
   function selectProject(id: string) {
     if (id === activeId) return;
     setActiveId(id);
+    setDetail(null);
+    setDetailError(null);
+    setTab(isAdmin ? 'lieferanten' : 'todos');
+  }
+
+  /** Nach dem Umbenennen: Liste und geöffnetes Projekt gleichziehen. */
+  function renameProject(updated: Project) {
+    setProjects((current) =>
+      current.map((p) => (p.id === updated.id ? updated : p)),
+    );
+    setDetail((current) =>
+      current && current.project.id === updated.id
+        ? { ...current, project: updated }
+        : current,
+    );
+  }
+
+  /** Nach dem Duplizieren: neues Projekt aufnehmen und direkt öffnen. */
+  function addProject(created: Project) {
+    setProjects((current) => [...current, created]);
+    setActiveId(created.id);
     setDetail(null);
     setDetailError(null);
     setTab(isAdmin ? 'lieferanten' : 'todos');
@@ -239,28 +261,14 @@ function WorkspaceInner({
             </div>
           ) : (
             <>
-              <div className="project-sign">
-                <div className="stripe-bar" />
-                <div className="sign-body">
-                  <div>
-                    <div className="eyebrow">Projekt</div>
-                    <h1>{detail.project.name}</h1>
-                    {detail.project.ort && (
-                      <div className="ploc">📍 {detail.project.ort}</div>
-                    )}
-                  </div>
-                  <div className="sign-actions">
-                    <button
-                      type="button"
-                      className="refresh-btn"
-                      onClick={refresh}
-                      disabled={refreshing}
-                    >
-                      <span className={refreshing ? 'spin' : ''}>⟳</span> Aktualisieren
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <ProjectHeader
+                project={detail.project}
+                isAdmin={isAdmin}
+                refreshing={refreshing}
+                onRefresh={refresh}
+                onRenamed={renameProject}
+                onDuplicated={addProject}
+              />
 
               <div className="tabs">
                 {isAdmin && (
