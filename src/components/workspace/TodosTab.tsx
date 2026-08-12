@@ -6,7 +6,12 @@ import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtDate, supplierLabel } from '@/lib/format';
 import { INTERNAL_PARTY } from '@/lib/branding';
-import { adminAssignee, assigneeLabel, supplierAssignee } from '@/lib/assignee';
+import {
+  adminAssignee,
+  assigneeLabel,
+  supplierAssignee,
+  INTERNAL,
+} from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
 
@@ -26,10 +31,26 @@ export default function TodosTab({
   const projectId = detail.project.id;
 
   const [newText, setNewText] = useState('');
-  const [newAssignee, setNewAssignee] = useState('internal');
+  const [newAssignee, setNewAssignee] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const [editAssignee, setEditAssignee] = useState('internal');
+  const [editAssignee, setEditAssignee] = useState('');
+
+  // Aufgaben gehen immer an eine bestimmte Person. Nur solange noch gar kein
+  // Bauherrenvertreter hinterlegt ist (Migration 0002 nicht eingespielt), bleibt
+  // die Firma als Ganzes als Rückfall stehen – sonst liesse sich nichts zuweisen.
+  const hasAdmins = detail.admins.length > 0;
+
+  const defaultAssignee = (() => {
+    if (!hasAdmins) return INTERNAL;
+    if (session.kind === 'admin') {
+      const self = detail.admins.find((a) => a.user_id === session.userId);
+      if (self) return adminAssignee(self.user_id);
+    }
+    return adminAssignee(detail.admins[0].user_id);
+  })();
+
+  const effectiveNewAssignee = newAssignee || defaultAssignee;
   const [openComments, setOpenComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -70,9 +91,10 @@ export default function TodosTab({
       if (!text) return;
       await post(`/api/projects/${projectId}/todos`, {
         text,
-        assignedTo: newAssignee,
+        assignedTo: effectiveNewAssignee,
       });
       setNewText('');
+      setNewAssignee('');
       await reload();
       toast('✓ Aufgabe angelegt.');
     }, 'Aufgabe konnte nicht angelegt werden.');
@@ -155,15 +177,33 @@ export default function TodosTab({
   }
 
   /**
-   * Auswahl der Zuständigen. Ein Lieferant kann nur der Swiss Solar Ventures AG
-   * zuweisen – allgemein oder einer bestimmten Person. Andere Lieferanten stehen
-   * nur dem Bauherrenvertreter zur Auswahl.
+   * Auswahl der Zuständigen: immer eine konkrete Person. Ein Lieferant sieht nur
+   * die Bauherrenvertreter, andere Lieferanten stehen allein dem Admin zur Auswahl.
+   *
+   * `current` fängt Aufgaben ab, deren bisheriger Zuständiger nicht mehr in der
+   * Liste steht – etwa Altbestand auf die Firma allgemein oder ein Lieferant, dem
+   * der Zugriff entzogen wurde. Ohne diesen Eintrag würde das Auswahlfeld beim
+   * Öffnen stillschweigend auf den ersten Namen springen.
    */
-  function assigneeOptions(includeSuppliers: boolean) {
+  function assigneeOptions(includeSuppliers: boolean, current?: string) {
+    const bekannt = new Set<string>();
+    detail.admins.forEach((a) => bekannt.add(adminAssignee(a.user_id)));
+    if (includeSuppliers) {
+      detail.suppliers.forEach((s) => bekannt.add(supplierAssignee(s.id)));
+    }
+    if (!hasAdmins) bekannt.add(INTERNAL);
+
+    const abweichend = current && !bekannt.has(current) ? current : null;
+
     return (
       <>
+        {abweichend && (
+          <option value={abweichend}>
+            {assigneeLabel(abweichend, detail.admins, detail.suppliers)} (bisher)
+          </option>
+        )}
         <optgroup label={INTERNAL_PARTY}>
-          <option value="internal">{INTERNAL_PARTY} (allgemein)</option>
+          {!hasAdmins && <option value={INTERNAL}>{INTERNAL_PARTY}</option>}
           {detail.admins.map((a) => (
             <option key={a.user_id} value={adminAssignee(a.user_id)}>
               {a.funktion ? `${a.name} · ${a.funktion}` : a.name}
@@ -232,7 +272,7 @@ export default function TodosTab({
                       fontSize: 12.5,
                     }}
                   >
-                    {assigneeOptions(isAdmin)}
+                    {assigneeOptions(isAdmin, todo.assigned_to)}
                   </select>
                   <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
                     <button
@@ -518,7 +558,10 @@ export default function TodosTab({
             }}
             placeholder="Neue Aufgabe, z.B. „Fenster im OG kontrollieren“"
           />
-          <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)}>
+          <select
+            value={effectiveNewAssignee}
+            onChange={(e) => setNewAssignee(e.target.value)}
+          >
             {assigneeOptions(isAdmin)}
           </select>
           <button
