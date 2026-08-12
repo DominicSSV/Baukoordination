@@ -1,6 +1,7 @@
 import 'server-only';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
+import { signAvatars } from '@/lib/avatars';
 import type { Ctx } from '@/lib/auth/guards';
 import { unwrap } from '@/lib/api';
 import type {
@@ -32,10 +33,28 @@ async function loadAdminProfiles(): Promise<AdminProfile[]> {
 
   const full = await db
     .from('admins')
+    .select('user_id, name, firma, funktion, avatar_path')
+    .order('name', { ascending: true });
+
+  if (!full.error) {
+    const rows = (full.data ?? []) as Array<AdminProfile & { avatar_path: string | null }>;
+    const urls = await signAvatars(rows.map((r) => r.avatar_path));
+    return rows.map((r) => ({
+      user_id: r.user_id,
+      name: r.name,
+      firma: r.firma,
+      funktion: r.funktion,
+      avatar_url: r.avatar_path ? (urls.get(r.avatar_path) ?? null) : null,
+    }));
+  }
+
+  // Ohne Migration 0005 gibt es die Bildspalte noch nicht.
+  const ohneBild = await db
+    .from('admins')
     .select('user_id, name, firma, funktion')
     .order('name', { ascending: true });
 
-  if (!full.error) return (full.data ?? []) as AdminProfile[];
+  if (!ohneBild.error) return (ohneBild.data ?? []) as AdminProfile[];
 
   const basic = await db
     .from('admins')
@@ -202,13 +221,31 @@ export async function loadProjectDetail(
   let otherSuppliers: Supplier[] = [];
 
   if (isAdmin) {
-    const { data, error } = await db
+    const mitBild = await db
       .from('suppliers')
-      .select('id, name, firma, gewerk, kontakt, email, access_code, created_at')
+      .select(
+        'id, name, firma, gewerk, kontakt, email, access_code, created_at, avatar_path',
+      )
       .order('created_at', { ascending: true });
-    if (error) throw new Error(`Lieferanten: ${error.message}`);
 
-    const all = (data ?? []) as Supplier[];
+    // Ohne Migration 0005 fehlt die Bildspalte – dann eben ohne Bilder weiter.
+    const res = mitBild.error
+      ? await db
+          .from('suppliers')
+          .select('id, name, firma, gewerk, kontakt, email, access_code, created_at')
+          .order('created_at', { ascending: true })
+      : mitBild;
+
+    if (res.error) throw new Error(`Lieferanten: ${res.error.message}`);
+
+    const rows = (res.data ?? []) as Array<Supplier & { avatar_path?: string | null }>;
+    const urls = await signAvatars(rows.map((r) => r.avatar_path));
+
+    const all: Supplier[] = rows.map((r) => ({
+      ...r,
+      avatar_url: r.avatar_path ? (urls.get(r.avatar_path) ?? null) : null,
+    }));
+
     suppliers = all.filter((s) => accessIds.includes(s.id));
     otherSuppliers = all.filter((s) => !accessIds.includes(s.id));
   } else {
@@ -216,14 +253,30 @@ export async function loadProjectDetail(
     // Projekt teilt – ohne Zugangscode und ohne Kontaktdaten. Hier wird bewusst NICHT
     // nach accessIds gefiltert: die RLS lässt einen Lieferanten in project_access nur
     // die eigene Zeile sehen, sonst bliebe der Name eines fremden Zuständigen leer.
-    const { data, error } = await db
+    const mitBild = await db
       .from('supplier_public')
-      .select('id, name, firma, gewerk');
-    if (error) throw new Error(`Lieferanten: ${error.message}`);
+      .select('id, name, firma, gewerk, avatar_path');
 
-    suppliers = (
-      (data ?? []) as Array<Pick<Supplier, 'id' | 'name' | 'firma' | 'gewerk'>>
-    ).map((s) => ({ ...s, kontakt: null, email: null }));
+    const res = mitBild.error
+      ? await db.from('supplier_public').select('id, name, firma, gewerk')
+      : mitBild;
+
+    if (res.error) throw new Error(`Lieferanten: ${res.error.message}`);
+
+    const rows = (res.data ?? []) as Array<
+      Pick<Supplier, 'id' | 'name' | 'firma' | 'gewerk'> & { avatar_path?: string | null }
+    >;
+    const urls = await signAvatars(rows.map((r) => r.avatar_path));
+
+    suppliers = rows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      firma: s.firma,
+      gewerk: s.gewerk,
+      kontakt: null,
+      email: null,
+      avatar_url: s.avatar_path ? (urls.get(s.avatar_path) ?? null) : null,
+    }));
   }
 
   const admins = await loadAdminProfiles();

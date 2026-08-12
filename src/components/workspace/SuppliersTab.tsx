@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import type { MessageDraft } from '@/components/workspace/MessageModal';
 import { del, patch, post } from '@/lib/client/api';
-import { initials, supplierLabel } from '@/lib/format';
+import { supplierLabel } from '@/lib/format';
+import Avatar from '@/components/Avatar';
+import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import type { ProjectDetail, Supplier } from '@/types';
 
 type InviteResponse = {
@@ -40,6 +42,7 @@ export default function SuppliersTab({
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [newSupplier, setNewSupplier] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
+  const bildInput = useRef<HTMLInputElement>(null);
 
   const projectId = detail.project.id;
 
@@ -140,10 +143,59 @@ export default function SuppliersTab({
       }
     }, 'Code konnte nicht kopiert werden.');
 
+  const bildHochladen = (supplierId: string, file: File | undefined) =>
+    file
+      ? run(async () => {
+          await uploadAvatar(file, supplierId);
+          await reload();
+          toast('✓ Profilbild gespeichert.');
+        }, 'Profilbild konnte nicht gespeichert werden.')
+      : undefined;
+
+  const bildEntfernen = (supplierId: string) =>
+    run(async () => {
+      await removeAvatar(supplierId);
+      await reload();
+      toast('Profilbild entfernt.');
+    }, 'Profilbild konnte nicht entfernt werden.');
+
   function editForm(s: Supplier) {
     return (
       <div key={s.id} className="supplier-row supplier-row-editing">
         <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="avatar-edit">
+            <Avatar url={s.avatar_url} name={s.name || s.firma} size={56} />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => bildInput.current?.click()}
+                disabled={busy}
+              >
+                📷 {s.avatar_url ? 'Bild wechseln' : 'Bild wählen'}
+              </button>
+              {s.avatar_url && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => bildEntfernen(s.id)}
+                  disabled={busy}
+                >
+                  Entfernen
+                </button>
+              )}
+              <input
+                ref={bildInput}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  void bildHochladen(s.id, e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          </div>
           <div className="add-form-grid cols-2" style={{ marginTop: 0 }}>
             <input
               type="text"
@@ -234,7 +286,7 @@ export default function SuppliersTab({
             ) : (
               <div key={s.id} className="supplier-row">
                 <div className="supplier-main">
-                  <div className="avatar">{initials(s.name || s.firma)}</div>
+                  <Avatar url={s.avatar_url} name={s.name || s.firma} />
                   <div className="supplier-info">
                     <div className="supplier-name">{supplierLabel(s)}</div>
                     <div className="supplier-meta">{displayMeta(s)}</div>
@@ -354,9 +406,7 @@ export default function SuppliersTab({
             ) : (
               <div key={s.id} className="supplier-row">
                 <div className="supplier-main">
-                  <div className="avatar" style={{ background: 'var(--ink-faint)' }}>
-                    {initials(s.name || s.firma)}
-                  </div>
+                  <Avatar url={s.avatar_url} name={s.name || s.firma} muted />
                   <div className="supplier-info">
                     <div className="supplier-name">{supplierLabel(s)}</div>
                     <div className="supplier-meta">{displayMeta(s)}</div>

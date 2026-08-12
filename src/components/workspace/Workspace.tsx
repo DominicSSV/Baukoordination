@@ -12,6 +12,8 @@ import MessageModal, { type MessageDraft } from '@/components/workspace/MessageM
 import FileViewer from '@/components/workspace/FileViewer';
 import Spinner from '@/components/Spinner';
 import ProjectHeader from '@/components/workspace/ProjectHeader';
+import ProfileModal from '@/components/workspace/ProfileModal';
+import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
@@ -50,6 +52,8 @@ function WorkspaceInner({
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<MessageDraft | null>(null);
   const [viewerFileId, setViewerFileId] = useState<string | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
   // vorliegt, läuft der Ladezustand – ein eigener State dafür wäre nur redundant.
@@ -198,9 +202,15 @@ function WorkspaceInner({
             Abmelde-Knopf – Name und Funktion würden dem Firmennamen den Platz
             nehmen, den er für eine einzige Zeile braucht. */}
         <div className="me-badge">
-          <span className="me-icon" aria-hidden="true">
-            {session.kind === 'supplier' ? '🧰' : '👤'}
-          </span>
+          <button
+            type="button"
+            className="me-avatar"
+            onClick={() => setShowProfile(true)}
+            title="Mein Profil"
+            aria-label="Mein Profil"
+          >
+            <Avatar url={avatarUrl} name={session.name} size={26} />
+          </button>
           <span className="me-text">
             {session.name}
             <span style={{ opacity: 0.6 }}>
@@ -333,6 +343,19 @@ function WorkspaceInner({
           )}
         </div>
       </div>
+
+      {showProfile && (
+        <ProfileModal
+          session={session}
+          avatarUrl={avatarUrl}
+          onAvatarChange={(url) => {
+            setAvatarUrl(url);
+            // Damit das neue Bild auch in Listen erscheint, in denen es vorkommt.
+            void reload();
+          }}
+          onClose={() => setShowProfile(false)}
+        />
+      )}
 
       {message && <MessageModal draft={message} onClose={() => setMessage(null)} />}
       {viewerFileId && (

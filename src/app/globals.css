@@ -524,6 +524,33 @@ button:disabled {
   font-weight: 700;
   font-size: 14px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar-img {
+  object-fit: cover;
+  background: var(--bg);
+}
+
+/* Profilbild in der Kopfzeile: anklickbar, damit man es dort wechseln kann. */
+.me-avatar {
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  border-radius: 50%;
+}
+
+.me-avatar:hover {
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.avatar-edit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .supplier-name {

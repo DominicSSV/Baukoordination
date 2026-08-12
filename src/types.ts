@@ -17,6 +17,8 @@ export type Supplier = {
   /** Nur für den Admin gesetzt – Lieferanten bekommen fremde Codes nie zu sehen. */
   access_code?: string | null;
   created_at?: string;
+  /** Kurzlebige Signatur auf das Profilbild, null = keines hinterlegt. */
+  avatar_url?: string | null;
 };
 
 /** Bauherrenvertreter, wie ihn auch ein Lieferant sehen darf – ohne E-Mail. */
@@ -25,6 +27,8 @@ export type AdminProfile = {
   name: string;
   firma: string;
   funktion: string | null;
+  /** Kurzlebige Signatur auf das Profilbild, null = keines hinterlegt. */
+  avatar_url?: string | null;
 };
 
 export type TodoComment = {
@@ -90,12 +94,14 @@ export type SessionInfo =
       /** false = SUPABASE_JWT_SECRET fehlt, RLS greift für Lieferanten nicht. */
       rlsEnforced: boolean;
       mailEnabled: boolean;
+      avatarUrl: string | null;
     }
   | {
       kind: 'supplier';
       supplierId: string;
       name: string;
       firma: string | null;
+      avatarUrl: string | null;
     };
 
 export type ProjectDetail = {

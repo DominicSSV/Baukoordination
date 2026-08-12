@@ -72,6 +72,14 @@ export function mailFrom(): string {
   return process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev>';
 }
 
+/**
+ * Antwortadresse. Sinnvoll, wenn als Absender eine Unter-Domain dient, Antworten
+ * aber in einem echten Postfach landen sollen – z.B. baukoordination@swiss-sv.ch.
+ */
+export function mailReplyTo(): string | null {
+  return process.env.MAIL_REPLY_TO?.trim() || null;
+}
+
 /** Basis-URL der App, für Links in E-Mails. */
 export function appBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL;

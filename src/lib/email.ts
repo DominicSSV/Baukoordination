@@ -1,6 +1,6 @@
 import 'server-only';
 import { Resend } from 'resend';
-import { appBaseUrl, mailFrom, resendApiKey } from '@/lib/env';
+import { appBaseUrl, mailFrom, mailReplyTo, resendApiKey } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
 import type { ActivityEntry, Project, Supplier } from '@/types';
 
@@ -63,9 +63,12 @@ async function send(params: {
   if (!resend) throw new Error('Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).');
   if (!params.to.length) throw new Error('Keine Empfänger mit hinterlegter E-Mail-Adresse.');
 
+  const antwortAn = mailReplyTo();
+
   const { error } = await resend.emails.send({
     from: mailFrom(),
     to: params.to,
+    ...(antwortAn ? { replyTo: antwortAn } : {}),
     subject: params.subject,
     text: params.text,
     html: params.html,

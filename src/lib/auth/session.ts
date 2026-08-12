@@ -15,6 +15,7 @@ export type AdminSession = {
   firma: string;
   funktion: string | null;
   email: string | null;
+  avatarPath: string | null;
 };
 
 export type SupplierSession = {
@@ -22,6 +23,7 @@ export type SupplierSession = {
   supplierId: string;
   name: string;
   firma: string | null;
+  avatarPath: string | null;
 };
 
 export type Session = AdminSession | SupplierSession;
@@ -88,11 +90,24 @@ async function readSupplierSession(): Promise<SupplierSession | null> {
     return null;
   }
 
-  const { data: supplier } = await db
+  // avatar_path gibt es erst ab Migration 0005 – notfalls ohne.
+  const mitBild = await db
     .from('suppliers')
-    .select('id, name, firma')
+    .select('id, name, firma, avatar_path')
     .eq('id', session.supplier_id)
     .maybeSingle();
+
+  const res = mitBild.error
+    ? await db
+        .from('suppliers')
+        .select('id, name, firma')
+        .eq('id', session.supplier_id)
+        .maybeSingle()
+    : mitBild;
+
+  const supplier = res.data as
+    | { id: string; name: string | null; firma: string | null; avatar_path?: string | null }
+    | null;
 
   if (!supplier) return null;
 
@@ -101,6 +116,7 @@ async function readSupplierSession(): Promise<SupplierSession | null> {
     supplierId: supplier.id,
     name: supplierLabel(supplier),
     firma: supplier.firma ?? null,
+    avatarPath: supplier.avatar_path ?? null,
   };
 }
 
@@ -135,13 +151,14 @@ async function readAdminSession(): Promise<AdminSession | null> {
     email: string | null;
     firma?: string | null;
     funktion?: string | null;
+    avatar_path?: string | null;
   };
 
   let admin: AdminRow | null = null;
 
   const full = await db
     .from('admins')
-    .select('user_id, name, email, firma, funktion')
+    .select('user_id, name, email, firma, funktion, avatar_path')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -170,6 +187,7 @@ async function readAdminSession(): Promise<AdminSession | null> {
     firma: admin.firma?.trim() || INTERNAL_PARTY,
     funktion: admin.funktion?.trim() || null,
     email: admin.email ?? user.email ?? null,
+    avatarPath: admin.avatar_path ?? null,
   };
 }
 
