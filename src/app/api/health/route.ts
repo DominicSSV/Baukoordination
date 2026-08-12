@@ -73,6 +73,25 @@ export async function GET() {
       report.datenbank = error
         ? { ok: false, fehler: error.message }
         : { ok: true, freigeschaltete_admins: count ?? 0 };
+
+      // Welche Ausbaustufe der Datenbank steht? Das entscheidet darüber, ob sich
+      // Aufgaben einzelnen Personen zuweisen lassen und ob Lieferanten eigene
+      // Aufgaben anlegen dürfen.
+      const profil = await db.from('admins').select('funktion').limit(1);
+      const seed = await db.from('admin_seed').select('email').limit(1);
+      const view = await db.from('admin_public').select('user_id').limit(1);
+
+      report.migration_0002 = {
+        profilspalten: !profil.error,
+        namensliste: !seed.error,
+        view_admin_public: !view.error,
+        vollstaendig: !profil.error && !seed.error && !view.error,
+        hinweis:
+          !profil.error && !seed.error && !view.error
+            ? undefined
+            : 'Migration 0002 ist noch nicht (vollständig) eingespielt. ' +
+              'Ohne sie dürfen Lieferanten keine eigenen Aufgaben anlegen.',
+      };
     } catch (e) {
       report.datenbank = {
         ok: false,

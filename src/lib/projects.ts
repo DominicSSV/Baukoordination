@@ -17,6 +17,44 @@ import type {
 /** Gültigkeit der Signed URLs für Vorschau und Download. */
 const SIGNED_URL_TTL = 60 * 60;
 
+/**
+ * Die Bauherrenvertreter, denen eine Aufgabe zugewiesen werden kann.
+ *
+ * Bewusst über service_role und mit fester Spaltenauswahl: die Liste muss auch ein
+ * Lieferant sehen, und sie darf keine E-Mail-Adressen enthalten. Über RLS ginge das
+ * nur mit der View admin_public aus Migration 0002 – die Namensliste wäre dann aber
+ * leer, solange diese Migration nicht eingespielt ist, und niemand könnte jemandem
+ * etwas zuweisen. Die Spalten firma und funktion kommen ebenfalls erst mit 0002,
+ * daher der zweite, schlankere Versuch.
+ */
+async function loadAdminProfiles(): Promise<AdminProfile[]> {
+  const db = serviceClient();
+
+  const full = await db
+    .from('admins')
+    .select('user_id, name, firma, funktion')
+    .order('name', { ascending: true });
+
+  if (!full.error) return (full.data ?? []) as AdminProfile[];
+
+  const basic = await db
+    .from('admins')
+    .select('user_id, name')
+    .order('name', { ascending: true });
+
+  if (basic.error) {
+    console.warn('[projects] Bauherrenvertreter nicht ladbar', basic.error.message);
+    return [];
+  }
+
+  return (basic.data ?? []).map((a: { user_id: string; name: string | null }) => ({
+    user_id: a.user_id,
+    name: a.name?.trim() || 'Bauherrenvertreter',
+    firma: 'Swiss Solar Ventures AG',
+    funktion: null,
+  }));
+}
+
 /** Projekte, die der Aufrufer sehen darf. Für Lieferanten filtert bereits die RLS. */
 export async function listProjects(ctx: Ctx): Promise<Project[]> {
   const { data, error } = await ctx.db
@@ -188,23 +226,7 @@ export async function loadProjectDetail(
     ).map((s) => ({ ...s, kontakt: null, email: null }));
   }
 
-  // Die Bauherrenvertreter darf auch ein Lieferant sehen – er muss ihnen eine
-  // Aufgabe zuweisen können. Die View gibt keine E-Mail-Adressen heraus.
-  //
-  // Sie entsteht erst mit Migration 0002. Fehlt sie noch, bleibt die Liste leer und
-  // es lässt sich nur der Firma allgemein zuweisen – das Projekt selbst muss
-  // deswegen nicht unbenutzbar werden.
-  const adminsRes = await db
-    .from('admin_public')
-    .select('user_id, name, firma, funktion')
-    .order('name', { ascending: true });
-
-  if (adminsRes.error) {
-    console.warn(
-      '[projects] admin_public nicht verfügbar. Migration 0002 noch nicht eingespielt?',
-      adminsRes.error.message,
-    );
-  }
+  const admins = await loadAdminProfiles();
 
   return {
     project,
@@ -214,6 +236,6 @@ export async function loadProjectDetail(
     accessIds,
     suppliers,
     otherSuppliers,
-    admins: (adminsRes.error ? [] : (adminsRes.data ?? [])) as AdminProfile[],
+    admins,
   };
 }
