@@ -3,6 +3,7 @@ import { requireSession, type Ctx } from '@/lib/auth/guards';
 import { requireProjectAccess } from '@/lib/auth/guards';
 import { assigneeDisplayName, resolveAssignee } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
+import { parseDueDate } from '@/lib/due';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     done?: boolean;
     text?: string;
     assignedTo?: string;
+    dueDate?: string | null;
   }>(request);
 
   const isSupplier = ctx.session.kind === 'supplier';
@@ -54,7 +56,9 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     todo.created_by_supplier_id === ctx.session.supplierId;
 
   const wantsContentChange =
-    body.text !== undefined || body.assignedTo !== undefined;
+    body.text !== undefined ||
+    body.assignedTo !== undefined ||
+    body.dueDate !== undefined;
 
   if (wantsContentChange && isSupplier && !ownsTodo) {
     throw forbidden('Du kannst fremde Aufgaben nur abhaken, nicht bearbeiten.');
@@ -74,6 +78,13 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     );
   }
 
+  if (body.dueDate !== undefined) {
+    patch.due_date = parseDueDate(body.dueDate);
+    // Neue Frist heisst: neu mahnen. Sonst bliebe eine einmal verschickte Mahnung
+    // für alle Zeiten das letzte Wort, auch wenn die Frist verschoben wurde.
+    patch.overdue_notified_at = null;
+  }
+
   if (wantsContentChange) patch.edited_at = new Date().toISOString();
 
   if (body.done !== undefined) {
@@ -89,7 +100,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     .update(patch)
     .eq('id', id)
     .select(
-      'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index',
+      'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
     )
     .single();
 

@@ -50,6 +50,8 @@ export type Todo = {
   created_at: string;
   edited_at: string | null;
   order_index: number;
+  /** "zu erledigen bis" als reines Datum, z.B. "2026-08-20". */
+  due_date: string | null;
   comments: TodoComment[];
 };
 

@@ -2,6 +2,7 @@ import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { assigneeDisplayName, resolveAssignee } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
+import { fmtDueDate, parseDueDate } from '@/lib/due';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +17,15 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const ctx = await requireSession();
   await requireProjectAccess(ctx, projectId);
 
-  const body = await readJson<{ text?: string; assignedTo?: string }>(request);
+  const body = await readJson<{
+    text?: string;
+    assignedTo?: string;
+    dueDate?: string | null;
+  }>(request);
+
   const text = requireString(body.text, 'Aufgabe', 1000);
   const assignedTo = await resolveAssignee(ctx.session, projectId, body.assignedTo);
+  const dueDate = parseDueDate(body.dueDate);
 
   // Neue Aufgaben landen unten – die Reihenfolge ändert der Admin per Pfeiltasten.
   const { data: last } = await ctx.db
@@ -38,10 +45,11 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       created_by: ctx.session.name,
       created_by_supplier_id:
         ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+      due_date: dueDate,
       order_index: (last?.order_index ?? 0) + 1,
     })
     .select(
-      'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index',
+      'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
     )
     .single();
 
@@ -55,7 +63,9 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
-    text: `hat To-Do "${text}" für ${empfaenger} angelegt`,
+    text:
+      `hat To-Do "${text}" für ${empfaenger} angelegt` +
+      (dueDate ? ` (zu erledigen bis ${fmtDueDate(dueDate)})` : ''),
     icon: '📝',
   });
 

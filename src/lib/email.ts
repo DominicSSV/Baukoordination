@@ -56,6 +56,8 @@ async function send(params: {
   subject: string;
   text: string;
   html: string;
+  /** Setzt die Dringlichkeits-Kopfzeilen, die Outlook als rotes Ausrufezeichen zeigt. */
+  dringend?: boolean;
 }): Promise<void> {
   const resend = client();
   if (!resend) throw new Error('Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).');
@@ -67,6 +69,13 @@ async function send(params: {
     subject: params.subject,
     text: params.text,
     html: params.html,
+    headers: params.dringend
+      ? {
+          'X-Priority': '1',
+          'X-MSMail-Priority': 'High',
+          Importance: 'high',
+        }
+      : undefined,
   });
 
   if (error) {
@@ -257,6 +266,93 @@ export async function sendDigest(
 // ---------------------------------------------------------------------------
 // Sofort-Benachrichtigung pro Aktion
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Fristablauf
+// ---------------------------------------------------------------------------
+
+/**
+ * E-Mail-Adressen des Zuständigen einer Aufgabe.
+ *
+ * Ist die Aufgabe der Firma allgemein zugewiesen, geht die Mahnung an alle
+ * Bauherrenvertreter – sonst läge sie bei niemandem auf dem Tisch.
+ */
+export async function assigneeRecipients(assignedTo: string): Promise<string[]> {
+  const db = serviceClient();
+
+  if (assignedTo.startsWith('admin:')) {
+    const { data } = await db
+      .from('admins')
+      .select('email')
+      .eq('user_id', assignedTo.slice(6))
+      .maybeSingle();
+    const mail = data?.email?.trim();
+    return mail ? [mail] : [];
+  }
+
+  if (assignedTo.startsWith('supplier:') || assignedTo !== 'internal') {
+    const id = assignedTo.startsWith('supplier:') ? assignedTo.slice(9) : assignedTo;
+    const { data } = await db
+      .from('suppliers')
+      .select('email')
+      .eq('id', id)
+      .maybeSingle();
+    const mail = data?.email?.trim();
+    return mail ? [mail] : [];
+  }
+
+  const { data } = await db.from('admins').select('email');
+  return (data ?? [])
+    .map((a: { email: string | null }) => a.email?.trim())
+    .filter((e): e is string => Boolean(e));
+}
+
+/** Dringende Mahnung, wenn eine Frist verstrichen ist. */
+export async function sendOverdueNotice(params: {
+  to: string[];
+  todoText: string;
+  projectName: string;
+  dueLabel: string;
+  tageUeberfaellig: number;
+}): Promise<void> {
+  const tage =
+    params.tageUeberfaellig === 1 ? 'seit gestern' : `seit ${params.tageUeberfaellig} Tagen`;
+
+  const subject = `Frist überschritten: "${params.todoText}" – ${params.projectName}`;
+
+  const text = [
+    `Diese Aufgabe ist ${tage} überfällig und noch nicht erledigt:`,
+    ``,
+    `Aufgabe: ${params.todoText}`,
+    `Projekt: ${params.projectName}`,
+    `Zu erledigen bis: ${params.dueLabel}`,
+    ``,
+    `Bitte erledige sie oder melde dich, falls etwas dagegen spricht:`,
+    appBaseUrl(),
+  ].join('\n');
+
+  const html = wrapHtml(`Frist überschritten`, `
+    <div style="background:#FAE1DD;border-radius:8px;padding:12px 14px;margin:0 0 16px;">
+      <strong style="color:#C0392B;font-size:14px;">Diese Aufgabe ist ${escapeHtml(tage)} überfällig.</strong>
+    </div>
+    <p style="font-size:16px;line-height:1.5;margin:0 0 14px;"><strong>${escapeHtml(params.todoText)}</strong></p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:13.5px;margin:0 0 18px;">
+      <tr>
+        <td style="padding:4px 0;color:#929291;width:120px;">Projekt</td>
+        <td style="padding:4px 0;">${escapeHtml(params.projectName)}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0;color:#929291;">Zu erledigen bis</td>
+        <td style="padding:4px 0;color:#C0392B;font-weight:600;">${escapeHtml(params.dueLabel)}</td>
+      </tr>
+    </table>
+    <p style="margin:0;">
+      <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Aufgabe öffnen</a>
+    </p>
+  `);
+
+  await send({ to: params.to, subject, text, html, dringend: true });
+}
 
 export async function sendActivityNotification(params: {
   projectId: string;

@@ -5,6 +5,11 @@ import { useFeedback } from '@/components/Feedback';
 import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtDate, supplierLabel } from '@/lib/format';
+import {
+  fmtDueDate,
+  istHeuteFaellig,
+  istUeberfaellig,
+} from '@/lib/due';
 import { INTERNAL_PARTY } from '@/lib/branding';
 import {
   adminAssignee,
@@ -32,9 +37,11 @@ export default function TodosTab({
 
   const [newText, setNewText] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
+  const [newDue, setNewDue] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editAssignee, setEditAssignee] = useState('');
+  const [editDue, setEditDue] = useState('');
 
   // Aufgaben gehen immer an eine bestimmte Person. Nur solange noch gar kein
   // Bauherrenvertreter hinterlegt ist (Migration 0002 nicht eingespielt), bleibt
@@ -92,9 +99,11 @@ export default function TodosTab({
       await post(`/api/projects/${projectId}/todos`, {
         text,
         assignedTo: effectiveNewAssignee,
+        dueDate: newDue || null,
       });
       setNewText('');
       setNewAssignee('');
+      setNewDue('');
       await reload();
       toast('✓ Aufgabe angelegt.');
     }, 'Aufgabe konnte nicht angelegt werden.');
@@ -115,6 +124,7 @@ export default function TodosTab({
       await patch(`/api/todos/${todo.id}`, {
         text,
         assignedTo: editAssignee,
+        dueDate: editDue || null,
       });
       setEditingId(null);
       await reload();
@@ -274,6 +284,27 @@ export default function TodosTab({
                   >
                     {assigneeOptions(isAdmin, todo.assigned_to)}
                   </select>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: 11.5,
+                      color: 'var(--ink-soft)',
+                      margin: '8px 0 3px',
+                    }}
+                  >
+                    Zu erledigen bis
+                  </label>
+                  <input
+                    type="date"
+                    value={editDue}
+                    onChange={(e) => setEditDue(e.target.value)}
+                    style={{
+                      padding: '6px 8px',
+                      border: '1px solid var(--line)',
+                      borderRadius: 6,
+                      fontSize: 12.5,
+                    }}
+                  />
                   <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
                     <button
                       type="button"
@@ -335,6 +366,25 @@ export default function TodosTab({
                 <div className={`todo-text ${todo.done ? 'done' : ''}`}>{todo.text}</div>
                 <div className="todo-meta">
                   <span className="assignee-chip">{assigneeName(todo)}</span>
+                  {todo.due_date && (
+                    <span
+                      className={`due-chip ${
+                        istUeberfaellig(todo.due_date, todo.done)
+                          ? 'overdue'
+                          : istHeuteFaellig(todo.due_date, todo.done)
+                            ? 'today'
+                            : ''
+                      }`}
+                      title={
+                        istUeberfaellig(todo.due_date, todo.done)
+                          ? 'Frist überschritten'
+                          : 'Zu erledigen bis'
+                      }
+                    >
+                      {istUeberfaellig(todo.due_date, todo.done) ? '⏰' : '📅'}{' '}
+                      {fmtDueDate(todo.due_date)}
+                    </span>
+                  )}
                   <span>
                     angelegt {fmtDate(todo.created_at)} von {todo.created_by}
                     {todo.edited_at ? ` · bearbeitet ${fmtDate(todo.edited_at)}` : ''}
@@ -522,6 +572,7 @@ export default function TodosTab({
                     setEditingId(todo.id);
                     setEditText(todo.text);
                     setEditAssignee(todo.assigned_to);
+                    setEditDue(todo.due_date ?? '');
                   }}
                 >
                   ✏️
@@ -564,6 +615,13 @@ export default function TodosTab({
           >
             {assigneeOptions(isAdmin)}
           </select>
+          <input
+            type="date"
+            value={newDue}
+            onChange={(e) => setNewDue(e.target.value)}
+            title="Zu erledigen bis (optional)"
+            aria-label="Zu erledigen bis"
+          />
           <button
             type="button"
             className="btn btn-accent"
