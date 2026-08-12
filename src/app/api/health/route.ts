@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
+import { SignJWT } from 'jose';
 import { createClient } from '@supabase/supabase-js';
 import { normalizeSupabaseUrl } from '@/lib/env';
 
@@ -103,6 +105,55 @@ export async function GET() {
     }
   } else {
     report.anmeldedienst = { ok: false, fehler: 'URL oder anon-Schlüssel fehlt' };
+  }
+
+  // Wichtigster Test für die Lieferanten-Anmeldung: Akzeptiert die Datenbank ein vom
+  // Server selbst signiertes Token? Nur dann setzt Postgres die RLS-Policies für
+  // Lieferanten durch. Signiert wird ein Wegwerf-Token mit einer erfundenen ID – es
+  // darf nichts finden, es muss nur angenommen werden.
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET?.trim();
+
+  if (!jwtSecret) {
+    report.lieferanten_token = {
+      ok: false,
+      fehler: 'SUPABASE_JWT_SECRET ist nicht gesetzt',
+      folge:
+        'Lieferanten-Zugriffe werden nur von der App geprüft, nicht zusätzlich von der Datenbank.',
+    };
+  } else if (!url || !anonKey) {
+    report.lieferanten_token = { ok: false, fehler: 'URL oder anon-Schlüssel fehlt' };
+  } else {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const token = await new SignJWT({ role: 'authenticated', supplier_id: randomUUID() })
+        .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+        .setSubject(randomUUID())
+        .setAudience('authenticated')
+        .setIssuedAt(now)
+        .setExpirationTime(now + 60)
+        .sign(new TextEncoder().encode(jwtSecret));
+
+      const response = await fetch(`${url}/rest/v1/projects?select=id&limit=1`, {
+        headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+
+      report.lieferanten_token = response.ok
+        ? { ok: true }
+        : {
+            ok: false,
+            status: response.status,
+            antwort: (await response.text()).slice(0, 300),
+            hinweis:
+              'Das JWT Secret passt nicht zu diesem Projekt. Zu finden im Dashboard ' +
+              'unter Project Settings > JWT Keys > "JWT Secret" (Legacy, HS256).',
+          };
+    } catch (e) {
+      report.lieferanten_token = {
+        ok: false,
+        fehler: e instanceof Error ? e.message : 'unbekannter Fehler',
+      };
+    }
   }
 
   return NextResponse.json(report, {
