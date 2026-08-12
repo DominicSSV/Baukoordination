@@ -18,6 +18,8 @@ import {
   INTERNAL,
 } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
+import Avatar from '@/components/Avatar';
+import { assigneePerson, findPerson } from '@/lib/people';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
 
 export default function TodosTab({
@@ -78,8 +80,15 @@ export default function TodosTab({
     }
   }
 
-  function assigneeName(todo: Todo): string {
-    return assigneeLabel(todo.assigned_to, detail.admins, detail.suppliers);
+  function assigneeChip(todo: Todo) {
+    const person = assigneePerson(detail, todo.assigned_to);
+    return (
+      <span className="assignee-chip" title={assigneeLabel(todo.assigned_to, detail.admins, detail.suppliers)}>
+        <Avatar url={person.avatarUrl} name={person.name} size={18} />
+        {person.name}
+        {person.funktion ? ` · ${person.funktion}` : ''}
+      </span>
+    );
   }
 
   /** Admin darf alle Aufgaben bearbeiten, ein Lieferant nur selbst erstellte. */
@@ -365,7 +374,7 @@ export default function TodosTab({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className={`todo-text ${todo.done ? 'done' : ''}`}>{todo.text}</div>
                 <div className="todo-meta">
-                  <span className="assignee-chip">{assigneeName(todo)}</span>
+                  {assigneeChip(todo)}
                   {todo.due_date && (
                     <span
                       className={`due-chip ${
@@ -429,10 +438,20 @@ export default function TodosTab({
                           session.kind === 'admin'
                             ? c.author_supplier_id === null
                             : c.author_supplier_id === session.supplierId;
+                        const person = findPerson(detail, {
+                          name: c.author,
+                          supplierId: c.author_supplier_id,
+                        });
+
                         return (
                           <div key={c.id} className="comment-row">
                             <div className="comment-text">{c.text}</div>
                             <div className="comment-meta">
+                              <Avatar
+                                url={person.avatarUrl}
+                                name={person.name}
+                                size={16}
+                              />
                               {c.author} · {fmtDate(c.created_at)}
                               {(mine || isAdmin) && (
                                 <button

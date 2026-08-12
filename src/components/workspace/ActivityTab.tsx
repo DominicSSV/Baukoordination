@@ -5,6 +5,8 @@ import { useFeedback } from '@/components/Feedback';
 import type { MessageDraft } from '@/components/workspace/MessageModal';
 import { del, post } from '@/lib/client/api';
 import { fmtDate } from '@/lib/format';
+import Avatar from '@/components/Avatar';
+import { findPerson } from '@/lib/people';
 import type { ProjectDetail } from '@/types';
 
 type NotifyResponse = {
@@ -89,9 +91,18 @@ export default function ActivityTab({
       </p>
 
       {detail.activity.length ? (
-        detail.activity.map((a) => (
+        detail.activity.map((a) => {
+          const person = findPerson(detail, { name: a.actor_name });
+
+          return (
           <div key={a.id} className="activity-row">
-            <div className="activity-icon">{a.icon ?? '•'}</div>
+            {/* Bild der Person, das Symbol daneben sagt, worum es ging. */}
+            <div className="activity-person">
+              <Avatar url={person.avatarUrl} name={person.name} size={30} />
+              <span className="activity-badge" aria-hidden="true">
+                {a.icon ?? '•'}
+              </span>
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="activity-text">
                 <strong>{a.actor_name}</strong> {a.text}
@@ -109,7 +120,8 @@ export default function ActivityTab({
               </button>
             )}
           </div>
-        ))
+          );
+        })
       ) : (
         <div className="empty-state" style={{ padding: '36px 10px' }}>
           <p>Noch keine Aktivität in diesem Projekt.</p>

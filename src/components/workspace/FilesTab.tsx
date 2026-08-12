@@ -6,6 +6,8 @@ import { del } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize } from '@/lib/format';
 import Spinner from '@/components/Spinner';
+import Avatar from '@/components/Avatar';
+import { findPerson } from '@/lib/people';
 import type { ProjectDetail } from '@/types';
 
 export default function FilesTab({
@@ -165,7 +167,17 @@ export default function FilesTab({
                   <div className="file-name" title={f.name}>
                     {f.name}
                   </div>
-                  <div className="file-meta">
+                  <div className="file-meta file-meta-person">
+                    <Avatar
+                      url={
+                        findPerson(detail, {
+                          name: f.uploaded_by,
+                          supplierId: f.uploaded_by_supplier_id,
+                        }).avatarUrl
+                      }
+                      name={f.uploaded_by}
+                      size={16}
+                    />
                     {fmtSize(f.size_bytes)} · {f.uploaded_by}
                   </div>
                   {linkedTodo && (
