@@ -7,7 +7,7 @@
  */
 
 function required(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
   if (!value) {
     throw new Error(
       `Umgebungsvariable ${name} fehlt. Bitte in .env.local (lokal) bzw. in den ` +
@@ -15,6 +15,19 @@ function required(name: string): string {
     );
   }
   return value;
+}
+
+/**
+ * Räumt die Projekt-URL auf, bevor sie an die Supabase-Bibliothek geht.
+ *
+ * Beim Kopieren aus dem Dashboard rutscht schnell ein Schrägstrich oder ein
+ * Zeilenumbruch mit ans Ende. Die Bibliothek hängt ihre Pfade ungeprüft an, aus
+ * `.../` wird dann `...//auth/v1/token` – und Supabase antwortet mit dem wenig
+ * hilfreichen "Invalid path specified in request URL". Einmal sauber abschneiden
+ * erspart genau diese Fehlersuche.
+ */
+export function normalizeSupabaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, '');
 }
 
 /** Welche Pflichtvariablen fehlen? Leer = alles da. */
@@ -27,7 +40,7 @@ export function missingCoreEnv(): string[] {
 }
 
 export function supabaseUrl(): string {
-  return required('NEXT_PUBLIC_SUPABASE_URL');
+  return normalizeSupabaseUrl(required('NEXT_PUBLIC_SUPABASE_URL'));
 }
 
 export function supabaseAnonKey(): string {

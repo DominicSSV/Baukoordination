@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeSupabaseUrl } from '@/lib/env';
 
 let cached: SupabaseClient | null = null;
 
@@ -13,8 +14,8 @@ let cached: SupabaseClient | null = null;
 export function browserClient(): SupabaseClient {
   if (!cached) {
     cached = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''),
+      (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').trim(),
     );
   }
   return cached;
