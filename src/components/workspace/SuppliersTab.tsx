@@ -233,59 +233,63 @@ export default function SuppliersTab({
               editForm(s)
             ) : (
               <div key={s.id} className="supplier-row">
-                <div className="avatar">{initials(s.name || s.firma)}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="supplier-name">{supplierLabel(s)}</div>
-                  <div className="supplier-meta">{displayMeta(s)}</div>
-                  <div className="supplier-meta">
-                    Code:{' '}
-                    <strong style={{ letterSpacing: '0.06em' }}>
-                      {s.access_code ?? '—'}
-                    </strong>
-                    {s.email ? ` · ${s.email}` : ' · keine E-Mail hinterlegt'}
+                <div className="supplier-main">
+                  <div className="avatar">{initials(s.name || s.firma)}</div>
+                  <div className="supplier-info">
+                    <div className="supplier-name">{supplierLabel(s)}</div>
+                    <div className="supplier-meta">{displayMeta(s)}</div>
+                    <div className="supplier-meta">
+                      Code:{' '}
+                      <strong style={{ letterSpacing: '0.06em' }}>
+                        {s.access_code ?? '—'}
+                      </strong>
+                      {s.email ? ` · ${s.email}` : ' · keine E-Mail hinterlegt'}
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => startEdit(s)}
-                  title="Bearbeiten"
-                >
-                  ✏️
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => copyCode(s)}
-                  title="Code kopieren"
-                >
-                  📋 Code
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-accent btn-sm"
-                  onClick={() => invite(s)}
-                  disabled={busy}
-                  title="Einladung per E-Mail senden"
-                >
-                  ✉️ Einladen
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => setAccess(s.id, false)}
-                  title="Zugriff nur für dieses Projekt entziehen"
-                >
-                  ✕
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => deleteSupplier(s)}
-                  title="Lieferant komplett löschen (alle Projekte)"
-                >
-                  🗑️
-                </button>
+                <div className="supplier-actions">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => startEdit(s)}
+                    title="Bearbeiten"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => copyCode(s)}
+                    title="Code kopieren"
+                  >
+                    📋 Code
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-accent btn-sm"
+                    onClick={() => invite(s)}
+                    disabled={busy}
+                    title="Einladung per E-Mail senden"
+                  >
+                    ✉️ Einladen
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setAccess(s.id, false)}
+                    title="Zugriff nur für dieses Projekt entziehen"
+                  >
+                    ✕
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => deleteSupplier(s)}
+                    title="Lieferant komplett löschen (alle Projekte)"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             ),
           )
@@ -349,13 +353,16 @@ export default function SuppliersTab({
               editForm(s)
             ) : (
               <div key={s.id} className="supplier-row">
-                <div className="avatar" style={{ background: 'var(--ink-faint)' }}>
-                  {initials(s.name || s.firma)}
+                <div className="supplier-main">
+                  <div className="avatar" style={{ background: 'var(--ink-faint)' }}>
+                    {initials(s.name || s.firma)}
+                  </div>
+                  <div className="supplier-info">
+                    <div className="supplier-name">{supplierLabel(s)}</div>
+                    <div className="supplier-meta">{displayMeta(s)}</div>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="supplier-name">{supplierLabel(s)}</div>
-                  <div className="supplier-meta">{displayMeta(s)}</div>
-                </div>
+                <div className="supplier-actions">
                 <button
                   type="button"
                   className="icon-btn"
@@ -380,6 +387,7 @@ export default function SuppliersTab({
                 >
                   🗑️
                 </button>
+                </div>
               </div>
             ),
           )}

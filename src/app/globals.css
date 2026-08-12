@@ -478,7 +478,28 @@ button:disabled {
   gap: 10px;
   padding: 12px 4px;
   border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
+}
+
+/* Angaben links, Schaltflächen rechts. Auf dem Handy rutschen die Schaltflächen
+   unter die Angaben – sonst bleibt für Name und Firma nur eine schmale Spalte,
+   in der jedes Wort einzeln umbricht. */
+.supplier-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.supplier-info {
+  min-width: 0;
+}
+
+.supplier-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .supplier-row-editing {
@@ -1376,6 +1397,28 @@ button:disabled {
   .add-form-grid,
   .add-form-grid.cols-2 {
     grid-template-columns: 1fr;
+  }
+
+  .supplier-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 14px 4px;
+  }
+
+  .supplier-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  /* Vier Reiter sollen ohne Scrollen nebeneinander passen. */
+  .tab-btn {
+    padding: 10px 10px;
+    font-size: 13.5px;
+  }
+
+  .tab-count {
+    margin-left: 4px;
   }
 
   .project-sign h1 {
