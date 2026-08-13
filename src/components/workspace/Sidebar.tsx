@@ -11,6 +11,8 @@ export default function Sidebar({
   projects,
   activeId,
   isAdmin,
+  wocheAktiv,
+  onWoche,
   onSelect,
   onCreate,
   onReordered,
@@ -18,6 +20,9 @@ export default function Sidebar({
   projects: Project[];
   activeId: string | null;
   isAdmin: boolean;
+  /** true = die projektübergreifende Übersicht ist offen. */
+  wocheAktiv: boolean;
+  onWoche: () => void;
   onSelect: (id: string) => void;
   onCreate: (name: string, ort: string) => Promise<void>;
   onReordered: (projects: Project[]) => void;
@@ -114,6 +119,15 @@ export default function Sidebar({
 
   return (
     <div className="sidebar">
+      {/* Steht bewusst über den Projekten: der Einstieg in den Arbeitstag. */}
+      <button
+        type="button"
+        className={`woche-knopf ${wocheAktiv ? 'aktiv' : ''}`}
+        onClick={onWoche}
+      >
+        <span aria-hidden="true">🗓️</span> Meine Woche
+      </button>
+
       <h2>Projekte</h2>
 
       <div className="project-list">

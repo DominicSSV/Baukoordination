@@ -1,0 +1,172 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFeedback } from '@/components/Feedback';
+import { api, patch } from '@/lib/client/api';
+import { fmtDueDate, heute } from '@/lib/due';
+import { tagPlus } from '@/lib/schedule';
+import { assigneeLabel } from '@/lib/assignee';
+import Spinner from '@/components/Spinner';
+import type { MeineAufgabe } from '@/app/api/mytasks/route';
+import type { AdminProfile, Supplier } from '@/types';
+
+/** Die Fächer, in die eine Aufgabe nach ihrer Frist fällt. */
+type Fach = 'ueberfaellig' | 'heute' | 'woche' | 'spaeter' | 'ohne';
+
+const FAECHER: Array<{ wert: Fach; name: string; ton: string }> = [
+  { wert: 'ueberfaellig', name: 'Überfällig', ton: 'rot' },
+  { wert: 'heute', name: 'Heute fällig', ton: 'gelb' },
+  { wert: 'woche', name: 'Diese Woche', ton: 'gruen' },
+  { wert: 'spaeter', name: 'Später', ton: '' },
+  { wert: 'ohne', name: 'Ohne Frist', ton: '' },
+];
+
+function einordnen(due: string | null): Fach {
+  if (!due) return 'ohne';
+  const heuteStr = heute();
+  if (due < heuteStr) return 'ueberfaellig';
+  if (due === heuteStr) return 'heute';
+  return due <= tagPlus(heuteStr, 7) ? 'woche' : 'spaeter';
+}
+
+/**
+ * Startseite über alle Projekte: was steht an, sortiert nach Dringlichkeit.
+ *
+ * Erledigtes bleibt draussen – die Frage lautet "was ist zu tun", nicht "was war".
+ * Abhaken geht direkt hier, für alles Weitere führt ein Klick ins Projekt.
+ */
+export default function MyWeek({
+  admins,
+  suppliers,
+  onOpenProject,
+}: {
+  admins: AdminProfile[];
+  suppliers: Supplier[];
+  onOpenProject: (projectId: string) => void;
+}) {
+  const { reportError, toast } = useFeedback();
+  const [aufgaben, setAufgaben] = useState<MeineAufgabe[] | null>(null);
+  const [nurMeine, setNurMeine] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const laden = useCallback(async () => {
+    try {
+      const { aufgaben: neu } = await api<{ aufgaben: MeineAufgabe[] }>(
+        '/api/mytasks',
+      );
+      setAufgaben(neu);
+    } catch (error) {
+      reportError(error, 'Die Übersicht konnte nicht geladen werden.');
+      setAufgaben([]);
+    }
+  }, [reportError]);
+
+  useEffect(() => {
+    const start = window.setTimeout(() => void laden(), 0);
+    return () => window.clearTimeout(start);
+  }, [laden]);
+
+  const sichtbar = useMemo(
+    () => (aufgaben ?? []).filter((a) => !nurMeine || a.meine),
+    [aufgaben, nurMeine],
+  );
+
+  const gruppiert = useMemo(() => {
+    const map = new Map<Fach, MeineAufgabe[]>();
+    for (const f of FAECHER) map.set(f.wert, []);
+    for (const a of sichtbar) map.get(einordnen(a.dueDate))!.push(a);
+    return map;
+  }, [sichtbar]);
+
+  async function abhaken(a: MeineAufgabe) {
+    setBusy(a.id);
+    try {
+      await patch(`/api/todos/${a.id}`, { done: true });
+      // Ohne erneutes Laden bliebe die Zeile stehen, obwohl sie erledigt ist.
+      setAufgaben((current) => (current ?? []).filter((x) => x.id !== a.id));
+      toast('✓ Erledigt.');
+    } catch (error) {
+      reportError(error, 'Der Status konnte nicht geändert werden.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!aufgaben) {
+    return (
+      <div className="empty-state">
+        <Spinner size={56} />
+        <p style={{ marginTop: 14 }}>Lade Aufgaben…</p>
+      </div>
+    );
+  }
+
+  const offen = sichtbar.length;
+
+  return (
+    <div className="card">
+      <div className="section-head">
+        <h2>Meine Woche</h2>
+        <label className="woche-schalter">
+          <input
+            type="checkbox"
+            checked={nurMeine}
+            onChange={(e) => setNurMeine(e.target.checked)}
+          />
+          Nur meine
+        </label>
+      </div>
+
+      <p className="woche-hinweis">
+        {offen
+          ? `${offen} offene Aufgabe${offen === 1 ? '' : 'n'} über alle Projekte.`
+          : nurMeine
+            ? 'Dir ist gerade nichts offen zugewiesen.'
+            : 'Es ist nichts offen.'}
+      </p>
+
+      {FAECHER.map((fach) => {
+        const liste = gruppiert.get(fach.wert) ?? [];
+        if (!liste.length) return null;
+
+        return (
+          <div className="woche-fach" key={fach.wert}>
+            <div className={`woche-titel ${fach.ton}`}>
+              {fach.name}
+              <span className="gruppe-anzahl">{liste.length}</span>
+            </div>
+
+            {liste.map((a) => (
+              <div className="woche-zeile" key={a.id}>
+                <button
+                  type="button"
+                  className="checkbox"
+                  onClick={() => abhaken(a)}
+                  disabled={busy === a.id}
+                  title="Als erledigt markieren"
+                  aria-label="Als erledigt markieren"
+                />
+                <button
+                  type="button"
+                  className="woche-text"
+                  onClick={() => onOpenProject(a.projectId)}
+                  title="Im Projekt öffnen"
+                >
+                  <span className="woche-aufgabe">{a.text}</span>
+                  <span className="woche-meta">
+                    {a.projectName}
+                    {a.dueDate && ` · bis ${fmtDueDate(a.dueDate)}`}
+                    {!a.meine &&
+                      ` · ${a.assignees
+                        .map((w) => assigneeLabel(w, admins, suppliers))
+                        .join(', ')}`}
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

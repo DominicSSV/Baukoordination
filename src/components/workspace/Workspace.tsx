@@ -16,6 +16,7 @@ import ProfileModal from '@/components/workspace/ProfileModal';
 import ScheduleTab from '@/components/workspace/ScheduleTab';
 import OffersTab from '@/components/workspace/OffersTab';
 import NotificationBell from '@/components/workspace/NotificationBell';
+import MyWeek from '@/components/workspace/MyWeek';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -62,6 +63,9 @@ function WorkspaceInner({
   const [message, setMessage] = useState<MessageDraft | null>(null);
   const [viewerFileId, setViewerFileId] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  // Startansicht über alle Projekte. Wer sich anmeldet, will zuerst wissen,
+  // was ansteht – nicht ein einzelnes Projekt sehen.
+  const [zeigeWoche, setZeigeWoche] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
@@ -134,6 +138,7 @@ function WorkspaceInner({
   }
 
   function selectProject(id: string) {
+    setZeigeWoche(false);
     if (id === activeId) return;
     setActiveId(id);
     setDetail(null);
@@ -147,6 +152,7 @@ function WorkspaceInner({
    * des Projekts und müsste selbst suchen.
    */
   function openFromNotification(id: string, ziel: TabKey) {
+    setZeigeWoche(false);
     if (id !== activeId) {
       setActiveId(id);
       setDetail(null);
@@ -262,7 +268,9 @@ function WorkspaceInner({
       <div className="layout">
         <Sidebar
           projects={projects}
-          activeId={activeId}
+          activeId={zeigeWoche ? null : activeId}
+          wocheAktiv={zeigeWoche}
+          onWoche={() => setZeigeWoche(true)}
           isAdmin={isAdmin}
           onSelect={selectProject}
           onCreate={createProject}
@@ -270,7 +278,13 @@ function WorkspaceInner({
         />
 
         <div className="content">
-          {loading ? (
+          {zeigeWoche ? (
+            <MyWeek
+              admins={detail?.admins ?? []}
+              suppliers={detail?.suppliers ?? []}
+              onOpenProject={(id) => openFromNotification(id, 'todos')}
+            />
+          ) : loading ? (
             <div className="empty-state">
               <Spinner size={56} />
               <p style={{ marginTop: 14 }}>Lade Daten…</p>
