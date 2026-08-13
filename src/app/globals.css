@@ -2973,3 +2973,45 @@ button:disabled {
   font-size: 13px;
   background: #fff;
 }
+
+/* --- Anmeldung: kleiner Spass beim Erraten des Codes ----------------------- */
+@keyframes auth-wackeln {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-7px);
+  }
+  40% {
+    transform: translateX(7px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.auth-card.wackelt {
+  animation: auth-wackeln 0.42s ease;
+}
+
+.auth-scherz {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  background: var(--highlight-soft);
+  border: 1px solid var(--highlight);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+/* Wer das nicht sehen will, bekommt es auch nicht animiert. */
+@media (prefers-reduced-motion: reduce) {
+  .auth-card.wackelt {
+    animation: none;
+  }
+}

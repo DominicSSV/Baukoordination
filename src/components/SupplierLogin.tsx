@@ -6,6 +6,21 @@ import { useState, type FormEvent } from 'react';
 import { post } from '@/lib/client/api';
 
 /**
+ * Kleiner Spass: 6340 ist die Postleitzahl von Baar, kein Zugangscode. Wer es
+ * trotzdem versucht, bekommt eine Antwort statt einer Fehlermeldung – bei jedem
+ * Versuch eine andere.
+ */
+const SCHERZ_CODE = '6340';
+
+const SPRUECHE = [
+  'So einfach geht das nun also wirklich nicht 😄',
+  'Netter Versuch. Das ist die Postleitzahl von Baar, kein Zugangscode.',
+  'Immer noch nein. Aber Ausdauer hast du, das muss man dir lassen.',
+  'Auch beim vierten Mal öffnet sich hier nichts. Ehrlich.',
+  'Okay, du gewinnst – aber nur an Hartnäckigkeit. Frag Dominic nach dem Code.',
+];
+
+/**
  * Startbildschirm der App. Wer den Link zum ersten Mal öffnet, landet direkt hier
  * auf dem Code-Eingabefeld – nicht auf einer allgemeinen Startseite. Der Weg zum
  * Admin-Login ist bewusst klein und unauffällig (/admin).
@@ -15,6 +30,8 @@ export default function SupplierLogin() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [scherz, setScherz] = useState('');
+  const [versuche, setVersuche] = useState(0);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -26,8 +43,17 @@ export default function SupplierLogin() {
       return;
     }
 
+    if (value === SCHERZ_CODE) {
+      setError('');
+      setScherz(SPRUECHE[Math.min(versuche, SPRUECHE.length - 1)]);
+      setVersuche((n) => n + 1);
+      setCode('');
+      return;
+    }
+
     setBusy(true);
     setError('');
+    setScherz('');
     try {
       await post('/api/supplier/login', { code: value });
       router.replace('/app');
@@ -40,7 +66,7 @@ export default function SupplierLogin() {
 
   return (
     <div className="auth-screen">
-      <div className="auth-card">
+      <div className={`auth-card ${scherz ? 'wackelt' : ''}`}>
         <div className="stripe-bar" />
         <div className="auth-body">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -58,7 +84,10 @@ export default function SupplierLogin() {
               id="login-code"
               className="code-input"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setCode(e.target.value.toUpperCase());
+                setScherz('');
+              }}
               placeholder="z.B. A7K2M9"
               autoComplete="one-time-code"
               autoCapitalize="characters"
@@ -68,6 +97,7 @@ export default function SupplierLogin() {
             />
 
             {error && <p className="auth-error">{error}</p>}
+            {scherz && <p className="auth-scherz">{scherz}</p>}
 
             <button
               type="submit"
