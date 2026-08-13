@@ -238,6 +238,31 @@ function WorkspaceInner({
             Abmelde-Knopf – Name und Funktion würden dem Firmennamen den Platz
             nehmen, den er für eine einzige Zeile braucht. */}
         <div className="me-badge">
+          {/* Auf dem Handy gibt es kein Menü mit "Seite neu laden", wenn gerade
+              kein Projekt offen ist – deshalb steht der Knopf immer hier. */}
+          <button
+            type="button"
+            className="topbar-icon"
+            onClick={() => window.location.reload()}
+            title="App neu laden"
+            aria-label="App neu laden"
+          >
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+              <path d="M21 3v6h-6" />
+            </svg>
+          </button>
+
           <NotificationBell
             werBinIch={
               session.kind === 'admin' ? session.userId : session.supplierId

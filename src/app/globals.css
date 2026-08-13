@@ -2639,6 +2639,7 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.topbar-icon,
 .glocke-knopf {
   position: relative;
   display: flex;
@@ -2657,6 +2658,7 @@ button:disabled {
   text-decoration: none;
 }
 
+.topbar-icon:hover,
 .glocke-knopf:hover {
   background: rgba(255, 255, 255, 0.28);
 }
