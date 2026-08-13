@@ -11,22 +11,38 @@ import type { MeineAufgabe } from '@/app/api/mytasks/route';
 import type { AdminProfile, Supplier } from '@/types';
 
 /** Die Fächer, in die eine Aufgabe nach ihrer Frist fällt. */
-type Fach = 'ueberfaellig' | 'heute' | 'woche' | 'spaeter' | 'ohne';
+type Fach = 'ueberfaellig' | 'heute' | 'woche' | 'naechste' | 'spaeter' | 'ohne';
 
 const FAECHER: Array<{ wert: Fach; name: string; ton: string }> = [
   { wert: 'ueberfaellig', name: 'Überfällig', ton: 'rot' },
   { wert: 'heute', name: 'Heute fällig', ton: 'gelb' },
   { wert: 'woche', name: 'Diese Woche', ton: 'gruen' },
+  { wert: 'naechste', name: 'Nächste Woche', ton: '' },
   { wert: 'spaeter', name: 'Später', ton: '' },
   { wert: 'ohne', name: 'Ohne Frist', ton: '' },
 ];
+
+/**
+ * Sonntag der Woche, in der dieser Tag liegt.
+ *
+ * Bewusst echte Kalenderwochen statt "in sieben Tagen": auf dem Bau wird in
+ * Kalenderwochen gedacht, und am Freitag soll "diese Woche" nicht plötzlich
+ * bis zum nächsten Donnerstag reichen.
+ */
+function wochenEnde(datum: string): string {
+  const wochentag = (new Date(`${datum}T00:00:00`).getDay() + 6) % 7; // Mo=0 … So=6
+  return tagPlus(datum, 6 - wochentag);
+}
 
 function einordnen(due: string | null): Fach {
   if (!due) return 'ohne';
   const heuteStr = heute();
   if (due < heuteStr) return 'ueberfaellig';
   if (due === heuteStr) return 'heute';
-  return due <= tagPlus(heuteStr, 7) ? 'woche' : 'spaeter';
+
+  const dieseWoche = wochenEnde(heuteStr);
+  if (due <= dieseWoche) return 'woche';
+  return due <= tagPlus(dieseWoche, 7) ? 'naechste' : 'spaeter';
 }
 
 /**
