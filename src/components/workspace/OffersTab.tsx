@@ -243,6 +243,14 @@ export default function OffersTab({
                           >
                             📎 {f.name}
                           </button>
+                          <button
+                            type="button"
+                            className="offer-notiz-knopf"
+                            onClick={() => notizenUmschalten(f.id)}
+                          >
+                            💬 Kommentieren
+                            {f.comments.length > 0 && ` (${f.comments.length})`}
+                          </button>
                           <div className="offer-meta">
                             <Avatar
                               url={person.avatarUrl}
@@ -255,14 +263,6 @@ export default function OffersTab({
                               · {fmtDate(f.uploaded_at)}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            className="offer-notiz-knopf"
-                            onClick={() => notizenUmschalten(f.id)}
-                            title="Anmerkungen"
-                          >
-                            💬 {f.comments.length || ''}
-                          </button>
                           {f.can_delete && (
                             <button
                               type="button"

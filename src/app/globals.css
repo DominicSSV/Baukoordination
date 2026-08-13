@@ -2481,8 +2481,8 @@ button:disabled {
 }
 
 .offer-name {
-  flex: 1;
-  min-width: 160px;
+  flex: 0 1 auto;
+  min-width: 0;
   border: none;
   background: none;
   padding: 0;
@@ -2504,6 +2504,8 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Schiebt Hochladenden, Grösse und Datum ans rechte Ende der Zeile. */
+  margin-left: auto;
   font-size: 11.5px;
   color: var(--ink-soft);
 }
@@ -2897,17 +2899,20 @@ button:disabled {
 
 /* --- Anmerkungen zu einer eingereichten Unterlage -------------------------- */
 .offer-notiz-knopf {
-  border: none;
-  background: none;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 12px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--ink-soft);
+  white-space: nowrap;
 }
 
 .offer-notiz-knopf:hover {
-  background: var(--bg);
-  color: var(--ink);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .offer-notizen {
