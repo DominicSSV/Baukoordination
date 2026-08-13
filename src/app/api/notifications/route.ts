@@ -5,6 +5,9 @@ import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
+/** Register, in dem der Vorgang steht – siehe TabKey in der Arbeitsfläche. */
+export type Ziel = 'todos' | 'terminplan' | 'offerten' | 'dateien' | 'aktivitaet';
+
 /** So viele Einträge zeigt das Glockenmenü höchstens. */
 const ANZAHL = 40;
 
@@ -13,12 +16,37 @@ export type Benachrichtigung = {
   projectId: string;
   projectName: string;
   actorName: string;
+  /** Firma, für die die Person arbeitet. */
+  actorFirma: string | null;
   /** Kurzlebige Signatur auf das Profilbild, null = keines hinterlegt. */
   actorAvatarUrl: string | null;
+  /** Register, das beim Anklicken geöffnet wird. */
+  ziel: Ziel;
   text: string;
   icon: string | null;
   createdAt: string;
 };
+
+/**
+ * In welches Register ein Eintrag führt.
+ *
+ * Das Protokoll hält kein Ziel fest, deshalb wird es aus Symbol und Text
+ * abgeleitet. Passt nichts, landet man in der Aktivität – dort steht der
+ * Eintrag auf jeden Fall.
+ */
+function ziel(icon: string | null, text: string): Ziel {
+  if (icon === '💰') return 'offerten';
+  if (icon === '📷' || icon === '📄') return 'dateien';
+  if (icon === '📅' || icon === '✕') return 'terminplan';
+  if (text.includes('To-Do')) return 'todos';
+  if (text.includes('Terminplan') || text.includes('Terminvorschlag')) {
+    return 'terminplan';
+  }
+  if (icon === '📝' || icon === '✓' || icon === '➡️' || icon === '⏰') {
+    return 'todos';
+  }
+  return 'aktivitaet';
+}
 
 /**
  * Profilbilder zu den Namen, die im Protokoll stehen.
@@ -31,31 +59,35 @@ export type Benachrichtigung = {
  * sollen auch dann erscheinen, wenn die Person selbst nicht im eigenen Projekt
  * sitzt; E-Mail-Adressen oder Zugangscodes verlassen die Abfrage nie.
  */
-async function bilderNachName(): Promise<Map<string, string>> {
+async function personenNachName(): Promise<
+  Map<string, { firma: string | null; avatarUrl: string | null }>
+> {
   const db = serviceClient();
 
   const [admins, suppliers] = await Promise.all([
-    db.from('admins').select('name, avatar_path'),
+    db.from('admins').select('name, firma, avatar_path'),
     db.from('suppliers').select('name, firma, avatar_path'),
   ]);
 
-  type Zeile = { name: string | null; firma?: string | null; avatar_path: string | null };
+  type Zeile = { name: string | null; firma: string | null; avatar_path: string | null };
   const zeilen = [
     ...((admins.data ?? []) as Zeile[]),
     ...((suppliers.data ?? []) as Zeile[]),
   ];
 
   const urls = await signAvatars(zeilen.map((z) => z.avatar_path));
-  const map = new Map<string, string>();
+  const map = new Map<string, { firma: string | null; avatarUrl: string | null }>();
 
   for (const z of zeilen) {
-    const url = z.avatar_path ? urls.get(z.avatar_path) : null;
-    if (!url) continue;
+    const eintrag = {
+      firma: z.firma?.trim() || null,
+      avatarUrl: (z.avatar_path ? urls.get(z.avatar_path) : null) ?? null,
+    };
 
     // Lieferanten stehen im Protokoll unter Ansprechperson oder Firma.
     for (const name of [z.name, z.firma]) {
       const schluessel = name?.trim().toLowerCase();
-      if (schluessel && !map.has(schluessel)) map.set(schluessel, url);
+      if (schluessel && !map.has(schluessel)) map.set(schluessel, eintrag);
     }
   }
 
@@ -98,7 +130,7 @@ export const GET = handler(async () => {
   const projektIds = Array.from(new Set(fremde.map((r) => r.project_id)));
   const namen = new Map<string, string>();
 
-  const [, bilder] = await Promise.all([
+  const [, personen] = await Promise.all([
     (async () => {
       if (!projektIds.length) return;
       const { data: projekte } = await ctx.db
@@ -110,19 +142,25 @@ export const GET = handler(async () => {
         namen.set(p.id, p.name);
       }
     })(),
-    bilderNachName(),
+    personenNachName(),
   ]);
 
-  const eintraege: Benachrichtigung[] = fremde.slice(0, ANZAHL).map((r) => ({
-    id: r.id,
-    projectId: r.project_id,
-    projectName: namen.get(r.project_id) ?? 'Projekt',
-    actorName: r.actor_name,
-    actorAvatarUrl: bilder.get(r.actor_name.trim().toLowerCase()) ?? null,
-    text: r.text,
-    icon: r.icon,
-    createdAt: r.created_at,
-  }));
+  const eintraege: Benachrichtigung[] = fremde.slice(0, ANZAHL).map((r) => {
+    const person = personen.get(r.actor_name.trim().toLowerCase());
+
+    return {
+      id: r.id,
+      projectId: r.project_id,
+      projectName: namen.get(r.project_id) ?? 'Projekt',
+      actorName: r.actor_name,
+      actorFirma: person?.firma ?? null,
+      actorAvatarUrl: person?.avatarUrl ?? null,
+      text: r.text,
+      icon: r.icon,
+      ziel: ziel(r.icon, r.text),
+      createdAt: r.created_at,
+    };
+  });
 
   return ok({ eintraege });
 });

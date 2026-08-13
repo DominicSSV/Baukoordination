@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/client/api';
 import { fmtDate } from '@/lib/format';
 import Avatar from '@/components/Avatar';
-import type { Benachrichtigung } from '@/app/api/notifications/route';
+import { mitFirma } from '@/lib/people';
+import type { Benachrichtigung, Ziel } from '@/app/api/notifications/route';
 
 /** Wie oft im Hintergrund nachgeschaut wird. */
 const INTERVALL = 60_000;
@@ -38,7 +39,7 @@ export default function NotificationBell({
 }: {
   /** Eigene Kennung – trennt den gelesen-Stand verschiedener Anmeldungen. */
   werBinIch: string;
-  onOpenProject: (projectId: string) => void;
+  onOpenProject: (projectId: string, ziel: Ziel) => void;
 }) {
   const [offen, setOffen] = useState(false);
   const [eintraege, setEintraege] = useState<Benachrichtigung[]>([]);
@@ -152,14 +153,14 @@ export default function NotificationBell({
                   type="button"
                   className={`glocke-eintrag ${neu ? 'neu' : ''}`}
                   onClick={() => {
-                    onOpenProject(e.projectId);
+                    onOpenProject(e.projectId, e.ziel);
                     setOffen(false);
                   }}
                 >
                   <Avatar url={e.actorAvatarUrl} name={e.actorName} size={30} />
                   <span className="glocke-text">
                     <span className="glocke-satz">
-                      <strong>{e.actorName}</strong> {e.text}
+                      <strong>{mitFirma(e.actorName, e.actorFirma)}</strong> {e.text}
                     </span>
                     <span className="glocke-meta">
                       {e.projectName} · {vorZeit(e.createdAt)}

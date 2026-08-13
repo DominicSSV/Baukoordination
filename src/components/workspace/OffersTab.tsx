@@ -7,7 +7,7 @@ import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize, fmtDate } from '@/lib/format';
 import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
-import { findPerson } from '@/lib/people';
+import { findPerson, personLabel } from '@/lib/people';
 import { OFFERTEN_ORDNER, ordnerName } from '@/lib/offers';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
@@ -218,7 +218,8 @@ export default function OffersTab({
                               size={20}
                             />
                             <span>
-                              {eigen ? 'von dir' : f.uploaded_by} · {fmtSize(f.size_bytes)}{' '}
+                              {eigen ? 'von dir' : personLabel(person)} ·{' '}
+                              {fmtSize(f.size_bytes)}{' '}
                               · {fmtDate(f.uploaded_at)}
                             </span>
                           </div>

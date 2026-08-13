@@ -7,7 +7,7 @@ import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize } from '@/lib/format';
 import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
-import { findPerson } from '@/lib/people';
+import { findPerson, personLabel } from '@/lib/people';
 import { ordnerName } from '@/lib/offers';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import type { ProjectDetail } from '@/types';
@@ -144,6 +144,10 @@ export default function FilesTab({
             const linkedTodo = f.todo_id
               ? detail.todos.find((t) => t.id === f.todo_id)
               : null;
+            const person = findPerson(detail, {
+              name: f.uploaded_by,
+              supplierId: f.uploaded_by_supplier_id,
+            });
 
             return (
               <div key={f.id} className="file-card">
@@ -188,17 +192,8 @@ export default function FilesTab({
                     {f.name}
                   </div>
                   <div className="file-meta file-meta-person">
-                    <Avatar
-                      url={
-                        findPerson(detail, {
-                          name: f.uploaded_by,
-                          supplierId: f.uploaded_by_supplier_id,
-                        }).avatarUrl
-                      }
-                      name={f.uploaded_by}
-                      size={16}
-                    />
-                    {fmtSize(f.size_bytes)} · {f.uploaded_by}
+                    <Avatar url={person.avatarUrl} name={f.uploaded_by} size={16} />
+                    {fmtSize(f.size_bytes)} · {personLabel(person)}
                   </div>
                   {ordnerName(f.offer_folder) && (
                     <div className="file-offer-tag">

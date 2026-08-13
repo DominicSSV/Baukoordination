@@ -141,6 +141,20 @@ function WorkspaceInner({
     setTab(isAdmin ? 'lieferanten' : 'todos');
   }
 
+  /**
+   * Aus einer Benachrichtigung heraus: Projekt öffnen und gleich das Register
+   * zeigen, in dem der Vorgang steht. Ohne das landete man auf der Startseite
+   * des Projekts und müsste selbst suchen.
+   */
+  function openFromNotification(id: string, ziel: TabKey) {
+    if (id !== activeId) {
+      setActiveId(id);
+      setDetail(null);
+      setDetailError(null);
+    }
+    setTab(ziel);
+  }
+
   /** Nach dem Umbenennen: Liste und geöffnetes Projekt gleichziehen. */
   function renameProject(updated: Project) {
     setProjects((current) =>
@@ -187,6 +201,10 @@ function WorkspaceInner({
   }
 
   const openTodos = detail?.todos.filter((t) => !t.done).length ?? 0;
+  const firmaAnzeige =
+    session.firma?.trim() && session.firma.trim().toLowerCase() !== session.name.trim().toLowerCase()
+      ? session.firma.trim()
+      : null;
   const offerten = detail?.files.filter((f) => f.offer_folder).length ?? 0;
 
   return (
@@ -216,7 +234,7 @@ function WorkspaceInner({
             werBinIch={
               session.kind === 'admin' ? session.userId : session.supplierId
             }
-            onOpenProject={selectProject}
+            onOpenProject={openFromNotification}
           />
           <button
             type="button"
@@ -227,11 +245,10 @@ function WorkspaceInner({
           >
             <Avatar url={avatarUrl} name={session.name} size={26} />
           </button>
+          {/* Immer mit Firma: auf der Baustelle sind mehrere Firmen unterwegs. */}
           <span className="me-text">
             {session.name}
-            {session.kind === 'supplier' && (
-              <span style={{ opacity: 0.6 }}> (Lieferant)</span>
-            )}
+            {firmaAnzeige && <span style={{ opacity: 0.6 }}> ({firmaAnzeige})</span>}
           </span>
           <button type="button" onClick={logout} aria-label="Abmelden" title="Abmelden">
             <span className="me-logout-text">abmelden</span>

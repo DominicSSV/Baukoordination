@@ -6,7 +6,7 @@ import type { MessageDraft } from '@/components/workspace/MessageModal';
 import { del, post } from '@/lib/client/api';
 import { fmtDate } from '@/lib/format';
 import Avatar from '@/components/Avatar';
-import { findPerson } from '@/lib/people';
+import { findPerson, personLabel } from '@/lib/people';
 import type { ProjectDetail } from '@/types';
 
 type NotifyResponse = {
@@ -190,7 +190,7 @@ export default function ActivityTab({
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="activity-text">
-                <strong>{a.actor_name}</strong> {a.text}
+                <strong>{personLabel(person)}</strong> {a.text}
               </div>
               <div className="activity-meta">{fmtDate(a.created_at)}</div>
             </div>

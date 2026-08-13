@@ -12,7 +12,7 @@ import {
   tageZwischen,
 } from '@/lib/schedule';
 import Avatar from '@/components/Avatar';
-import { assigneePerson } from '@/lib/people';
+import { assigneePerson, mitFirma, personLabel } from '@/lib/people';
 import { adminAssignee, supplierAssignee } from '@/lib/assignee';
 import { fmtDate, supplierLabel } from '@/lib/format';
 import { fmtDueDate } from '@/lib/due';
@@ -162,7 +162,7 @@ export default function ScheduleTab({
       })),
       ...detail.suppliers.map((s) => ({
         wert: supplierAssignee(s.id),
-        name: supplierLabel(s),
+        name: mitFirma(supplierLabel(s), s.firma),
         gruppe: 'Lieferanten',
       })),
     ],
@@ -654,7 +654,7 @@ export default function ScheduleTab({
                       className="plan-person plan-person-knopf"
                       title={
                         g.owner
-                          ? `Zuständig: ${person.name} – zum Ändern klicken`
+                          ? `Zuständig: ${personLabel(person)} – zum Ändern klicken`
                           : 'Zuständige Person wählen'
                       }
                       onClick={(e) => {
@@ -673,7 +673,7 @@ export default function ScheduleTab({
                       )}
                     </button>
                   ) : g.owner ? (
-                    <div className="plan-person" title={`Zuständig: ${person.name}`}>
+                    <div className="plan-person" title={`Zuständig: ${personLabel(person)}`}>
                       <Avatar url={person.avatarUrl} name={person.name} size={30} />
                     </div>
                   ) : (
@@ -906,7 +906,7 @@ export default function ScheduleTab({
                         </div>
                       )}
                       <div className="notiz-meta">
-                        {n.author} · {fmtDate(n.created_at)}
+                        {personLabel(person)} · {fmtDate(n.created_at)}
                         {(eigen || isAdmin) && (
                           <button type="button" onClick={() => notizLoeschen(n.id)}>
                             entfernen

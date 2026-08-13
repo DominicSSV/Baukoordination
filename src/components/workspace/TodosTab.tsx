@@ -20,7 +20,7 @@ import {
 import Spinner from '@/components/Spinner';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import Avatar from '@/components/Avatar';
-import { assigneePerson, findPerson } from '@/lib/people';
+import { assigneePerson, findPerson, personLabel } from '@/lib/people';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
 
 export default function TodosTab({
@@ -90,7 +90,7 @@ export default function TodosTab({
     return (
       <span className="assignee-chip" title={assigneeLabel(todo.assigned_to, detail.admins, detail.suppliers)}>
         <Avatar url={person.avatarUrl} name={person.name} size={18} />
-        {person.name}
+        {personLabel(person)}
       </span>
     );
   }
@@ -251,7 +251,11 @@ export default function TodosTab({
           <optgroup label="Lieferanten">
             {detail.suppliers.map((s) => (
               <option key={s.id} value={supplierAssignee(s.id)}>
-                {supplierLabel(s)}
+                {personLabel({
+                  name: supplierLabel(s),
+                  firma: s.firma ?? null,
+                  avatarUrl: null,
+                })}
               </option>
             ))}
           </optgroup>
@@ -479,7 +483,7 @@ export default function TodosTab({
                                 name={person.name}
                                 size={16}
                               />
-                              {c.author} · {fmtDate(c.created_at)}
+                              {personLabel(person)} · {fmtDate(c.created_at)}
                               {(mine || isAdmin) && (
                                 <button
                                   type="button"
