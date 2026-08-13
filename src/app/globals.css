@@ -1915,6 +1915,9 @@ button:disabled {
 .plan-links {
   flex-direction: row;
   align-items: center;
+  /* Linksbündig, nicht zentriert: sonst rückt jede Zeile je nach Länge des
+     Gewerknamens anders weit ein und die Spalte wirkt versetzt. */
+  justify-content: flex-start;
   gap: 9px;
 }
 
@@ -2233,8 +2236,12 @@ button:disabled {
   margin-top: 1px;
 }
 
+/* Name und Bild stehen oben in der Zeile, auf Höhe des ersten Balkens. Mittig
+   ausgerichtet würden sie bei mehreren Spuren nach unten rutschen und die
+   linke Spalte sähe von Zeile zu Zeile versetzt aus. */
 .plan-zeile .plan-links {
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 4px;
 }
 
 .plan-balken {
