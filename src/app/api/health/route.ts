@@ -157,6 +157,18 @@ export async function GET() {
           : undefined,
       };
 
+      const korb = await db.from('todos').select('deleted_at').limit(1);
+      const betrag = await db.from('files').select('offer_amount').limit(1);
+      report.migration_0017 = {
+        papierkorb: !korb.error,
+        offerten_betraege: !betrag.error,
+        hinweis:
+          korb.error || betrag.error
+            ? 'Migration 0017 fehlt. Gelöschtes ist sofort endgültig weg und ' +
+              'Offerten haben weder Betrag noch Stand.'
+            : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

@@ -157,14 +157,16 @@ export async function loadProjectDetail(
         'id, project_id, text, assigned_to, assignees, vertraulich, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
       )
       .eq('project_id', projectId)
+      .is('deleted_at', null)
       .order('order_index', { ascending: true })
       .order('created_at', { ascending: true }),
     db
       .from('files')
       .select(
-        'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder',
+        'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder, offer_amount, offer_status',
       )
       .eq('project_id', projectId)
+      .is('deleted_at', null)
       .order('uploaded_at', { ascending: false }),
     db
       .from('activity')
@@ -281,6 +283,8 @@ export async function loadProjectDetail(
     uploaded_by_supplier_id: f.uploaded_by_supplier_id,
     uploaded_at: f.uploaded_at,
     offer_folder: f.offer_folder ?? null,
+    offer_amount: f.offer_amount ?? null,
+    offer_status: f.offer_status ?? null,
     comments: kommentareNachDatei.get(f.id) ?? [],
     thumb_url: urls.get(f.thumb_path ?? f.storage_path) ?? null,
     can_delete:

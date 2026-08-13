@@ -17,6 +17,7 @@ import ScheduleTab from '@/components/workspace/ScheduleTab';
 import OffersTab from '@/components/workspace/OffersTab';
 import NotificationBell from '@/components/workspace/NotificationBell';
 import MyWeek from '@/components/workspace/MyWeek';
+import TrashModal from '@/components/workspace/TrashModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -66,6 +67,7 @@ function WorkspaceInner({
   // Startansicht über alle Projekte. Wer sich anmeldet, will zuerst wissen,
   // was ansteht – nicht ein einzelnes Projekt sehen.
   const [zeigeWoche, setZeigeWoche] = useState(true);
+  const [zeigePapierkorb, setZeigePapierkorb] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
@@ -322,6 +324,7 @@ function WorkspaceInner({
                 onRefresh={refresh}
                 onRenamed={renameProject}
                 onDuplicated={addProject}
+                onTrash={() => setZeigePapierkorb(true)}
               />
 
               <div className="tabs">
@@ -430,6 +433,14 @@ function WorkspaceInner({
             void reload();
           }}
           onClose={() => setShowProfile(false)}
+        />
+      )}
+
+      {zeigePapierkorb && activeId && (
+        <TrashModal
+          projectId={activeId}
+          onClose={() => setZeigePapierkorb(false)}
+          onChanged={reload}
         />
       )}
 

@@ -1,4 +1,4 @@
-import { ApiError, forbidden, handler, ok } from '@/lib/api';
+import { ApiError, forbidden, handler, ok, readJson } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { darfOfferteSehen } from '@/lib/auth/offerAccess';
 import { STORAGE_BUCKET } from '@/lib/env';
@@ -86,7 +86,63 @@ export const GET = handler(async (request: Request, { params }: Params) => {
   return ok({ url: data.signedUrl, name: file.name, mimeType: file.mime_type });
 });
 
-/** Löschen: der Admin alles, ein Lieferant nur eigene Uploads. */
+/**
+ * Angaben zu einer Offerte pflegen: Betrag und Stand.
+ *
+ * Den Betrag darf auch der einreichende Lieferant setzen – er kennt ihn. Über
+ * den Stand (geprüft, vergeben, abgelehnt) entscheiden wir allein; dieselbe
+ * Regel steht als Trigger in Migration 0017.
+ */
+export const PATCH = handler(async (request: Request, { params }: Params) => {
+  const { id } = await params;
+  const ctx = await requireSession();
+  const file = await loadFile(id);
+  await requireProjectAccess(ctx, file.project_id);
+  await pruefeOffertenzugriff(ctx, file);
+
+  const body = await readJson<{
+    betrag?: number | null;
+    stand?: string | null;
+  }>(request);
+
+  const patch: Record<string, unknown> = {};
+
+  if (body.betrag !== undefined) {
+    if (
+      ctx.session.kind === 'supplier' &&
+      file.uploaded_by_supplier_id !== ctx.session.supplierId
+    ) {
+      throw forbidden('Du kannst nur eigene Einreichungen bearbeiten.');
+    }
+    if (body.betrag === null) {
+      patch.offer_amount = null;
+    } else if (typeof body.betrag === 'number' && body.betrag >= 0) {
+      patch.offer_amount = Math.round(body.betrag * 100) / 100;
+    } else {
+      throw new ApiError('Der Betrag muss eine Zahl sein.');
+    }
+  }
+
+  if (body.stand !== undefined) {
+    if (ctx.session.kind !== 'admin') {
+      throw forbidden('Über den Stand einer Offerte entscheidet die Swiss Solar Ventures AG.');
+    }
+    const erlaubt = ['eingereicht', 'geprueft', 'vergeben', 'abgelehnt'];
+    if (body.stand !== null && !erlaubt.includes(body.stand)) {
+      throw new ApiError('Unbekannter Stand.');
+    }
+    patch.offer_status = body.stand;
+  }
+
+  if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
+
+  const { error } = await ctx.db.from('files').update(patch).eq('id', id);
+  if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
+
+  return ok({ ok: true });
+});
+
+/** Löschen heisst wegwerfen: die Datei wandert in den Papierkorb. */
 export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const { id } = await params;
   const ctx = await requireSession();
@@ -101,17 +157,22 @@ export const DELETE = handler(async (_request: Request, { params }: Params) => {
     throw forbidden('Du kannst nur selbst hochgeladene Dateien löschen.');
   }
 
-  const { error } = await ctx.db.from('files').delete().eq('id', id);
-  if (error) throw new ApiError(`Löschen fehlgeschlagen: ${error.message}`, 500);
+  const { error } = await ctx.db
+    .from('files')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: ctx.session.name })
+    .eq('id', id);
 
-  // Erst wenn der Datensatz weg ist, die Objekte im Storage entfernen. Bleibt hier
-  // etwas liegen, ist das nur verwaister Speicher – kein sichtbarer Fehler mehr.
-  const paths = [file.storage_path, file.thumb_path].filter(
-    (p): p is string => Boolean(p),
-  );
-  const removal = await serviceClient().storage.from(STORAGE_BUCKET).remove(paths);
-  if (removal.error) {
-    console.error('[storage] Datei nicht entfernt', removal.error);
+  // Ohne Migration 0017 gibt es den Papierkorb noch nicht – dann wie bisher
+  // endgültig löschen, samt der Objekte im Speicher.
+  if (error) {
+    const { error: hart } = await ctx.db.from('files').delete().eq('id', id);
+    if (hart) throw new ApiError(`Löschen fehlgeschlagen: ${hart.message}`, 500);
+
+    const paths = [file.storage_path, file.thumb_path].filter(
+      (p): p is string => Boolean(p),
+    );
+    const removal = await serviceClient().storage.from(STORAGE_BUCKET).remove(paths);
+    if (removal.error) console.error('[storage] Datei nicht entfernt', removal.error);
   }
 
   return ok({ ok: true });

@@ -217,7 +217,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   return ok({ todo: data, warning });
 });
 
-/** Löschen: der Admin alles, ein Lieferant nur selbst erstellte Aufgaben. */
+/** Wegwerfen: der Admin alles, ein Lieferant nur selbst erstellte Aufgaben. */
 export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const { id } = await params;
   const ctx = await requireSession();
@@ -230,8 +230,17 @@ export const DELETE = handler(async (_request: Request, { params }: Params) => {
     throw forbidden('Du kannst nur selbst erstellte Aufgaben löschen.');
   }
 
-  const { error } = await ctx.db.from('todos').delete().eq('id', id);
-  if (error) throw new ApiError(`Löschen fehlgeschlagen: ${error.message}`, 500);
+  // Wegwerfen statt löschen: die Aufgabe liegt 30 Tage im Papierkorb.
+  const { error } = await ctx.db
+    .from('todos')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: ctx.session.name })
+    .eq('id', id);
+
+  // Ohne Migration 0017 gibt es den Papierkorb noch nicht.
+  if (error) {
+    const { error: hart } = await ctx.db.from('todos').delete().eq('id', id);
+    if (hart) throw new ApiError(`Löschen fehlgeschlagen: ${hart.message}`, 500);
+  }
 
   return ok({ ok: true });
 });

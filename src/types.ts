@@ -143,6 +143,29 @@ export type ProjectFile = {
   offer_folder: string | null;
   /** Anmerkungen zur Datei – gelesen und geschrieben von uns und der Firma. */
   comments: FileComment[];
+  /** Betrag der Offerte in Franken, null = nicht erfasst. */
+  offer_amount: number | null;
+  /** Stand der Offerte; null gilt als 'eingereicht'. */
+  offer_status: OffertenStand | null;
+};
+
+export type OffertenStand = 'eingereicht' | 'geprueft' | 'vergeben' | 'abgelehnt';
+
+export const OFFERTEN_STAENDE: Array<{ wert: OffertenStand; name: string }> = [
+  { wert: 'eingereicht', name: 'Eingereicht' },
+  { wert: 'geprueft', name: 'Geprüft' },
+  { wert: 'vergeben', name: 'Vergeben' },
+  { wert: 'abgelehnt', name: 'Abgelehnt' },
+];
+
+/** Ein weggeworfener Eintrag, wie ihn der Papierkorb zeigt. */
+export type PapierkorbEintrag = {
+  art: 'todo' | 'datei';
+  id: string;
+  text: string;
+  zusatz: string | null;
+  deletedAt: string;
+  deletedBy: string | null;
 };
 
 export type ActivityEntry = {

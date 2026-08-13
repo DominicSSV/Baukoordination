@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { del, post } from '@/lib/client/api';
+import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize, fmtDate } from '@/lib/format';
 import Spinner from '@/components/Spinner';
@@ -10,7 +10,16 @@ import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
 import { OFFERTEN_ORDNER, ordnerName } from '@/lib/offers';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
+import { OFFERTEN_STAENDE, type OffertenStand } from '@/types';
 import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
+
+/** Betrag im Schweizer Format, z.B. 12'400.50. */
+function chf(wert: number): string {
+  return wert.toLocaleString('de-CH', {
+    minimumFractionDigits: wert % 1 ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
+}
 
 /**
  * Register "Offerten": feste Ordner, in die Lieferanten ihre Unterlagen legen.
@@ -41,6 +50,8 @@ export default function OffersTab({
   // Geöffnete Anmerkungslisten und die Entwürfe dazu, je Datei.
   const [offeneNotizen, setOffeneNotizen] = useState<Set<string>>(new Set());
   const [entwuerfe, setEntwuerfe] = useState<Record<string, string>>({});
+  // Betragsfelder je Datei – erst beim Verlassen des Felds wird gespeichert.
+  const [betragEntwurf, setBetragEntwurf] = useState<Record<string, string>>({});
 
   /** Dateien nach Ordner, in der Reihenfolge des Katalogs. */
   const nachOrdner = useMemo(() => {
@@ -121,6 +132,34 @@ export default function OffersTab({
     });
   }
 
+  async function betragSpeichern(f: ProjectFile) {
+    const roh = (betragEntwurf[f.id] ?? '').replace(/['\s]/g, '').replace(',', '.');
+    const wert = roh === '' ? null : Number(roh);
+
+    if (wert !== null && (!Number.isFinite(wert) || wert < 0)) {
+      reportError(new Error('Bitte eine Zahl eingeben.'), 'Betrag nicht gespeichert.');
+      return;
+    }
+    if ((wert ?? null) === (f.offer_amount ?? null)) return;
+
+    try {
+      await patch(`/api/files/${f.id}`, { betrag: wert });
+      await reload();
+      toast('✓ Betrag gespeichert.');
+    } catch (error) {
+      reportError(error, 'Betrag konnte nicht gespeichert werden.');
+    }
+  }
+
+  async function standSetzen(f: ProjectFile, stand: OffertenStand) {
+    try {
+      await patch(`/api/files/${f.id}`, { stand });
+      await reload();
+    } catch (error) {
+      reportError(error, 'Der Stand konnte nicht geändert werden.');
+    }
+  }
+
   function klappen(ordner: string) {
     setZu((current) => {
       const next = new Set(current);
@@ -174,6 +213,14 @@ export default function OffersTab({
                 {ordner.name}
                 <span className="offer-hinweis-klein">{ordner.hinweis}</span>
               </span>
+              {isAdmin && dateien.some((f) => f.offer_amount !== null) && (
+                <span className="offer-summe">
+                  CHF{' '}
+                  {chf(
+                    dateien.reduce((sum, f) => sum + (f.offer_amount ?? 0), 0),
+                  )}
+                </span>
+              )}
               <span className="gruppe-anzahl">{dateien.length}</span>
             </button>
 
@@ -251,6 +298,64 @@ export default function OffersTab({
                             💬 Kommentieren
                             {f.comments.length > 0 && ` (${f.comments.length})`}
                           </button>
+
+                          {/* Betrag: erfassbar von uns und vom Einreichenden. */}
+                          {isAdmin || eigen ? (
+                            <span className="offer-betrag">
+                              CHF{' '}
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={
+                                  betragEntwurf[f.id] ??
+                                  (f.offer_amount !== null ? String(f.offer_amount) : '')
+                                }
+                                placeholder="Betrag"
+                                onChange={(e) =>
+                                  setBetragEntwurf((current) => ({
+                                    ...current,
+                                    [f.id]: e.target.value,
+                                  }))
+                                }
+                                onBlur={() => void betragSpeichern(f)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                              />
+                            </span>
+                          ) : (
+                            f.offer_amount !== null && (
+                              <span className="offer-betrag-fest">
+                                CHF {chf(f.offer_amount)}
+                              </span>
+                            )
+                          )}
+
+                          {/* Stand: setzt allein die Swiss Solar Ventures AG. */}
+                          {isAdmin ? (
+                            <select
+                              className={`offer-stand ${f.offer_status ?? 'eingereicht'}`}
+                              value={f.offer_status ?? 'eingereicht'}
+                              onChange={(e) =>
+                                void standSetzen(f, e.target.value as OffertenStand)
+                              }
+                              aria-label="Stand der Offerte"
+                            >
+                              {OFFERTEN_STAENDE.map((o) => (
+                                <option key={o.wert} value={o.wert}>
+                                  {o.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            f.offer_status &&
+                            f.offer_status !== 'eingereicht' && (
+                              <span className={`offer-stand fest ${f.offer_status}`}>
+                                {OFFERTEN_STAENDE.find((o) => o.wert === f.offer_status)
+                                  ?.name ?? f.offer_status}
+                              </span>
+                            )
+                          )}
                           <div className="offer-meta">
                             <Avatar
                               url={person.avatarUrl}
