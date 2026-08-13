@@ -15,6 +15,7 @@ import ProjectHeader from '@/components/workspace/ProjectHeader';
 import ProfileModal from '@/components/workspace/ProfileModal';
 import ScheduleTab from '@/components/workspace/ScheduleTab';
 import OffersTab from '@/components/workspace/OffersTab';
+import NotificationBell from '@/components/workspace/NotificationBell';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -211,6 +212,12 @@ function WorkspaceInner({
             Abmelde-Knopf – Name und Funktion würden dem Firmennamen den Platz
             nehmen, den er für eine einzige Zeile braucht. */}
         <div className="me-badge">
+          <NotificationBell
+            werBinIch={
+              session.kind === 'admin' ? session.userId : session.supplierId
+            }
+            onOpenProject={selectProject}
+          />
           <button
             type="button"
             className="me-avatar"

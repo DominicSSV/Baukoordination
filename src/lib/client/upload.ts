@@ -73,12 +73,18 @@ export async function uploadFiles(params: {
   /** Ordner im Register "Offerten"; leer = gewöhnliche Datei. */
   offerFolder?: string | null;
   files: FileList | File[];
+  /**
+   * Angezeigte Namen, in derselben Reihenfolge wie die Dateien. Fehlt ein
+   * Eintrag, gilt der ursprüngliche Dateiname.
+   */
+  namen?: string[];
 }): Promise<UploadResult> {
   const list = Array.from(params.files);
   const errors: string[] = [];
   let uploaded = 0;
 
-  for (const file of list) {
+  for (const [index, file] of list.entries()) {
+    const anzeigename = params.namen?.[index]?.trim() || file.name;
     try {
       let thumbBlob: Blob | null = null;
       try {
@@ -90,7 +96,7 @@ export async function uploadFiles(params: {
       const prepared = await post<PrepareResponse>(
         `/api/projects/${params.projectId}/files/prepare`,
         {
-          name: file.name,
+          name: anzeigename,
           mimeType: file.type,
           withThumb: Boolean(thumbBlob),
           todoId: params.todoId ?? undefined,
@@ -125,7 +131,7 @@ export async function uploadFiles(params: {
 
       await post(`/api/projects/${params.projectId}/files/confirm`, {
         fileId: prepared.fileId,
-        name: file.name,
+        name: anzeigename,
         mimeType: file.type,
         sizeBytes: file.size,
         storagePath: prepared.storagePath,
@@ -137,7 +143,7 @@ export async function uploadFiles(params: {
       uploaded += 1;
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Unbekannter Fehler';
-      errors.push(`"${file.name}": ${reason}`);
+      errors.push(`"${anzeigename}": ${reason}`);
     }
   }
 

@@ -18,6 +18,7 @@ import {
   INTERNAL,
 } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
+import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import Avatar from '@/components/Avatar';
 import { assigneePerson, findPerson } from '@/lib/people';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
@@ -64,6 +65,10 @@ export default function TodosTab({
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [uploadingTodo, setUploadingTodo] = useState<string | null>(null);
+  // Anhänge werden vor dem Hochladen benannt, damit sie später auffindbar sind.
+  const [wartend, setWartend] = useState<{ todoId: string; files: File[] } | null>(
+    null,
+  );
 
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const cameraInputs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -174,11 +179,25 @@ export default function TodosTab({
     });
   }
 
-  async function handleAttachments(todoId: string, files: FileList | null) {
+  function handleAttachments(todoId: string, files: FileList | null) {
     if (!files || !files.length) return;
+    setWartend({ todoId, files: Array.from(files) });
+  }
+
+  async function anhaengeHochladen(namen: string[]) {
+    const auftrag = wartend;
+    setWartend(null);
+    if (!auftrag) return;
+
+    const todoId = auftrag.todoId;
     setUploadingTodo(todoId);
     try {
-      const result = await uploadFiles({ projectId, todoId, files });
+      const result = await uploadFiles({
+        projectId,
+        todoId,
+        files: auftrag.files,
+        namen,
+      });
       await reload();
 
       if (result.errors.length) {
@@ -243,6 +262,15 @@ export default function TodosTab({
 
   return (
     <div className="card">
+      {wartend && (
+        <UploadNamesModal
+          files={wartend.files}
+          titel="Anhänge benennen"
+          onAbbrechen={() => setWartend(null)}
+          onBestaetigen={anhaengeHochladen}
+        />
+      )}
+
       <div className="section-head">
         <h2>Aufgaben</h2>
       </div>
@@ -560,7 +588,7 @@ export default function TodosTab({
                       multiple
                       style={{ display: 'none' }}
                       onChange={(e) => {
-                        void handleAttachments(todo.id, e.target.files);
+                        handleAttachments(todo.id, e.target.files);
                         e.target.value = '';
                       }}
                     />
@@ -573,7 +601,7 @@ export default function TodosTab({
                       capture="environment"
                       style={{ display: 'none' }}
                       onChange={(e) => {
-                        void handleAttachments(todo.id, e.target.files);
+                        handleAttachments(todo.id, e.target.files);
                         e.target.value = '';
                       }}
                     />

@@ -9,6 +9,7 @@ import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import { findPerson } from '@/lib/people';
 import { ordnerName } from '@/lib/offers';
+import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import type { ProjectDetail } from '@/types';
 
 export default function FilesTab({
@@ -25,13 +26,22 @@ export default function FilesTab({
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
+  // Erst benennen, dann hochladen – "IMG_4711.jpg" hilft später niemandem.
+  const [wartend, setWartend] = useState<File[] | null>(null);
 
-  async function handleFiles(files: FileList | File[] | null) {
+  function handleFiles(files: FileList | File[] | null) {
     if (!files || !('length' in files) || !files.length) return;
+    setWartend(Array.from(files));
+  }
+
+  async function hochladen(namen: string[]) {
+    const files = wartend;
+    setWartend(null);
+    if (!files) return;
 
     setUploading(true);
     try {
-      const result = await uploadFiles({ projectId: detail.project.id, files });
+      const result = await uploadFiles({ projectId: detail.project.id, files, namen });
       await reload();
 
       if (result.errors.length) {
@@ -48,11 +58,20 @@ export default function FilesTab({
   function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDragging(false);
-    void handleFiles(event.dataTransfer.files);
+    handleFiles(event.dataTransfer.files);
   }
 
   return (
     <div className="card">
+      {wartend && (
+        <UploadNamesModal
+          files={wartend}
+          titel="Dateien benennen"
+          onAbbrechen={() => setWartend(null)}
+          onBestaetigen={hochladen}
+        />
+      )}
+
       <div className="section-head">
         <h2>Fotos &amp; Dokumente</h2>
       </div>
@@ -102,7 +121,7 @@ export default function FilesTab({
           multiple
           style={{ display: 'none' }}
           onChange={(e) => {
-            void handleFiles(e.target.files);
+            handleFiles(e.target.files);
             e.target.value = '';
           }}
         />
@@ -113,7 +132,7 @@ export default function FilesTab({
           capture="environment"
           style={{ display: 'none' }}
           onChange={(e) => {
-            void handleFiles(e.target.files);
+            handleFiles(e.target.files);
             e.target.value = '';
           }}
         />

@@ -8,13 +8,15 @@ import { fmtSize, fmtDate } from '@/lib/format';
 import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import { findPerson } from '@/lib/people';
-import { OFFERTEN_ORDNER } from '@/lib/offers';
+import { OFFERTEN_ORDNER, ordnerName } from '@/lib/offers';
+import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
 
 /**
- * Register "Offerten": vier feste Ordner, in die Lieferanten ihre Unterlagen
- * legen. Ein Lieferant sieht ausschliesslich die eigenen Einreichungen – dafür
- * sorgt die Datenbank (Migration 0012), nicht erst diese Ansicht.
+ * Register "Offerten": feste Ordner, in die Lieferanten ihre Unterlagen legen.
+ * Sichtbar sind sie nur für uns und die Firma, die sie eingereicht hat – dafür
+ * sorgen die Datenbank (Migrationen 0012/0013) und die Datei-Route, nicht erst
+ * diese Ansicht.
  */
 export default function OffersTab({
   detail,
@@ -34,6 +36,8 @@ export default function OffersTab({
   const [ziehtUeber, setZiehtUeber] = useState<string | null>(null);
   const [zu, setZu] = useState<Set<string>>(new Set());
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
+  // Erst benennen, dann hochladen – Dateinamen wie "OFFERT~1.PDF" sagen nichts aus.
+  const [wartend, setWartend] = useState<{ ordner: string; files: File[] } | null>(null);
 
   /** Dateien nach Ordner, in der Reihenfolge des Katalogs. */
   const nachOrdner = useMemo(() => {
@@ -47,15 +51,24 @@ export default function OffersTab({
     return map;
   }, [detail.files]);
 
-  async function hochladen(ordner: string, files: FileList | File[] | null) {
+  function auswaehlen(ordner: string, files: FileList | File[] | null) {
     if (!files || !('length' in files) || !files.length) return;
+    setWartend({ ordner, files: Array.from(files) });
+  }
 
+  async function hochladen(namen: string[]) {
+    const auftrag = wartend;
+    setWartend(null);
+    if (!auftrag) return;
+
+    const ordner = auftrag.ordner;
     setUploadIn(ordner);
     try {
       const result = await uploadFiles({
         projectId: detail.project.id,
         offerFolder: ordner,
-        files,
+        files: auftrag.files,
+        namen,
       });
       await reload();
 
@@ -73,7 +86,7 @@ export default function OffersTab({
   function beiDrop(ordner: string, event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setZiehtUeber(null);
-    void hochladen(ordner, event.dataTransfer.files);
+    auswaehlen(ordner, event.dataTransfer.files);
   }
 
   function klappen(ordner: string) {
@@ -87,6 +100,15 @@ export default function OffersTab({
 
   return (
     <div className="card">
+      {wartend && (
+        <UploadNamesModal
+          files={wartend.files}
+          titel={`Einreichen unter „${ordnerName(wartend.ordner)}“`}
+          onAbbrechen={() => setWartend(null)}
+          onBestaetigen={hochladen}
+        />
+      )}
+
       <div className="section-head">
         <h2>Offerten</h2>
       </div>
@@ -162,7 +184,7 @@ export default function OffersTab({
                     multiple
                     style={{ display: 'none' }}
                     onChange={(e) => {
-                      void hochladen(ordner.wert, e.target.files);
+                      auswaehlen(ordner.wert, e.target.files);
                       e.target.value = '';
                     }}
                   />
