@@ -7,6 +7,7 @@ import type { Ctx } from '@/lib/auth/guards';
 import type {
   ActivityEntry,
   AdminProfile,
+  FileComment,
   Project,
   ProjectDetail,
   ProjectFile,
@@ -249,6 +250,26 @@ export async function loadProjectDetail(
       .map((f) => f.thumb_path ?? f.storage_path),
   );
 
+  // Anmerkungen zu den Dateien. Ohne Migration 0016 gibt es die Tabelle noch
+  // nicht – dann bleiben die Listen eben leer.
+  const kommentare = fileRows.length
+    ? await db
+        .from('file_comments')
+        .select('id, file_id, text, author, author_supplier_id, created_at')
+        .in(
+          'file_id',
+          fileRows.map((f) => f.id),
+        )
+        .order('created_at', { ascending: true })
+    : { data: [] as FileComment[], error: null };
+
+  const kommentareNachDatei = new Map<string, FileComment[]>();
+  for (const c of (kommentare.data ?? []) as FileComment[]) {
+    const liste = kommentareNachDatei.get(c.file_id) ?? [];
+    liste.push(c);
+    kommentareNachDatei.set(c.file_id, liste);
+  }
+
   const files: ProjectFile[] = fileRows.map((f) => ({
     id: f.id,
     project_id: f.project_id,
@@ -260,6 +281,7 @@ export async function loadProjectDetail(
     uploaded_by_supplier_id: f.uploaded_by_supplier_id,
     uploaded_at: f.uploaded_at,
     offer_folder: f.offer_folder ?? null,
+    comments: kommentareNachDatei.get(f.id) ?? [],
     thumb_url: urls.get(f.thumb_path ?? f.storage_path) ?? null,
     can_delete:
       isAdmin ||

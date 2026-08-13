@@ -113,6 +113,15 @@ export type Todo = {
   comments: TodoComment[];
 };
 
+export type FileComment = {
+  id: string;
+  file_id: string;
+  text: string;
+  author: string;
+  author_supplier_id: string | null;
+  created_at: string;
+};
+
 export type ProjectFile = {
   id: string;
   project_id: string;
@@ -132,6 +141,8 @@ export type ProjectFile = {
    * hochgeladen hat.
    */
   offer_folder: string | null;
+  /** Anmerkungen zur Datei – gelesen und geschrieben von uns und der Firma. */
+  comments: FileComment[];
 };
 
 export type ActivityEntry = {

@@ -134,6 +134,14 @@ export async function GET() {
             : undefined,
       };
 
+      const notizen = await db.from('file_comments').select('id').limit(1);
+      report.migration_0016 = {
+        offerten_kommentare: !notizen.error,
+        hinweis: notizen.error
+          ? 'Migration 0016 fehlt. Offerten lassen sich nicht kommentieren.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

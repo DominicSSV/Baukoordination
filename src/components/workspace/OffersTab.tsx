@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { del } from '@/lib/client/api';
+import { del, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize, fmtDate } from '@/lib/format';
 import Spinner from '@/components/Spinner';
@@ -38,6 +38,9 @@ export default function OffersTab({
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
   // Erst benennen, dann hochladen – Dateinamen wie "OFFERT~1.PDF" sagen nichts aus.
   const [wartend, setWartend] = useState<{ ordner: string; files: File[] } | null>(null);
+  // Geöffnete Anmerkungslisten und die Entwürfe dazu, je Datei.
+  const [offeneNotizen, setOffeneNotizen] = useState<Set<string>>(new Set());
+  const [entwuerfe, setEntwuerfe] = useState<Record<string, string>>({});
 
   /** Dateien nach Ordner, in der Reihenfolge des Katalogs. */
   const nachOrdner = useMemo(() => {
@@ -87,6 +90,35 @@ export default function OffersTab({
     event.preventDefault();
     setZiehtUeber(null);
     auswaehlen(ordner, event.dataTransfer.files);
+  }
+
+  function notizenUmschalten(fileId: string) {
+    setOffeneNotizen((current) => {
+      const next = new Set(current);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  }
+
+  async function kommentieren(fileId: string) {
+    const text = (entwuerfe[fileId] ?? '').trim();
+    if (!text) return;
+
+    try {
+      await post(`/api/files/${fileId}/comments`, { text });
+      setEntwuerfe((current) => ({ ...current, [fileId]: '' }));
+      await reload();
+    } catch (error) {
+      reportError(error, 'Anmerkung konnte nicht gespeichert werden.');
+    }
+  }
+
+  function kommentarLoeschen(kommentarId: string) {
+    confirm('Diese Anmerkung löschen?', async () => {
+      await del(`/api/files/comments/${kommentarId}`);
+      await reload();
+    });
   }
 
   function klappen(ordner: string) {
@@ -223,6 +255,14 @@ export default function OffersTab({
                               · {fmtDate(f.uploaded_at)}
                             </span>
                           </div>
+                          <button
+                            type="button"
+                            className="offer-notiz-knopf"
+                            onClick={() => notizenUmschalten(f.id)}
+                            title="Anmerkungen"
+                          >
+                            💬 {f.comments.length || ''}
+                          </button>
                           {f.can_delete && (
                             <button
                               type="button"
@@ -238,6 +278,69 @@ export default function OffersTab({
                             >
                               ✕
                             </button>
+                          )}
+
+                          {offeneNotizen.has(f.id) && (
+                            <div className="offer-notizen">
+                              {f.comments.map((k) => {
+                                const wer = findPerson(detail, {
+                                  name: k.author,
+                                  supplierId: k.author_supplier_id,
+                                });
+                                const meins =
+                                  session.kind === 'supplier'
+                                    ? k.author_supplier_id === session.supplierId
+                                    : k.author_supplier_id === null;
+
+                                return (
+                                  <div className="offer-notiz" key={k.id}>
+                                    <Avatar
+                                      url={wer.avatarUrl}
+                                      name={k.author}
+                                      size={22}
+                                    />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div className="offer-notiz-text">{k.text}</div>
+                                      <div className="offer-notiz-meta">
+                                        {personLabel(wer)} · {fmtDate(k.created_at)}
+                                        {(meins || isAdmin) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => kommentarLoeschen(k.id)}
+                                          >
+                                            entfernen
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              <div className="offer-notiz-form">
+                                <input
+                                  type="text"
+                                  value={entwuerfe[f.id] ?? ''}
+                                  placeholder="Anmerkung schreiben …"
+                                  onChange={(e) =>
+                                    setEntwuerfe((current) => ({
+                                      ...current,
+                                      [f.id]: e.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') void kommentieren(f.id);
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-accent btn-sm"
+                                  onClick={() => void kommentieren(f.id)}
+                                >
+                                  Senden
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
