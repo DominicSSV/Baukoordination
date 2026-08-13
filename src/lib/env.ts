@@ -68,8 +68,15 @@ export function resendApiKey(): string | null {
   return process.env.RESEND_API_KEY || null;
 }
 
+/**
+ * Absender. Der Anzeigename steht bewusst voran – im Posteingang sieht man oft
+ * nur ihn, nicht die Adresse dahinter.
+ */
 export function mailFrom(): string {
-  return process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev>';
+  return (
+    process.env.MAIL_FROM ||
+    'Swiss Solar Ventures AG - Baukoordination <onboarding@resend.dev>'
+  );
 }
 
 /**

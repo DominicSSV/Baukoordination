@@ -40,6 +40,10 @@ function wrapHtml(title: string, bodyHtml: string): string {
     <tr>
       <td style="width:10px;background:linear-gradient(180deg,#FFBD59 0%,#00BF63 100%);"></td>
       <td style="padding:22px 24px;">
+        <!-- Absolute Adresse, weil das Bild im Mailprogramm des Empfängers
+             geladen wird. Wer Bilder blockiert, sieht den Alternativtext. -->
+        <img src="${escapeHtml(appBaseUrl())}/logo.png" alt="Swiss Solar Ventures AG"
+             width="150" style="display:block;border:0;margin:0 0 14px;height:auto;" />
         <div style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:#929291;">Baukoordination</div>
         <h1 style="font-size:20px;margin:4px 0 16px;color:#262624;">${escapeHtml(title)}</h1>
         ${bodyHtml}
