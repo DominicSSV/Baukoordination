@@ -1,6 +1,7 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { logActivity } from '@/lib/activity';
+import { ordnerName, pruefeOrdner } from '@/lib/offers';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     storagePath?: string;
     thumbPath?: string;
     todoId?: string;
+    offerFolder?: string;
   }>(request);
 
   const fileId = requireString(body.fileId, 'fileId', 64);
@@ -33,6 +35,11 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const storagePath = requireString(body.storagePath, 'storagePath', 500);
   const thumbPath = optionalString(body.thumbPath, 500);
   const todoId = optionalString(body.todoId, 64);
+  const offerFolder = pruefeOrdner(body.offerFolder);
+
+  if (body.offerFolder !== undefined && body.offerFolder !== null && !offerFolder) {
+    throw new ApiError('Unbekannter Offertenordner.');
+  }
 
   if (!storagePath.startsWith(`${projectId}/${fileId}-`)) {
     throw new ApiError('Der gemeldete Speicherpfad passt nicht zum Projekt.', 400);
@@ -68,6 +75,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       uploaded_by: ctx.session.name,
       uploaded_by_supplier_id:
         ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+      ...(offerFolder ? { offer_folder: offerFolder } : {}),
     })
     .select(
       'id, project_id, todo_id, name, mime_type, size_bytes, uploaded_by, uploaded_by_supplier_id, uploaded_at',
@@ -89,12 +97,19 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     if (todo) where = ` zu To-Do "${todo.text}"`;
   }
 
+  // Offerten gehen nur uns und dem einreichenden Lieferanten etwas an – im
+  // offenen Protokoll stünde sonst für alle lesbar, wer was eingereicht hat.
   const warning = await logActivity(ctx.db, {
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
-    text: `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
-    icon: isImage ? '📷' : '📄',
+    text: offerFolder
+      ? `hat "${name}" unter ${ordnerName(offerFolder)} eingereicht`
+      : `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
+    icon: offerFolder ? '💰' : isImage ? '📷' : '📄',
+    nurFuerSupplierId: offerFolder
+      ? (data.uploaded_by_supplier_id as string | null)
+      : null,
   });
 
   return ok({ file: data, warning }, { status: 201 });

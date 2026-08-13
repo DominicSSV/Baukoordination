@@ -8,6 +8,7 @@ import { fmtSize } from '@/lib/format';
 import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import { findPerson } from '@/lib/people';
+import { ordnerName } from '@/lib/offers';
 import type { ProjectDetail } from '@/types';
 
 export default function FilesTab({
@@ -180,6 +181,11 @@ export default function FilesTab({
                     />
                     {fmtSize(f.size_bytes)} · {f.uploaded_by}
                   </div>
+                  {ordnerName(f.offer_folder) && (
+                    <div className="file-offer-tag">
+                      💰 {ordnerName(f.offer_folder)}
+                    </div>
+                  )}
                   {linkedTodo && (
                     <div className="file-linked-todo" title={linkedTodo.text}>
                       🔗 {linkedTodo.text}

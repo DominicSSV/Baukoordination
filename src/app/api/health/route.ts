@@ -91,6 +91,20 @@ export async function GET() {
             : undefined,
       };
 
+      const offerten = await db.from('files').select('offer_folder').limit(1);
+      const protokollVertraulich = await db
+        .from('activity')
+        .select('supplier_id')
+        .limit(1);
+      report.migration_0012 = {
+        offerten_ordner: !offerten.error,
+        protokoll_vertraulich: !protokollVertraulich.error,
+        hinweis:
+          offerten.error || protokollVertraulich.error
+            ? 'Migration 0012 fehlt. Ohne sie lassen sich keine Offerten einreichen.'
+            : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { STORAGE_BUCKET } from '@/lib/env';
+import { pruefeOrdner } from '@/lib/offers';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -36,10 +37,16 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     mimeType?: string;
     withThumb?: boolean;
     todoId?: string;
+    offerFolder?: string;
   }>(request);
 
   const name = requireString(body.name, 'Dateiname', 300);
   const todoId = optionalString(body.todoId, 64);
+
+  // Ein Offertenordner muss einer der vier bekannten sein.
+  if (body.offerFolder !== undefined && !pruefeOrdner(body.offerFolder)) {
+    throw new ApiError('Unbekannter Offertenordner.');
+  }
 
   // Ein Anhang darf nur an ein To-Do desselben Projekts gehängt werden.
   if (todoId) {

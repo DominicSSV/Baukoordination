@@ -70,6 +70,8 @@ export type UploadResult = {
 export async function uploadFiles(params: {
   projectId: string;
   todoId?: string | null;
+  /** Ordner im Register "Offerten"; leer = gewöhnliche Datei. */
+  offerFolder?: string | null;
   files: FileList | File[];
 }): Promise<UploadResult> {
   const list = Array.from(params.files);
@@ -92,6 +94,7 @@ export async function uploadFiles(params: {
           mimeType: file.type,
           withThumb: Boolean(thumbBlob),
           todoId: params.todoId ?? undefined,
+          offerFolder: params.offerFolder ?? undefined,
         },
       );
 
@@ -128,6 +131,7 @@ export async function uploadFiles(params: {
         storagePath: prepared.storagePath,
         thumbPath,
         todoId: params.todoId ?? undefined,
+        offerFolder: params.offerFolder ?? undefined,
       });
 
       uploaded += 1;

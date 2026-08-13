@@ -14,6 +14,7 @@ import Spinner from '@/components/Spinner';
 import ProjectHeader from '@/components/workspace/ProjectHeader';
 import ProfileModal from '@/components/workspace/ProfileModal';
 import ScheduleTab from '@/components/workspace/ScheduleTab';
+import OffersTab from '@/components/workspace/OffersTab';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -23,6 +24,7 @@ export type TabKey =
   | 'lieferanten'
   | 'todos'
   | 'terminplan'
+  | 'offerten'
   | 'dateien'
   | 'aktivitaet';
 
@@ -184,6 +186,7 @@ function WorkspaceInner({
   }
 
   const openTodos = detail?.todos.filter((t) => !t.done).length ?? 0;
+  const offerten = detail?.files.filter((f) => f.offer_folder).length ?? 0;
 
   return (
     <div className="app-shell">
@@ -310,6 +313,13 @@ function WorkspaceInner({
                 </button>
                 <button
                   type="button"
+                  className={`tab-btn ${tab === 'offerten' ? 'active' : ''}`}
+                  onClick={() => setTab('offerten')}
+                >
+                  Offerten <span className="tab-count">{offerten}</span>
+                </button>
+                <button
+                  type="button"
                   className={`tab-btn ${tab === 'dateien' ? 'active' : ''}`}
                   onClick={() => setTab('dateien')}
                 >
@@ -345,6 +355,15 @@ function WorkspaceInner({
                   session={session}
                   isAdmin={isAdmin}
                   reload={reload}
+                />
+              )}
+              {tab === 'offerten' && (
+                <OffersTab
+                  detail={detail}
+                  session={session}
+                  isAdmin={isAdmin}
+                  reload={reload}
+                  onOpenFile={setViewerFileId}
                 />
               )}
               {tab === 'dateien' && (

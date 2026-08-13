@@ -20,14 +20,33 @@ export async function logActivity(
     text: string;
     icon: string;
     notify?: boolean;
+    /**
+     * Vertraulicher Eintrag: nur wir und dieser eine Lieferant sehen ihn – für
+     * Offerten, die andere Lieferanten nichts angehen. null = für alle sichtbar.
+     */
+    nurFuerSupplierId?: string | null;
   },
 ): Promise<string | null> {
-  const { error } = await db.from('activity').insert({
+  const zeile: Record<string, unknown> = {
     project_id: params.projectId,
     actor_name: params.actorName,
     text: params.text,
     icon: params.icon,
-  });
+  };
+
+  let { error } = await db
+    .from('activity')
+    .insert(
+      params.nurFuerSupplierId
+        ? { ...zeile, supplier_id: params.nurFuerSupplierId }
+        : zeile,
+    );
+
+  // Ohne Migration 0012 fehlt die Spalte. Dann lieber ohne Einschränkung
+  // protokollieren als gar nicht – die Datei selbst bleibt trotzdem geschützt.
+  if (error && params.nurFuerSupplierId) {
+    ({ error } = await db.from('activity').insert(zeile));
+  }
 
   if (error) {
     console.error('[activity] Eintrag konnte nicht gespeichert werden', error);
@@ -43,6 +62,7 @@ export async function logActivity(
         actorName: params.actorName,
         actorEmail: params.actorEmail,
         text: params.text,
+        nurFuerSupplierId: params.nurFuerSupplierId ?? null,
       });
     } catch (e) {
       console.error('[activity] Benachrichtigung fehlgeschlagen', e);

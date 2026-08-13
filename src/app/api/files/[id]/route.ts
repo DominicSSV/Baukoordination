@@ -9,8 +9,32 @@ type Params = { params: Promise<{ id: string }> };
 
 const VIEW_URL_TTL = 60 * 60;
 
-async function loadFile(id: string) {
+type Datei = {
+  id: string;
+  project_id: string;
+  name: string;
+  mime_type: string | null;
+  storage_path: string;
+  thumb_path: string | null;
+  uploaded_by_supplier_id: string | null;
+  offer_folder: string | null;
+};
+
+type Sitzung = Awaited<ReturnType<typeof requireSession>>;
+
+async function loadFile(id: string): Promise<Datei> {
   const { data } = await serviceClient()
+    .from('files')
+    .select(
+      'id, project_id, name, mime_type, storage_path, thumb_path, uploaded_by_supplier_id, offer_folder',
+    )
+    .eq('id', id)
+    .maybeSingle();
+
+  if (data) return data as Datei;
+
+  // Ohne Migration 0012 gibt es die Ordnerspalte noch nicht.
+  const { data: ohneOrdner } = await serviceClient()
     .from('files')
     .select(
       'id, project_id, name, mime_type, storage_path, thumb_path, uploaded_by_supplier_id',
@@ -18,8 +42,20 @@ async function loadFile(id: string) {
     .eq('id', id)
     .maybeSingle();
 
-  if (!data) throw new ApiError('Datei nicht gefunden.', 404);
-  return data;
+  if (!ohneOrdner) throw new ApiError('Datei nicht gefunden.', 404);
+  return { ...(ohneOrdner as Omit<Datei, 'offer_folder'>), offer_folder: null };
+}
+
+/**
+ * Offerten sind vertraulich. Die Datenbank blendet sie für fremde Lieferanten
+ * zwar aus, diese Route liest aber bewusst mit Dienstschlüssel – also wird hier
+ * noch einmal ausdrücklich geprüft.
+ */
+function pruefeOffertenzugriff(ctx: Sitzung, file: Datei) {
+  if (!file.offer_folder) return;
+  if (ctx.session.kind !== 'supplier') return;
+  if (file.uploaded_by_supplier_id === ctx.session.supplierId) return;
+  throw new ApiError('Datei nicht gefunden.', 404);
 }
 
 /** Kurzlebige Signed URL auf die Originaldatei – für Vorschau und Download. */
@@ -28,6 +64,7 @@ export const GET = handler(async (request: Request, { params }: Params) => {
   const ctx = await requireSession();
   const file = await loadFile(id);
   await requireProjectAccess(ctx, file.project_id);
+  pruefeOffertenzugriff(ctx, file);
 
   const download = new URL(request.url).searchParams.get('download') === '1';
 
@@ -55,6 +92,7 @@ export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const ctx = await requireSession();
   const file = await loadFile(id);
   await requireProjectAccess(ctx, file.project_id);
+  pruefeOffertenzugriff(ctx, file);
 
   if (
     ctx.session.kind === 'supplier' &&

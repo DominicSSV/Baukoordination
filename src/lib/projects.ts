@@ -161,7 +161,7 @@ export async function loadProjectDetail(
     db
       .from('files')
       .select(
-        'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at',
+        'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder',
       )
       .eq('project_id', projectId)
       .order('uploaded_at', { ascending: false }),
@@ -175,7 +175,19 @@ export async function loadProjectDetail(
   ]);
 
   if (todosRes.error) throw new Error(`To-Dos: ${todosRes.error.message}`);
-  if (filesRes.error) throw new Error(`Dateien: ${filesRes.error.message}`);
+
+  // Ohne Migration 0012 gibt es die Ordnerspalte noch nicht – dann eben ohne.
+  const dateien = filesRes.error
+    ? await db
+        .from('files')
+        .select(
+          'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at',
+        )
+        .eq('project_id', projectId)
+        .order('uploaded_at', { ascending: false })
+    : filesRes;
+
+  if (dateien.error) throw new Error(`Dateien: ${dateien.error.message}`);
   if (activityRes.error) throw new Error(`Aktivität: ${activityRes.error.message}`);
   if (accessRes.error) throw new Error(`Zugriffsrechte: ${accessRes.error.message}`);
 
@@ -206,7 +218,7 @@ export async function loadProjectDetail(
     comments: commentsByTodo.get(t.id) ?? [],
   }));
 
-  const fileRows = (filesRes.data ?? []) as Array<
+  const fileRows = (dateien.data ?? []) as Array<
     ProjectFile & { storage_path: string; thumb_path: string | null }
   >;
 
@@ -227,6 +239,7 @@ export async function loadProjectDetail(
     uploaded_by: f.uploaded_by,
     uploaded_by_supplier_id: f.uploaded_by_supplier_id,
     uploaded_at: f.uploaded_at,
+    offer_folder: f.offer_folder ?? null,
     thumb_url: urls.get(f.thumb_path ?? f.storage_path) ?? null,
     can_delete:
       isAdmin ||

@@ -116,6 +116,12 @@ export type ProjectFile = {
   /** Kurzlebige Signed URL auf die Vorschau (Bilder) bzw. die Datei selbst. */
   thumb_url: string | null;
   can_delete: boolean;
+  /**
+   * Ordner im Register "Offerten" – null bei gewöhnlichen Dateien.
+   * Siehe lib/offers.ts. Offerten sehen nur wir und der Lieferant, der sie
+   * hochgeladen hat.
+   */
+  offer_folder: string | null;
 };
 
 export type ActivityEntry = {

@@ -256,6 +256,32 @@ export async function allProjectParties(
   );
 }
 
+/**
+ * Empfänger für vertrauliche Vorgänge: alle Bauherrenvertreter und genau der
+ * eine Lieferant, den es betrifft – etwa beim Einreichen einer Offerte.
+ */
+async function adminsUndEinLieferant(
+  supplierId: string,
+  exceptEmail?: string | null,
+): Promise<string[]> {
+  const db = serviceClient();
+
+  const [{ data: admins }, { data: supplier }] = await Promise.all([
+    db.from('admins').select('email'),
+    db.from('suppliers').select('email').eq('id', supplierId).maybeSingle(),
+  ]);
+
+  const mails = [
+    ...(admins ?? []).map((a: { email: string | null }) => a.email?.trim()),
+    supplier?.email?.trim(),
+  ].filter((e): e is string => Boolean(e));
+
+  const ausgeschlossen = exceptEmail?.trim().toLowerCase();
+  return Array.from(new Set(mails)).filter(
+    (mail) => mail.toLowerCase() !== ausgeschlossen,
+  );
+}
+
 export async function sendDigest(
   project: Project,
   entries: ActivityEntry[],
@@ -362,6 +388,8 @@ export async function sendActivityNotification(params: {
   actorName: string;
   actorEmail?: string | null;
   text: string;
+  /** Gesetzt bei vertraulichen Einträgen (Offerten): nur wir und dieser Lieferant. */
+  nurFuerSupplierId?: string | null;
 }): Promise<void> {
   if (!mailEnabled() || !notifyOnEveryActivity()) return;
 
@@ -372,7 +400,9 @@ export async function sendActivityNotification(params: {
     .maybeSingle();
   if (!project) return;
 
-  const to = await allProjectParties(params.projectId, params.actorEmail);
+  const to = params.nurFuerSupplierId
+    ? await adminsUndEinLieferant(params.nurFuerSupplierId, params.actorEmail)
+    : await allProjectParties(params.projectId, params.actorEmail);
   if (!to.length) return;
 
   const subject = `${project.name}: ${params.actorName} ${params.text}`.slice(0, 120);
