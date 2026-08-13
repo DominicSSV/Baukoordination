@@ -10,6 +10,10 @@ import {
   tagPlus,
   tageZwischen,
 } from '@/lib/schedule';
+import Avatar from '@/components/Avatar';
+import { assigneePerson } from '@/lib/people';
+import { adminAssignee, supplierAssignee } from '@/lib/assignee';
+import { supplierLabel } from '@/lib/format';
 import type { ProjectDetail, ScheduleTask } from '@/types';
 
 /** Breite einer Tagesspalte in Pixel. */
@@ -17,6 +21,7 @@ const TAG_BREITE = 30;
 
 type Entwurf = {
   responsible: string;
+  owner: string;
   label: string;
   startDate: string;
   endDate: string;
@@ -25,6 +30,7 @@ type Entwurf = {
 
 const leererEntwurf = (start: string): Entwurf => ({
   responsible: '',
+  owner: '',
   label: '',
   startDate: start,
   endDate: start,
@@ -76,6 +82,24 @@ export default function ScheduleTab({
 
   const heuteStr = heute();
 
+  /** Wer als Organisator in Frage kommt: die Swiss Solar Ventures AG und die
+   *  freigegebenen Lieferanten des Projekts. */
+  const personen = useMemo(
+    () => [
+      ...detail.admins.map((a) => ({
+        wert: adminAssignee(a.user_id),
+        name: a.name,
+        gruppe: 'Swiss Solar Ventures AG',
+      })),
+      ...detail.suppliers.map((s) => ({
+        wert: supplierAssignee(s.id),
+        name: supplierLabel(s),
+        gruppe: 'Lieferanten',
+      })),
+    ],
+    [detail.admins, detail.suppliers],
+  );
+
   async function run(action: () => Promise<void>, fallback: string) {
     if (busy) return;
     setBusy(true);
@@ -124,6 +148,7 @@ export default function ScheduleTab({
     setEditingId(task.id);
     setEntwurf({
       responsible: task.responsible ?? '',
+      owner: task.owner ?? '',
       label: task.label,
       startDate: task.start_date,
       endDate: task.end_date,
@@ -233,8 +258,23 @@ export default function ScheduleTab({
             return (
               <div className="plan-zeile" key={task.id}>
                 <div className="plan-links">
+                  {(() => {
+                    const person = assigneePerson(detail, task.owner);
+                    return task.owner ? (
+                      <div
+                        className="plan-person"
+                        title={`Organisiert von ${person.name}`}
+                      >
+                        <Avatar url={person.avatarUrl} name={person.name} size={30} />
+                      </div>
+                    ) : (
+                      <div className="plan-person plan-person-leer" />
+                    );
+                  })()}
+                  <div className="plan-links-text">
                   <div className="plan-verantwortlich">{task.responsible || '—'}</div>
                   <div className="plan-arbeit">{task.label}</div>
+                  </div>
                   {isAdmin && (
                     <div className="plan-links-aktionen">
                       <button
@@ -311,6 +351,7 @@ export default function ScheduleTab({
           <Formular
             wert={entwurf}
             setzen={setEntwurf}
+            personen={personen}
             absenden={() => speichern(editingId)}
             abbrechen={() => setEditingId(null)}
             busy={busy}
@@ -326,6 +367,7 @@ export default function ScheduleTab({
           <Formular
             wert={neu}
             setzen={setNeu}
+            personen={personen}
             absenden={anlegen}
             busy={busy}
             knopf="+ Hinzufügen"
@@ -339,6 +381,7 @@ export default function ScheduleTab({
 function Formular({
   wert,
   setzen,
+  personen,
   absenden,
   abbrechen,
   busy,
@@ -346,18 +389,41 @@ function Formular({
 }: {
   wert: Entwurf;
   setzen: (e: Entwurf) => void;
+  personen: Array<{ wert: string; name: string; gruppe: string }>;
   absenden: () => void;
   abbrechen?: () => void;
   busy: boolean;
   knopf: string;
 }) {
+  const gruppen = Array.from(new Set(personen.map((p) => p.gruppe)));
+
   return (
     <div className="plan-form-felder">
+      {/* Wer es organisiert – dessen Bild steht später links in der Zeile. */}
+      <select
+        value={wert.owner}
+        onChange={(e) => setzen({ ...wert, owner: e.target.value })}
+        aria-label="Organisiert von"
+        title="Organisiert von"
+      >
+        <option value="">Organisiert von …</option>
+        {gruppen.map((g) => (
+          <optgroup key={g} label={g}>
+            {personen
+              .filter((p) => p.gruppe === g)
+              .map((p) => (
+                <option key={p.wert} value={p.wert}>
+                  {p.name}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
       <input
         type="text"
         value={wert.responsible}
         onChange={(e) => setzen({ ...wert, responsible: e.target.value })}
-        placeholder="Zuständig (z.B. Gärtner)"
+        placeholder="Gewerk (z.B. Gärtner)"
       />
       <input
         type="text"

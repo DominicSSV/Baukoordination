@@ -296,7 +296,7 @@ export async function loadProjectDetail(
   // Der Terminplan darf fehlen, solange Migration 0006 nicht eingespielt ist.
   const planRes = await db
     .from('schedule_tasks')
-    .select('id, project_id, responsible, label, start_date, end_date, color, order_index')
+    .select('id, project_id, responsible, owner, label, start_date, end_date, color, order_index')
     .eq('project_id', projectId)
     .order('order_index', { ascending: true })
     .order('start_date', { ascending: true });

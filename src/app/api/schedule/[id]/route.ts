@@ -2,6 +2,7 @@ import { ApiError, handler, ok, optionalString, readJson, requireString } from '
 import { requireAdmin } from '@/lib/auth/guards';
 import { parseDueDate } from '@/lib/due';
 import { pruefeFarbe } from '@/lib/schedule';
+import { pruefeZustaendigen } from '@/lib/auth/assignTarget';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   const body = await readJson<{
     label?: string;
     responsible?: string | null;
+    owner?: string | null;
     startDate?: string;
     endDate?: string;
     color?: string;
@@ -24,6 +26,18 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   if (body.label !== undefined) patch.label = requireString(body.label, 'Arbeit', 200);
   if (body.responsible !== undefined) {
     patch.responsible = optionalString(body.responsible, 120);
+  }
+  if (body.owner !== undefined) {
+    const { data: vorhanden } = await ctx.db
+      .from('schedule_tasks')
+      .select('project_id')
+      .eq('id', id)
+      .maybeSingle();
+    patch.owner = await pruefeZustaendigen(
+      ctx.session,
+      (vorhanden as { project_id: string } | null)?.project_id ?? '',
+      body.owner,
+    );
   }
   if (body.startDate !== undefined) patch.start_date = parseDueDate(body.startDate);
   if (body.endDate !== undefined) patch.end_date = parseDueDate(body.endDate);
@@ -44,7 +58,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     .update(patch)
     .eq('id', id)
     .select(
-      'id, project_id, responsible, label, start_date, end_date, color, order_index',
+      'id, project_id, responsible, owner, label, start_date, end_date, color, order_index',
     )
     .single();
 

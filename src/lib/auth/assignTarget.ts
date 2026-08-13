@@ -13,6 +13,22 @@ import type { Session } from '@/lib/auth/session';
  *   - an einen Lieferanten: nur der Bauherrenvertreter, und nur wenn dieser
  *     Lieferant auch Zugriff auf das Projekt hat
  */
+/**
+ * Wie resolveAssignee, aber für Felder, die auch leer bleiben dürfen –
+ * etwa die zuständige Person im Terminplan.
+ */
+export async function pruefeZustaendigen(
+  session: Session,
+  projectId: string,
+  raw: unknown,
+): Promise<string | null> {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  if (raw.trim() === INTERNAL) return null;
+
+  return resolveAssignee(session, projectId, raw);
+}
+
 /** Klartextname eines Zuständigen, für Protokoll und Benachrichtigung. */
 export async function assigneeDisplayName(value: string): Promise<string> {
   const assignee = parseAssignee(value);

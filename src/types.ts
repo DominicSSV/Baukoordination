@@ -14,7 +14,10 @@ export type Project = {
 export type ScheduleTask = {
   id: string;
   project_id: string;
+  /** Wer die Arbeit ausführt, als freier Text – z.B. 'Gärtner', 'Kran'. */
   responsible: string | null;
+  /** Wer sie organisiert: 'admin:<user_id>' oder 'supplier:<id>', sonst null. */
+  owner: string | null;
   label: string;
   start_date: string;
   end_date: string;

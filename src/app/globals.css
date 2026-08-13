@@ -1910,3 +1910,31 @@ button:disabled {
     min-width: 100%;
   }
 }
+
+/* Organisator im Terminplan: Bild ganz links in der Zeile. */
+.plan-links {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+}
+
+.plan-person {
+  flex-shrink: 0;
+}
+
+.plan-person-leer {
+  width: 30px;
+}
+
+.plan-links-text {
+  min-width: 0;
+}
+
+.plan-form-felder select {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  max-width: 210px;
+}

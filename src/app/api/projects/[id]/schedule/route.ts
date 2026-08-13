@@ -2,6 +2,7 @@ import { ApiError, handler, ok, optionalString, readJson, requireString } from '
 import { requireAdmin } from '@/lib/auth/guards';
 import { parseDueDate } from '@/lib/due';
 import { pruefeFarbe } from '@/lib/schedule';
+import { pruefeZustaendigen } from '@/lib/auth/assignTarget';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const body = await readJson<{
     label?: string;
     responsible?: string;
+    owner?: string | null;
     startDate?: string;
     endDate?: string;
     color?: string;
@@ -41,13 +43,14 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       project_id: projectId,
       label,
       responsible: optionalString(body.responsible, 120),
+      owner: await pruefeZustaendigen(ctx.session, projectId, body.owner),
       start_date: start,
       end_date: ende,
       color: pruefeFarbe(body.color),
       order_index: (letzte?.order_index ?? 0) + 1,
     })
     .select(
-      'id, project_id, responsible, label, start_date, end_date, color, order_index',
+      'id, project_id, responsible, owner, label, start_date, end_date, color, order_index',
     )
     .single();
 
