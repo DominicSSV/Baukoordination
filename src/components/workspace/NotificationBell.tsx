@@ -128,7 +128,22 @@ export default function NotificationBell({
         }
         aria-expanded={offen}
       >
-        🔔
+        {/* Eigenes Zeichen statt des Emojis: das war je nach Betriebssystem
+            dunkelbraun und ging auf der dunklen Leiste unter. */}
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M18 8a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
+          <path d="M10.5 20a1.9 1.9 0 0 0 3 0" />
+        </svg>
         {ungelesen > 0 && (
           <span className="glocke-zahl">{ungelesen > 9 ? '9+' : ungelesen}</span>
         )}
