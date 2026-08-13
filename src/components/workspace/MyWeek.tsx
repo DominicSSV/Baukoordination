@@ -106,7 +106,7 @@ export default function MyWeek({
   return (
     <div className="card">
       <div className="section-head">
-        <h2>Meine Woche</h2>
+        <h2>Meine To-Do&rsquo;s</h2>
         <label className="woche-schalter">
           <input
             type="checkbox"

@@ -125,7 +125,7 @@ export default function Sidebar({
         className={`woche-knopf ${wocheAktiv ? 'aktiv' : ''}`}
         onClick={onWoche}
       >
-        <span aria-hidden="true">🗓️</span> Meine Woche
+        <span aria-hidden="true">🗓️</span> Meine To-Do&rsquo;s
       </button>
 
       <h2>Projekte</h2>

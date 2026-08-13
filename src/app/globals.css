@@ -3109,7 +3109,7 @@ button:disabled {
   background: #fff;
 }
 
-/* --- Meine Woche: Übersicht über alle Projekte ----------------------------- */
+/* --- Meine To-Do's: Übersicht über alle Projekte --------------------------- */
 .woche-knopf {
   display: flex;
   align-items: center;
