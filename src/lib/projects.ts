@@ -153,7 +153,7 @@ export async function loadProjectDetail(
     db
       .from('todos')
       .select(
-        'id, project_id, text, assigned_to, assignees, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
+        'id, project_id, text, assigned_to, assignees, vertraulich, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
       )
       .eq('project_id', projectId)
       .order('order_index', { ascending: true })
@@ -204,7 +204,10 @@ export async function loadProjectDetail(
   if (accessRes.error) throw new Error(`Zugriffsrechte: ${accessRes.error.message}`);
 
   const todoRows = (aufgaben.data ?? []) as Array<
-    Omit<Todo, 'comments' | 'assignees'> & { assignees?: string[] | null }
+    Omit<Todo, 'comments' | 'assignees' | 'vertraulich'> & {
+      assignees?: string[] | null;
+      vertraulich?: boolean | null;
+    }
   >;
 
   const commentsRes = todoRows.length
@@ -231,6 +234,7 @@ export async function loadProjectDetail(
     ...t,
     // Ohne Migration 0014 zählt der eine bisherige Zuständige.
     assignees: t.assignees?.length ? t.assignees : [t.assigned_to],
+    vertraulich: Boolean(t.vertraulich),
     comments: commentsByTodo.get(t.id) ?? [],
   }));
 

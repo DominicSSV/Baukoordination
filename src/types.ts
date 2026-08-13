@@ -95,6 +95,11 @@ export type Todo = {
    * und Einbauten, die nur einen Zuständigen kennen, funktionieren dadurch weiter.
    */
   assignees: string[];
+  /**
+   * true = nur wir und die beteiligten Lieferantenfirmen sehen die Aufgabe.
+   * false (Standard) = alle am Projekt.
+   */
+  vertraulich: boolean;
   done: boolean;
   done_by: string | null;
   done_at: string | null;

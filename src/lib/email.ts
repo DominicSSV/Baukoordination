@@ -258,20 +258,24 @@ export async function allProjectParties(
 }
 
 /**
- * Empfänger für vertrauliche Vorgänge: alle Bauherrenvertreter und die
- * betroffene Lieferantenfirma – also auch die weiteren Ansprechpersonen
- * derselben Firma, die gemeinsam am Angebot arbeiten.
+ * Empfänger für eingeschränkte Vorgänge: alle Bauherrenvertreter und die
+ * betroffenen Lieferantenfirmen – also auch die weiteren Ansprechpersonen
+ * derselben Firma, die gemeinsam an der Sache arbeiten.
  */
-async function adminsUndEinLieferant(
-  supplierId: string,
+async function adminsUndFirmen(
+  supplierIds: string[],
   exceptEmail?: string | null,
 ): Promise<string[]> {
   const db = serviceClient();
-  const kollegen = await firmenKollegen(supplierId);
+  const kollegen = (
+    await Promise.all(supplierIds.map((id) => firmenKollegen(id)))
+  ).flat();
 
   const [{ data: admins }, { data: supplier }] = await Promise.all([
     db.from('admins').select('email'),
-    db.from('suppliers').select('email').in('id', kollegen),
+    kollegen.length
+      ? db.from('suppliers').select('email').in('id', kollegen)
+      : Promise.resolve({ data: [] as Array<{ email: string | null }> }),
   ]);
 
   const mails = [
@@ -402,8 +406,11 @@ export async function sendActivityNotification(params: {
   actorName: string;
   actorEmail?: string | null;
   text: string;
-  /** Gesetzt bei vertraulichen Einträgen (Offerten): nur wir und dieser Lieferant. */
-  nurFuerSupplierId?: string | null;
+  /**
+   * Gesetzt bei eingeschränkten Einträgen: nur wir und die Firmen dieser
+   * Lieferanten. Leere Liste = nur wir. Weglassen = alle Beteiligten.
+   */
+  nurFuerSupplierIds?: string[];
 }): Promise<void> {
   if (!mailEnabled() || !notifyOnEveryActivity()) return;
 
@@ -414,8 +421,8 @@ export async function sendActivityNotification(params: {
     .maybeSingle();
   if (!project) return;
 
-  const to = params.nurFuerSupplierId
-    ? await adminsUndEinLieferant(params.nurFuerSupplierId, params.actorEmail)
+  const to = params.nurFuerSupplierIds
+    ? await adminsUndFirmen(params.nurFuerSupplierIds, params.actorEmail)
     : await allProjectParties(params.projectId, params.actorEmail);
   if (!to.length) return;
 

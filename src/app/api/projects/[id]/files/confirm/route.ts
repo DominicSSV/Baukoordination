@@ -2,6 +2,7 @@ import { ApiError, handler, ok, optionalString, readJson, requireString } from '
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { logActivity } from '@/lib/activity';
 import { ordnerName, pruefeOrdner } from '@/lib/offers';
+import { beteiligteLieferanten } from '@/lib/beteiligte';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -88,13 +89,27 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   const isImage = (body.mimeType ?? '').startsWith('image/');
   let where = '';
+  // Hängt die Datei an einer vertraulichen Aufgabe, darf auch der
+  // Protokolleintrag nur die Beteiligten erreichen.
+  let vertraulicheAufgabe: string[] | undefined;
+
   if (todoId) {
     const { data: todo } = await serviceClient()
       .from('todos')
-      .select('text')
+      .select('text, vertraulich, assignees, assigned_to, created_by_supplier_id')
       .eq('id', todoId)
       .maybeSingle();
-    if (todo) where = ` zu To-Do "${todo.text}"`;
+
+    if (todo) {
+      where = ` zu To-Do "${todo.text}"`;
+      const t = todo as {
+        vertraulich?: boolean | null;
+        assignees?: string[] | null;
+        assigned_to?: string | null;
+        created_by_supplier_id?: string | null;
+      };
+      if (t.vertraulich) vertraulicheAufgabe = beteiligteLieferanten(t);
+    }
   }
 
   // Offerten gehen nur uns und dem einreichenden Lieferanten etwas an – im
@@ -107,9 +122,13 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       ? `hat "${name}" unter ${ordnerName(offerFolder)} eingereicht`
       : `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
     icon: offerFolder ? '📑' : isImage ? '📷' : '📄',
-    nurFuerSupplierId: offerFolder
-      ? (data.uploaded_by_supplier_id as string | null)
-      : null,
+    nurFuerSupplierIds: offerFolder
+      ? [
+          ...(data.uploaded_by_supplier_id
+            ? [data.uploaded_by_supplier_id as string]
+            : []),
+        ]
+      : vertraulicheAufgabe,
   });
 
   return ok({ file: data, warning }, { status: 201 });

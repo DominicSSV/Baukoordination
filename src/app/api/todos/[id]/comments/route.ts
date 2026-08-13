@@ -1,6 +1,7 @@
 import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
 import { projectIdOfTodo, requireSession } from '@/lib/auth/guards';
 import { logActivity } from '@/lib/activity';
+import { beteiligteLieferanten } from '@/lib/beteiligte';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -33,16 +34,26 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   const { data: todo } = await serviceClient()
     .from('todos')
-    .select('text')
+    .select('text, vertraulich, assignees, assigned_to, created_by_supplier_id')
     .eq('id', todoId)
     .maybeSingle();
+
+  const t = (todo ?? {}) as {
+    text?: string;
+    vertraulich?: boolean | null;
+    assignees?: string[] | null;
+    assigned_to?: string | null;
+    created_by_supplier_id?: string | null;
+  };
 
   const warning = await logActivity(ctx.db, {
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
-    text: `hat zu To-Do "${todo?.text ?? ''}" kommentiert: "${text}"`,
+    text: `hat zu To-Do "${t.text ?? ''}" kommentiert: "${text}"`,
     icon: '💬',
+    // Zu einer vertraulichen Aufgabe bleibt auch der Kommentar unter den Beteiligten.
+    ...(t.vertraulich ? { nurFuerSupplierIds: beteiligteLieferanten(t) } : {}),
   });
 
   return ok({ comment: data, warning }, { status: 201 });

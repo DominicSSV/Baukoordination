@@ -36,10 +36,13 @@ export default function TodosTab({
   const [newText, setNewText] = useState('');
   const [newAssignees, setNewAssignees] = useState<string[]>([]);
   const [newDue, setNewDue] = useState('');
+  // Vertraulich = nur wir und die beteiligten Lieferantenfirmen sehen die Aufgabe.
+  const [newVertraulich, setNewVertraulich] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editAssignees, setEditAssignees] = useState<string[]>([]);
   const [editDue, setEditDue] = useState('');
+  const [editVertraulich, setEditVertraulich] = useState(false);
 
   // Aufgaben gehen immer an eine bestimmte Person. Nur solange noch gar kein
   // Bauherrenvertreter hinterlegt ist (Migration 0002 nicht eingespielt), bleibt
@@ -116,11 +119,13 @@ export default function TodosTab({
       await post(`/api/projects/${projectId}/todos`, {
         text,
         assignees: effectiveNewAssignees,
+        vertraulich: newVertraulich,
         dueDate: newDue || null,
       });
       setNewText('');
       setNewAssignees([]);
       setNewDue('');
+      setNewVertraulich(false);
       await reload();
       toast('✓ Aufgabe angelegt.');
     }, 'Aufgabe konnte nicht angelegt werden.');
@@ -141,6 +146,7 @@ export default function TodosTab({
       await patch(`/api/todos/${todo.id}`, {
         text,
         assignees: editAssignees.length ? editAssignees : [todo.assigned_to],
+        vertraulich: editVertraulich,
         dueDate: editDue || null,
       });
       setEditingId(null);
@@ -282,6 +288,14 @@ export default function TodosTab({
                   >
                     Zu erledigen bis
                   </label>
+                  <label className="vertraulich-feld">
+                    <input
+                      type="checkbox"
+                      checked={editVertraulich}
+                      onChange={(e) => setEditVertraulich(e.target.checked)}
+                    />
+                    🔒 Vertraulich – nur für uns und die beteiligten Firmen
+                  </label>
                   <input
                     type="date"
                     value={editDue}
@@ -353,6 +367,14 @@ export default function TodosTab({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className={`todo-text ${todo.done ? 'done' : ''}`}>{todo.text}</div>
                 <div className="todo-meta">
+                  {todo.vertraulich && (
+                    <span
+                      className="vertraulich-chip"
+                      title="Nur für uns und die beteiligten Firmen sichtbar"
+                    >
+                      🔒 Vertraulich
+                    </span>
+                  )}
                   {assigneeChip(todo)}
                   {todo.due_date && (
                     <span
@@ -572,6 +594,7 @@ export default function TodosTab({
                     setEditAssignees(
                       todo.assignees?.length ? todo.assignees : [todo.assigned_to],
                     );
+                    setEditVertraulich(todo.vertraulich);
                     setEditDue(todo.due_date ?? '');
                   }}
                 >
@@ -623,6 +646,17 @@ export default function TodosTab({
             title="Zu erledigen bis (optional)"
             aria-label="Zu erledigen bis"
           />
+          <label
+            className="vertraulich-feld"
+            title="Nur wir und die zugewiesenen Firmen sehen diese Aufgabe – andere Lieferanten nicht."
+          >
+            <input
+              type="checkbox"
+              checked={newVertraulich}
+              onChange={(e) => setNewVertraulich(e.target.checked)}
+            />
+            🔒 Vertraulich
+          </label>
           <button
             type="button"
             className="btn btn-accent"

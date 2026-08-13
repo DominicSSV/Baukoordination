@@ -2,6 +2,7 @@ import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { assigneeDisplayName, resolveAssignees } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
+import { beteiligteLieferanten } from '@/lib/beteiligte';
 import { fmtDueDate, parseDueDate } from '@/lib/due';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     text?: string;
     assignedTo?: string;
     assignees?: string[];
+    vertraulich?: boolean;
     dueDate?: string | null;
   }>(request);
 
@@ -43,6 +45,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     .limit(1)
     .maybeSingle();
 
+  const vertraulich = Boolean(body.vertraulich);
+
   const zeile = {
     project_id: projectId,
     text,
@@ -59,8 +63,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   const mitListe = await ctx.db
     .from('todos')
-    .insert({ ...zeile, assignees: zustaendige })
-    .select(`${SPALTEN}, assignees`)
+    .insert({ ...zeile, assignees: zustaendige, vertraulich })
+    .select(`${SPALTEN}, assignees, vertraulich`)
     .single();
 
   // Ohne Migration 0014 gibt es die Spalte assignees noch nicht – dann wird wie
@@ -85,6 +89,16 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       `hat To-Do "${text}" für ${empfaenger} angelegt` +
       (dueDate ? ` (zu erledigen bis ${fmtDueDate(dueDate)})` : ''),
     icon: '📝',
+    // Vertrauliche Aufgaben tauchen auch im Protokoll nur bei den Beteiligten auf.
+    ...(vertraulich
+      ? {
+          nurFuerSupplierIds: beteiligteLieferanten({
+            assignees: zustaendige,
+            created_by_supplier_id:
+              ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+          }),
+        }
+      : {}),
   });
 
   return ok({ todo: { ...result.data, comments: [] }, warning }, { status: 201 });

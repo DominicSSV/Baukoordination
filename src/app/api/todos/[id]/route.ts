@@ -3,15 +3,17 @@ import { requireSession, type Ctx } from '@/lib/auth/guards';
 import { requireProjectAccess } from '@/lib/auth/guards';
 import { assigneeDisplayName, resolveAssignees } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
+import { beteiligteLieferanten } from '@/lib/beteiligte';
 import { parseDueDate } from '@/lib/due';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
-/** Dieselbe Änderung ohne die Spalte assignees – für Datenbanken vor 0014. */
-function ohneListe(patch: Record<string, unknown>): Record<string, unknown> {
+/** Dieselbe Änderung ohne die neuen Spalten – für Datenbanken vor 0014/0015. */
+function ohneNeueSpalten(patch: Record<string, unknown>): Record<string, unknown> {
   const rest = { ...patch };
   delete rest.assignees;
+  delete rest.vertraulich;
   return rest;
 }
 
@@ -23,6 +25,7 @@ type TodoRow = {
   text: string;
   assigned_to: string;
   assignees: string[] | null;
+  vertraulich: boolean;
   done: boolean;
   created_by_supplier_id: string | null;
 };
@@ -32,7 +35,9 @@ async function loadTodo(ctx: Ctx, id: string): Promise<TodoRow> {
 
   const mitListe = await db
     .from('todos')
-    .select('id, project_id, text, assigned_to, assignees, done, created_by_supplier_id')
+    .select(
+      'id, project_id, text, assigned_to, assignees, vertraulich, done, created_by_supplier_id',
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -47,8 +52,15 @@ async function loadTodo(ctx: Ctx, id: string): Promise<TodoRow> {
 
   if (!res.data) throw new ApiError('Aufgabe nicht gefunden.', 404);
   await requireProjectAccess(ctx, (res.data as { project_id: string }).project_id);
-  const zeile = res.data as Omit<TodoRow, 'assignees'> & { assignees?: string[] | null };
-  return { ...zeile, assignees: zeile.assignees ?? null };
+  const zeile = res.data as Omit<TodoRow, 'assignees' | 'vertraulich'> & {
+    assignees?: string[] | null;
+    vertraulich?: boolean | null;
+  };
+  return {
+    ...zeile,
+    assignees: zeile.assignees ?? null,
+    vertraulich: Boolean(zeile.vertraulich),
+  };
 }
 
 /**
@@ -66,6 +78,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     text?: string;
     assignedTo?: string;
     assignees?: string[];
+    vertraulich?: boolean;
     dueDate?: string | null;
   }>(request);
 
@@ -80,6 +93,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     body.text !== undefined ||
     body.assignedTo !== undefined ||
     body.assignees !== undefined ||
+    body.vertraulich !== undefined ||
     body.dueDate !== undefined;
 
   if (wantsContentChange && isSupplier && !ownsTodo) {
@@ -103,6 +117,8 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     patch.assigned_to = zustaendige[0];
     patch.assignees = zustaendige;
   }
+
+  if (body.vertraulich !== undefined) patch.vertraulich = Boolean(body.vertraulich);
 
   if (body.dueDate !== undefined) {
     patch.due_date = parseDueDate(body.dueDate);
@@ -128,14 +144,14 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     .from('todos')
     .update(patch)
     .eq('id', id)
-    .select(`${SPALTEN}, assignees`)
+    .select(`${SPALTEN}, assignees, vertraulich`)
     .single();
 
   // Ohne Migration 0014 gibt es die Spalte assignees noch nicht.
   const { data, error } = mitListe.error
     ? await ctx.db
         .from('todos')
-        .update(ohneListe(patch))
+        .update(ohneNeueSpalten(patch))
         .eq('id', id)
         .select(SPALTEN)
         .single()
@@ -146,6 +162,25 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   const actorEmail = ctx.session.kind === 'admin' ? ctx.session.email : null;
   let warning: string | null = null;
 
+  // Bleibt die Aufgabe vertraulich, bleiben auch die Protokolleinträge dazu bei
+  // den Beteiligten – vor und nach einer Umverteilung.
+  const jetztVertraulich =
+    patch.vertraulich !== undefined ? Boolean(patch.vertraulich) : todo.vertraulich;
+
+  const beteiligte = jetztVertraulich
+    ? {
+        nurFuerSupplierIds: Array.from(
+          new Set([
+            ...beteiligteLieferanten(todo),
+            ...beteiligteLieferanten({
+              assignees: (patch.assignees as string[] | undefined) ?? null,
+              created_by_supplier_id: todo.created_by_supplier_id,
+            }),
+          ]),
+        ),
+      }
+    : {};
+
   if (body.done === true && !todo.done) {
     warning = await logActivity(ctx.db, {
       projectId: todo.project_id,
@@ -153,6 +188,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
       actorEmail,
       text: `hat To-Do "${data.text}" als erledigt markiert`,
       icon: '✓',
+      ...beteiligte,
     });
   }
 
@@ -174,6 +210,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
         actorEmail,
         text: `hat To-Do "${data.text}" an ${empfaenger} übergeben`,
         icon: '➡️',
+        ...beteiligte,
       })) ?? warning;
   }
 

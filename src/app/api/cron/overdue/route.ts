@@ -3,6 +3,7 @@ import { handler, ok } from '@/lib/api';
 import { serviceClient } from '@/lib/supabase/service';
 import { allAssigneeRecipients, mailEnabled, sendOverdueNotice } from '@/lib/email';
 import { fmtDueDate, heute } from '@/lib/due';
+import { beteiligteLieferanten } from '@/lib/beteiligte';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -12,6 +13,8 @@ type FaelligeAufgabe = {
   text: string;
   assigned_to: string;
   assignees: string[] | null;
+  vertraulich?: boolean | null;
+  created_by_supplier_id?: string | null;
   due_date: string;
   project_id: string;
   projects: { name: string } | null;
@@ -51,7 +54,7 @@ export const GET = handler(async (request: Request) => {
       .limit(200);
 
   const mitListe = await abfrage(
-    'id, text, assigned_to, assignees, due_date, project_id, projects(name)',
+    'id, text, assigned_to, assignees, vertraulich, created_by_supplier_id, due_date, project_id, projects(name)',
   );
 
   // Ohne Migration 0014 gibt es die Spalte assignees noch nicht.
@@ -115,13 +118,23 @@ export const GET = handler(async (request: Request) => {
         .eq('id', aufgabe.id);
 
       // Im Protokoll sichtbar machen, ohne die übliche Rundmail auszulösen –
-      // die Mahnung ging bereits gezielt an den Zuständigen.
-      await db.from('activity').insert({
+      // die Mahnung ging bereits gezielt an die Zuständigen. Bei einer
+      // vertraulichen Aufgabe sieht den Eintrag nur, wen sie etwas angeht.
+      const eintrag: Record<string, unknown> = {
         project_id: aufgabe.project_id,
         actor_name: 'Baukoordination',
         text: `hat an die überschrittene Frist für "${aufgabe.text}" erinnert`,
         icon: '⏰',
-      });
+      };
+
+      const geschuetzt = await db.from('activity').insert(
+        aufgabe.vertraulich
+          ? { ...eintrag, supplier_ids: beteiligteLieferanten(aufgabe) }
+          : eintrag,
+      );
+
+      // Ohne Migration 0015 gibt es die Spalte supplier_ids noch nicht.
+      if (geschuetzt.error) await db.from('activity').insert(eintrag);
     } catch (e) {
       fehler.push(
         `${aufgabe.text}: ${e instanceof Error ? e.message : 'unbekannter Fehler'}`,

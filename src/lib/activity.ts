@@ -21,10 +21,11 @@ export async function logActivity(
     icon: string;
     notify?: boolean;
     /**
-     * Vertraulicher Eintrag: nur wir und dieser eine Lieferant sehen ihn – für
-     * Offerten, die andere Lieferanten nichts angehen. null = für alle sichtbar.
+     * Eingeschränkter Eintrag. Weglassen = für alle mit Projektzugriff sichtbar.
+     * Eine Liste beschränkt ihn auf uns und die Firmen dieser Lieferanten; eine
+     * leere Liste heisst: nur wir.
      */
-    nurFuerSupplierId?: string | null;
+    nurFuerSupplierIds?: string[];
   },
 ): Promise<string | null> {
   const zeile: Record<string, unknown> = {
@@ -34,17 +35,29 @@ export async function logActivity(
     icon: params.icon,
   };
 
+  const eingeschraenkt = params.nurFuerSupplierIds !== undefined;
+
   let { error } = await db
     .from('activity')
     .insert(
-      params.nurFuerSupplierId
-        ? { ...zeile, supplier_id: params.nurFuerSupplierId }
+      eingeschraenkt
+        ? { ...zeile, supplier_ids: params.nurFuerSupplierIds }
         : zeile,
     );
 
-  // Ohne Migration 0012 fehlt die Spalte. Dann lieber ohne Einschränkung
-  // protokollieren als gar nicht – die Datei selbst bleibt trotzdem geschützt.
-  if (error && params.nurFuerSupplierId) {
+  // Ohne Migration 0015 gibt es die Spalte supplier_ids noch nicht. Dann greift
+  // ersatzweise die Einzelspalte aus 0012 – besser als gar kein Schutz.
+  if (error && eingeschraenkt) {
+    const einer = params.nurFuerSupplierIds?.[0] ?? null;
+    ({ error } = await db
+      .from('activity')
+      .insert(einer ? { ...zeile, supplier_id: einer } : zeile));
+  }
+
+  // Auch die gibt es vor 0012 nicht. Dann lieber ohne Einschränkung
+  // protokollieren als gar nicht – Aufgaben und Dateien bleiben trotzdem
+  // geschützt, es steht nur der Protokolltext für alle da.
+  if (error && eingeschraenkt) {
     ({ error } = await db.from('activity').insert(zeile));
   }
 
@@ -62,7 +75,7 @@ export async function logActivity(
         actorName: params.actorName,
         actorEmail: params.actorEmail,
         text: params.text,
-        nurFuerSupplierId: params.nurFuerSupplierId ?? null,
+        nurFuerSupplierIds: params.nurFuerSupplierIds,
       });
     } catch (e) {
       console.error('[activity] Benachrichtigung fehlgeschlagen', e);

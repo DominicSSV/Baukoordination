@@ -123,6 +123,17 @@ export async function GET() {
           : undefined,
       };
 
+      const vertraulich = await db.from('todos').select('vertraulich').limit(1);
+      const protokollFirmen = await db.from('activity').select('supplier_ids').limit(1);
+      report.migration_0015 = {
+        vertrauliche_aufgaben: !vertraulich.error,
+        protokoll_je_firma: !protokollFirmen.error,
+        hinweis:
+          vertraulich.error || protokollFirmen.error
+            ? 'Migration 0015 fehlt. Aufgaben lassen sich nicht als vertraulich kennzeichnen.'
+            : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,
