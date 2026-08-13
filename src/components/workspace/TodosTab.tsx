@@ -86,7 +86,6 @@ export default function TodosTab({
       <span className="assignee-chip" title={assigneeLabel(todo.assigned_to, detail.admins, detail.suppliers)}>
         <Avatar url={person.avatarUrl} name={person.name} size={18} />
         {person.name}
-        {person.funktion ? ` · ${person.funktion}` : ''}
       </span>
     );
   }
@@ -225,7 +224,7 @@ export default function TodosTab({
           {!hasAdmins && <option value={INTERNAL}>{INTERNAL_PARTY}</option>}
           {detail.admins.map((a) => (
             <option key={a.user_id} value={adminAssignee(a.user_id)}>
-              {a.funktion ? `${a.name} · ${a.funktion}` : a.name}
+              {a.name}
             </option>
           ))}
         </optgroup>

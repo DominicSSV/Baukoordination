@@ -152,13 +152,15 @@ async function readAdminSession(): Promise<AdminSession | null> {
     firma?: string | null;
     funktion?: string | null;
     avatar_path?: string | null;
+    /** false = Anmeldung vorübergehend gesperrt (Migration 0007). */
+    aktiv?: boolean | null;
   };
 
   let admin: AdminRow | null = null;
 
   const full = await db
     .from('admins')
-    .select('user_id, name, email, firma, funktion, avatar_path')
+    .select('user_id, name, email, firma, funktion, avatar_path, aktiv')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -179,6 +181,10 @@ async function readAdminSession(): Promise<AdminSession | null> {
   }
 
   if (!admin) return null;
+
+  // Gesperrte Konten kommen nicht hinein. Sie bleiben aber vollständig erhalten:
+  // Profil, Bild und zugewiesene Aufgaben sind nach dem Freischalten wieder da.
+  if (admin.aktiv === false) return null;
 
   return {
     kind: 'admin',

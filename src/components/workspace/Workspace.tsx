@@ -13,12 +13,18 @@ import FileViewer from '@/components/workspace/FileViewer';
 import Spinner from '@/components/Spinner';
 import ProjectHeader from '@/components/workspace/ProjectHeader';
 import ProfileModal from '@/components/workspace/ProfileModal';
+import ScheduleTab from '@/components/workspace/ScheduleTab';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
 
-export type TabKey = 'lieferanten' | 'todos' | 'dateien' | 'aktivitaet';
+export type TabKey =
+  | 'lieferanten'
+  | 'todos'
+  | 'terminplan'
+  | 'dateien'
+  | 'aktivitaet';
 
 export default function Workspace(props: {
   session: SessionInfo;
@@ -299,6 +305,14 @@ function WorkspaceInner({
                 </button>
                 <button
                   type="button"
+                  className={`tab-btn ${tab === 'terminplan' ? 'active' : ''}`}
+                  onClick={() => setTab('terminplan')}
+                >
+                  Terminplan{' '}
+                  <span className="tab-count">{detail.schedule.length}</span>
+                </button>
+                <button
+                  type="button"
                   className={`tab-btn ${tab === 'dateien' ? 'active' : ''}`}
                   onClick={() => setTab('dateien')}
                 >
@@ -327,6 +341,9 @@ function WorkspaceInner({
                   reload={reload}
                   onOpenFile={setViewerFileId}
                 />
+              )}
+              {tab === 'terminplan' && (
+                <ScheduleTab detail={detail} isAdmin={isAdmin} reload={reload} />
               )}
               {tab === 'dateien' && (
                 <FilesTab detail={detail} reload={reload} onOpenFile={setViewerFileId} />

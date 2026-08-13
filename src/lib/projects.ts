@@ -3,13 +3,14 @@ import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
 import { signAvatars } from '@/lib/avatars';
 import type { Ctx } from '@/lib/auth/guards';
-import { unwrap } from '@/lib/api';
+
 import type {
   ActivityEntry,
   AdminProfile,
   Project,
   ProjectDetail,
   ProjectFile,
+  ScheduleTask,
   Supplier,
   Todo,
   TodoComment,
@@ -116,14 +117,25 @@ export async function loadProjectDetail(
   const db = ctx.db;
   const isAdmin = ctx.session.kind === 'admin';
 
-  const project = unwrap(
-    await db
-      .from('projects')
-      .select('id, name, ort, created_at')
-      .eq('id', projectId)
-      .maybeSingle(),
-    'Projekt',
-  ) as Project;
+  const projektMitPlan = await db
+    .from('projects')
+    .select('id, name, ort, created_at, schedule_start, schedule_end')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  // schedule_start/-end kommen erst mit Migration 0006.
+  const projektRes = projektMitPlan.error
+    ? await db
+        .from('projects')
+        .select('id, name, ort, created_at')
+        .eq('id', projectId)
+        .maybeSingle()
+    : projektMitPlan;
+
+  if (projektRes.error) throw new Error(`Projekt: ${projektRes.error.message}`);
+  if (!projektRes.data) throw new Error('Projekt nicht gefunden.');
+
+  const project = projektRes.data as Project;
 
   const [todosRes, filesRes, activityRes, accessRes] = await Promise.all([
     db
@@ -281,6 +293,18 @@ export async function loadProjectDetail(
 
   const admins = await loadAdminProfiles();
 
+  // Der Terminplan darf fehlen, solange Migration 0006 nicht eingespielt ist.
+  const planRes = await db
+    .from('schedule_tasks')
+    .select('id, project_id, responsible, label, start_date, end_date, color, order_index')
+    .eq('project_id', projectId)
+    .order('order_index', { ascending: true })
+    .order('start_date', { ascending: true });
+
+  if (planRes.error) {
+    console.warn('[projects] Terminplan nicht verfügbar', planRes.error.message);
+  }
+
   return {
     project,
     todos,
@@ -290,5 +314,6 @@ export async function loadProjectDetail(
     suppliers,
     otherSuppliers,
     admins,
+    schedule: (planRes.error ? [] : (planRes.data ?? [])) as ScheduleTask[],
   };
 }

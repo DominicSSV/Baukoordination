@@ -42,9 +42,10 @@ export function assigneeLabel(
   if (assignee.kind === 'internal') return INTERNAL_PARTY;
 
   if (assignee.kind === 'admin') {
+    // Bewusst nur der Name: die Funktion (CEO, Projektmanagement …) macht die
+    // Zuweisung lang, ohne etwas beizutragen. Sie steht im Profil.
     const admin = admins.find((a) => a.user_id === assignee.id);
-    if (!admin) return INTERNAL_PARTY;
-    return admin.funktion ? `${admin.name} · ${admin.funktion}` : admin.name;
+    return admin ? admin.name : INTERNAL_PARTY;
   }
 
   const supplier = suppliers.find((s) => s.id === assignee.id);

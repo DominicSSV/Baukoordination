@@ -5,6 +5,21 @@ export type Project = {
   name: string;
   ort: string | null;
   created_at: string;
+  /** Zeitraum des Terminplans, JJJJ-MM-TT. Leer = aus den Arbeiten abgeleitet. */
+  schedule_start?: string | null;
+  schedule_end?: string | null;
+};
+
+/** Eine Zeile im Balkenplan. */
+export type ScheduleTask = {
+  id: string;
+  project_id: string;
+  responsible: string | null;
+  label: string;
+  start_date: string;
+  end_date: string;
+  color: string;
+  order_index: number;
 };
 
 export type Supplier = {
@@ -117,4 +132,6 @@ export type ProjectDetail = {
   otherSuppliers: Supplier[];
   /** Bauherrenvertreter, denen eine Aufgabe zugewiesen werden kann. */
   admins: AdminProfile[];
+  /** Balkenplan des Projekts. */
+  schedule: ScheduleTask[];
 };
