@@ -3091,3 +3091,20 @@ button:disabled {
   font-size: 12.5px;
   margin: 0 0 10px;
 }
+
+.mail-test {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mail-test input {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  background: #fff;
+}

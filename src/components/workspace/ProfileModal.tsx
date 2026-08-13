@@ -22,13 +22,18 @@ export default function ProfileModal({
   const { toast, reportError } = useFeedback();
   const [busy, setBusy] = useState(false);
   const [mailBusy, setMailBusy] = useState(false);
+  const [mailZiel, setMailZiel] = useState(
+    session.kind === 'admin' ? (session.email ?? '') : '',
+  );
   const input = useRef<HTMLInputElement>(null);
 
   /** Prüft in einem Schritt Schlüssel, Absenderadresse und Zustellung. */
   async function testmail() {
     setMailBusy(true);
     try {
-      const { an } = await post<{ an: string }>('/api/mail/test');
+      const { an } = await post<{ an: string }>('/api/mail/test', {
+        an: mailZiel.trim() || undefined,
+      });
       toast(`✉️ Testmail an ${an} verschickt.`);
     } catch (error) {
       reportError(error, 'Testmail konnte nicht verschickt werden.');
@@ -130,14 +135,23 @@ export default function ProfileModal({
                 ? 'Bei jeder Aktivität geht eine Nachricht an die Beteiligten. Prüfe die Zustellung mit einer Testmail an dich selbst.'
                 : 'In Vercel fehlt die Umgebungsvariable RESEND_API_KEY. Solange sie fehlt, wird nichts verschickt – die App funktioniert sonst normal.'}
             </p>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={testmail}
-              disabled={mailBusy || !session.email}
-            >
-              {mailBusy ? 'Wird verschickt…' : '✉️ Testmail an mich'}
-            </button>
+            <div className="mail-test">
+              <input
+                type="email"
+                value={mailZiel}
+                onChange={(e) => setMailZiel(e.target.value)}
+                placeholder="Empfänger der Testmail"
+                aria-label="Empfänger der Testmail"
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={testmail}
+                disabled={mailBusy || !mailZiel.trim()}
+              >
+                {mailBusy ? 'Wird verschickt…' : '✉️ Testmail'}
+              </button>
+            </div>
           </div>
         )}
 
