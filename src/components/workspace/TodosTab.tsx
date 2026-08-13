@@ -10,7 +10,7 @@ import {
   istHeuteFaellig,
   istUeberfaellig,
 } from '@/lib/due';
-import { adminAssignee, assigneeLabel, INTERNAL } from '@/lib/assignee';
+import { assigneeLabel } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import AssigneePicker from '@/components/workspace/AssigneePicker';
@@ -49,16 +49,8 @@ export default function TodosTab({
   // die Firma als Ganzes als Rückfall stehen – sonst liesse sich nichts zuweisen.
   const hasAdmins = detail.admins.length > 0;
 
-  const defaultAssignee = (() => {
-    if (!hasAdmins) return INTERNAL;
-    if (session.kind === 'admin') {
-      const self = detail.admins.find((a) => a.user_id === session.userId);
-      if (self) return adminAssignee(self.user_id);
-    }
-    return adminAssignee(detail.admins[0].user_id);
-  })();
-
-  const effectiveNewAssignees = newAssignees.length ? newAssignees : [defaultAssignee];
+  // Bewusst keine Vorauswahl: wer eine Aufgabe anlegt, soll sich entscheiden,
+  // wer sie erledigt. Sonst landet im Alltag alles beim ersten Namen der Liste.
   const [openComments, setOpenComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -116,9 +108,12 @@ export default function TodosTab({
     run(async () => {
       const text = newText.trim();
       if (!text) return;
+      if (!newAssignees.length) {
+        throw new Error('Bitte wähle mindestens eine zuständige Person.');
+      }
       await post(`/api/projects/${projectId}/todos`, {
         text,
-        assignees: effectiveNewAssignees,
+        assignees: newAssignees,
         vertraulich: newVertraulich,
         dueDate: newDue || null,
       });
@@ -143,9 +138,12 @@ export default function TodosTab({
     run(async () => {
       const text = editText.trim();
       if (!text) throw new Error('Die Aufgabe darf nicht leer sein.');
+      if (!editAssignees.length) {
+        throw new Error('Bitte wähle mindestens eine zuständige Person.');
+      }
       await patch(`/api/todos/${todo.id}`, {
         text,
-        assignees: editAssignees.length ? editAssignees : [todo.assigned_to],
+        assignees: editAssignees,
         vertraulich: editVertraulich,
         dueDate: editDue || null,
       });
@@ -633,7 +631,7 @@ export default function TodosTab({
             placeholder="Neue Aufgabe, z.B. „Fenster im OG kontrollieren“"
           />
           <AssigneePicker
-            value={effectiveNewAssignees}
+            value={newAssignees}
             onChange={setNewAssignees}
             admins={detail.admins}
             suppliers={isAdmin ? detail.suppliers : []}

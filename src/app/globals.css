@@ -2851,12 +2851,41 @@ button:disabled {
   background: var(--bg);
 }
 
+/* Eigenes Kästchen statt des Browser-Standards: angekreuzt ist es grün mit
+   weissem Haken – in jedem Browser gleich. */
 .zust-eintrag input {
+  appearance: none;
+  -webkit-appearance: none;
   margin: 0;
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
-  accent-color: var(--accent);
+  display: grid;
+  place-content: center;
+  border: 1.5px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.zust-eintrag input:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.zust-eintrag input:checked::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  margin-top: -3px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg);
+}
+
+.zust-eintrag input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .zust-eintrag span {
