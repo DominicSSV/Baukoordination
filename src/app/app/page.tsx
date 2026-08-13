@@ -11,12 +11,41 @@ import type { SessionInfo } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AppPage() {
+/**
+ * Baut aus den Parametern eines geteilten Links wieder einen Pfad – aber nur
+ * aus den beiden, die wir kennen. Alles andere wird verworfen, damit über
+ * diesen Umweg niemand eine fremde Adresse einschleusen kann.
+ */
+function zielAusParametern(
+  params: Record<string, string | string[] | undefined>,
+): string | null {
+  const einzeln = (wert: string | string[] | undefined) =>
+    typeof wert === 'string' ? wert : null;
+
+  const projekt = einzeln(params.p);
+  const register = einzeln(params.t);
+
+  if (!projekt || !/^[0-9a-f-]{36}$/i.test(projekt)) return null;
+  const teil = register && /^[a-z]{4,12}$/.test(register) ? `&t=${register}` : '';
+  return `/app?p=${projekt}${teil}`;
+}
+
+export default async function AppPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const missing = missingCoreEnv();
   if (missing.length) return <SetupNotice missing={missing} />;
 
   const ctx = await getSessionWithDb();
-  if (!ctx) redirect('/');
+
+  // Wer über einen geteilten Link kommt und noch nicht angemeldet ist, soll
+  // nach der Anmeldung genau dort landen – und nicht auf der Startseite.
+  if (!ctx) {
+    const ziel = zielAusParametern(await searchParams);
+    redirect(ziel ? `/?next=${encodeURIComponent(ziel)}` : '/');
+  }
 
   const avatarUrl = await signAvatar(ctx.session.avatarPath);
 

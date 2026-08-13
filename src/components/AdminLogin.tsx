@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { browserClient } from '@/lib/supabase/browser';
 import { post } from '@/lib/client/api';
+import { zielNachAnmeldung } from '@/lib/client/ziel';
 
 type Mode = 'password' | 'magic';
 
@@ -25,6 +26,8 @@ export default function AdminLogin() {
     event.preventDefault();
     if (busy) return;
 
+    const ziel = zielNachAnmeldung();
+
     setBusy(true);
     setError('');
     setNote('');
@@ -35,7 +38,9 @@ export default function AdminLogin() {
       if (mode === 'magic') {
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email: email.trim(),
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(ziel)}`,
+          },
         });
         if (otpError) throw new Error(otpError.message);
         setNote(
@@ -61,7 +66,7 @@ export default function AdminLogin() {
       // sonst hätte sie Vorrang vor der Adminsicht.
       await post('/api/supplier/logout').catch(() => undefined);
 
-      router.replace('/app');
+      router.replace(ziel);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Anmeldung fehlgeschlagen.');

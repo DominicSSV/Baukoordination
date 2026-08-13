@@ -10,10 +10,12 @@ import {
   istHeuteFaellig,
   istUeberfaellig,
 } from '@/lib/due';
-import { assigneeLabel } from '@/lib/assignee';
+import { assigneeLabel, parseAssignee } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import AssigneePicker from '@/components/workspace/AssigneePicker';
+import WhatsAppButton from '@/components/workspace/WhatsAppButton';
+import { appLink, todoText, waNummer } from '@/lib/whatsapp';
 import Avatar from '@/components/Avatar';
 import { assigneePerson, findPerson, personLabel } from '@/lib/people';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
@@ -92,6 +94,25 @@ export default function TodosTab({
         </span>
       );
     });
+  }
+
+  /**
+   * Empfänger für eine WhatsApp-Nachricht zu dieser Aufgabe.
+   *
+   * Nur wenn genau ein Lieferant zuständig ist und dessen Telefonnummer im
+   * Profil steht, geht es direkt in den richtigen Chat. Bei mehreren
+   * Zuständigen wäre jede Wahl geraten – dann öffnet WhatsApp die Kontaktliste.
+   */
+  function waEmpfaenger(todo: Todo): { name: string | null; nummer: string | null } {
+    const liste = todo.assignees?.length ? todo.assignees : [todo.assigned_to];
+    const lieferanten = liste
+      .map((wert) => parseAssignee(wert))
+      .filter((a) => a.kind === 'supplier');
+
+    if (lieferanten.length !== 1) return { name: null, nummer: null };
+
+    const s = detail.suppliers.find((x) => x.id === lieferanten[0].id);
+    return s ? { name: s.name, nummer: waNummer(s.kontakt) } : { name: null, nummer: null };
   }
 
   /** Admin darf alle Aufgaben bearbeiten, ein Lieferant nur selbst erstellte. */
@@ -581,6 +602,27 @@ export default function TodosTab({
                 </div>
               </div>
 
+              {/* Nur wir verschicken Aufgaben weiter: Ein Lieferant bekäme über
+                  diesen Weg sonst die Telefonnummern der anderen Firmen. */}
+              {isAdmin && !todo.done && (
+                <WhatsAppButton
+                  klasse="icon-btn"
+                  beschriftung=""
+                  nummer={waEmpfaenger(todo).nummer}
+                  titel={
+                    waEmpfaenger(todo).nummer
+                      ? 'Aufgabe per WhatsApp senden'
+                      : 'WhatsApp öffnen – Empfänger dort auswählen'
+                  }
+                  text={todoText(
+                    waEmpfaenger(todo).name,
+                    detail.project.name,
+                    todo.text,
+                    todo.due_date ? fmtDueDate(todo.due_date) : null,
+                    appLink(detail.project.id, 'todos'),
+                  )}
+                />
+              )}
               {canEdit(todo) && (
                 <button
                   type="button"

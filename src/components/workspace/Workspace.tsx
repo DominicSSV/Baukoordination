@@ -18,6 +18,7 @@ import OffersTab from '@/components/workspace/OffersTab';
 import NotificationBell from '@/components/workspace/NotificationBell';
 import MyWeek from '@/components/workspace/MyWeek';
 import TrashModal from '@/components/workspace/TrashModal';
+import StorageModal from '@/components/workspace/StorageModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -30,6 +31,34 @@ export type TabKey =
   | 'offerten'
   | 'dateien'
   | 'aktivitaet';
+
+const REGISTER: TabKey[] = [
+  'lieferanten',
+  'todos',
+  'terminplan',
+  'offerten',
+  'dateien',
+  'aktivitaet',
+];
+
+/**
+ * Ein geteilter Link führt an die Stelle, um die es geht: /app?p=…&t=…
+ *
+ * Gelesen wird das einmal beim Aufbau der Ansicht. Ist das Projekt für diese
+ * Person nicht freigegeben, steht es gar nicht erst in der Liste – dann bleibt
+ * es bei der normalen Startansicht, statt in einen Fehler zu laufen.
+ */
+function ausLink(projekte: Project[]): { id: string; tab: TabKey } | null {
+  if (typeof window === 'undefined') return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('p');
+  if (!id || !projekte.some((p) => p.id === id)) return null;
+
+  const t = params.get('t');
+  const tab = REGISTER.find((r) => r === t);
+  return { id, tab: tab ?? 'todos' };
+}
 
 export default function Workspace(props: {
   session: SessionInfo;
@@ -68,6 +97,7 @@ function WorkspaceInner({
   // was ansteht – nicht ein einzelnes Projekt sehen.
   const [zeigeWoche, setZeigeWoche] = useState(true);
   const [zeigePapierkorb, setZeigePapierkorb] = useState(false);
+  const [zeigeSpeicher, setZeigeSpeicher] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
@@ -124,6 +154,23 @@ function WorkspaceInner({
       cancelled = true;
     };
   }, [activeId]);
+
+  // Geteilter Link: erst nach dem ersten Aufbau auswerten, sonst wichen Server-
+  // und Browserfassung voneinander ab (auf dem Server gibt es keine Adresszeile).
+  // Danach die Parameter aus der Adresse nehmen, damit ein späteres Neuladen
+  // nicht wieder zurückspringt.
+  useEffect(() => {
+    const sprung = ausLink(initialProjects);
+    if (!sprung) return;
+
+    const id = setTimeout(() => {
+      setZeigeWoche(false);
+      setActiveId(sprung.id);
+      setTab(sprung.tab);
+      window.history.replaceState(null, '', '/app');
+    }, 0);
+    return () => clearTimeout(id);
+  }, [initialProjects]);
 
   const reload = useCallback(async () => {
     if (activeId) await loadDetail(activeId, true);
@@ -307,6 +354,7 @@ function WorkspaceInner({
           onSelect={selectProject}
           onCreate={createProject}
           onReordered={setProjects}
+          onSpeicher={() => setZeigeSpeicher(true)}
         />
 
         <div className="content">
@@ -473,6 +521,8 @@ function WorkspaceInner({
           onChanged={reload}
         />
       )}
+
+      {zeigeSpeicher && <StorageModal onClose={() => setZeigeSpeicher(false)} />}
 
       {message && <MessageModal draft={message} onClose={() => setMessage(null)} />}
       {viewerFileId && (

@@ -6,8 +6,15 @@ import type { MessageDraft } from '@/components/workspace/MessageModal';
 import { del, patch, post } from '@/lib/client/api';
 import { supplierLabel } from '@/lib/format';
 import Avatar from '@/components/Avatar';
+import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
+import { einladungsText, waNummer } from '@/lib/whatsapp';
 import type { ProjectDetail, Supplier } from '@/types';
+
+/** Die Adresse, unter der die App erreichbar ist – für den Link in der Nachricht. */
+function basisAdresse(): string {
+  return typeof window === 'undefined' ? '' : window.location.origin;
+}
 
 type InviteResponse = {
   sent: boolean;
@@ -325,6 +332,22 @@ export default function SuppliersTab({
                   >
                     ✉️ Einladen
                   </button>
+                  {/* Auf der Baustelle wird WhatsApp gelesen, das Mailfach oft
+                      erst am Abend. Ist die Telefonnummer hinterlegt, geht die
+                      Einladung direkt in den richtigen Chat. */}
+                  <WhatsAppButton
+                    text={einladungsText(
+                      s.name,
+                      s.access_code ?? null,
+                      basisAdresse(),
+                    )}
+                    nummer={waNummer(s.kontakt)}
+                    titel={
+                      waNummer(s.kontakt)
+                        ? `Einladung an ${s.kontakt} senden`
+                        : 'WhatsApp öffnen – keine Nummer hinterlegt, Empfänger dort auswählen'
+                    }
+                  />
                   <button
                     type="button"
                     className="icon-btn"

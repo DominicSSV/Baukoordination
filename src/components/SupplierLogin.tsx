@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { post } from '@/lib/client/api';
+import { zielNachAnmeldung } from '@/lib/client/ziel';
 
 /**
  * Kleiner Spass: 6340 ist die Postleitzahl von Baar, kein Zugangscode. Wer es
@@ -32,6 +33,10 @@ export default function SupplierLogin() {
   const [busy, setBusy] = useState(false);
   const [scherz, setScherz] = useState('');
   const [versuche, setVersuche] = useState(0);
+  const [adminLink] = useState(() => {
+    const ziel = zielNachAnmeldung();
+    return ziel === '/app' ? '/admin' : `/admin?next=${encodeURIComponent(ziel)}`;
+  });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -56,7 +61,7 @@ export default function SupplierLogin() {
     setScherz('');
     try {
       await post('/api/supplier/login', { code: value });
-      router.replace('/app');
+      router.replace(zielNachAnmeldung());
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Anmeldung fehlgeschlagen.');
@@ -112,7 +117,9 @@ export default function SupplierLogin() {
       </div>
 
       <p className="auth-alt">
-        Bauherrenvertreter? <Link href="/admin">Hier anmelden</Link>
+        {/* Das Ziel eines geteilten Links geht auch beim Wechsel zur
+            Admin-Anmeldung nicht verloren. */}
+        Bauherrenvertreter? <Link href={adminLink}>Hier anmelden</Link>
       </p>
     </div>
   );

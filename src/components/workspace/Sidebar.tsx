@@ -16,6 +16,7 @@ export default function Sidebar({
   onSelect,
   onCreate,
   onReordered,
+  onSpeicher,
 }: {
   projects: Project[];
   activeId: string | null;
@@ -26,6 +27,8 @@ export default function Sidebar({
   onSelect: (id: string) => void;
   onCreate: (name: string, ort: string) => Promise<void>;
   onReordered: (projects: Project[]) => void;
+  /** Öffnet die Speicherübersicht – nur für uns sichtbar. */
+  onSpeicher: () => void;
 }) {
   const { reportError } = useFeedback();
   const [showForm, setShowForm] = useState(false);
@@ -272,6 +275,13 @@ export default function Sidebar({
         </p>
       )}
 
+      {/* Bewusst klein und ganz unten: interessiert selten, soll aber auffindbar
+          sein, ohne dafür ins Supabase-Dashboard zu müssen. */}
+      {isAdmin && (
+        <button type="button" className="speicher-link" onClick={onSpeicher}>
+          Speicherplatz
+        </button>
+      )}
     </div>
   );
 }
