@@ -89,7 +89,13 @@ export default function OffersTab({
       if (result.errors.length) {
         reportError(new Error(result.errors.join(' · ')), 'Upload fehlgeschlagen.');
       }
-      if (result.uploaded) toast(`✓ ${result.uploaded} Datei(en) eingereicht.`);
+      if (result.uploaded) {
+        toast(
+          result.betraege
+            ? `✓ ${result.uploaded} Datei(en) eingereicht · Betrag erkannt: CHF ${chf(result.betraege)}`
+            : `✓ ${result.uploaded} Datei(en) eingereicht.`,
+        );
+      }
     } catch (error) {
       reportError(error, 'Upload fehlgeschlagen.');
     } finally {

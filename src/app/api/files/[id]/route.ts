@@ -1,6 +1,8 @@
 import { ApiError, forbidden, handler, ok, readJson } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { darfOfferteSehen } from '@/lib/auth/offerAccess';
+import { logActivity } from '@/lib/activity';
+import { ordnerName } from '@/lib/offers';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
 
@@ -136,10 +138,59 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
 
+  // Alten Stand merken, um nur echte Wechsel zu melden. Eigene Abfrage, weil
+  // loadFile auch ohne Migration 0017 funktionieren muss.
+  let bisherigerStand: string | null = null;
+  if (patch.offer_status !== undefined) {
+    const { data: vorher } = await serviceClient()
+      .from('files')
+      .select('offer_status')
+      .eq('id', id)
+      .maybeSingle();
+    bisherigerStand = (vorher as { offer_status: string | null } | null)?.offer_status ?? null;
+  }
+
   const { error } = await ctx.db.from('files').update(patch).eq('id', id);
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
-  return ok({ ok: true });
+  // Statuswechsel einer Offerte: die einreichende Firma erfährt es sofort –
+  // als Benachrichtigung in der Glocke und, sobald eingerichtet, per E-Mail.
+  let warning: string | null = null;
+  const neuerStand = patch.offer_status as string | null | undefined;
+
+  if (
+    file.offer_folder &&
+    neuerStand !== undefined &&
+    (neuerStand ?? 'eingereicht') !== (bisherigerStand ?? 'eingereicht') &&
+    ctx.session.kind === 'admin'
+  ) {
+    const wortlaut: Record<string, string> = {
+      eingereicht: `hat "${file.name}" auf Eingereicht zurückgesetzt`,
+      geprueft: `hat "${file.name}" (${ordnerName(file.offer_folder)}) in Prüfung genommen`,
+      vergeben: `hat "${file.name}" (${ordnerName(file.offer_folder)}) angenommen 🎉`,
+      abgelehnt: `hat "${file.name}" (${ordnerName(file.offer_folder)}) abgelehnt`,
+    };
+    const zeichen: Record<string, string> = {
+      eingereicht: '📑',
+      geprueft: '🔍',
+      vergeben: '✅',
+      abgelehnt: '✕',
+    };
+    const stand = neuerStand ?? 'eingereicht';
+
+    warning = await logActivity(ctx.db, {
+      projectId: file.project_id,
+      actorName: ctx.session.name,
+      actorEmail: ctx.session.email,
+      text: wortlaut[stand],
+      icon: zeichen[stand],
+      nurFuerSupplierIds: file.uploaded_by_supplier_id
+        ? [file.uploaded_by_supplier_id]
+        : [],
+    });
+  }
+
+  return ok({ ok: true, warning });
 });
 
 /** Löschen heisst wegwerfen: die Datei wandert in den Papierkorb. */

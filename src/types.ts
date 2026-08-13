@@ -151,10 +151,11 @@ export type ProjectFile = {
 
 export type OffertenStand = 'eingereicht' | 'geprueft' | 'vergeben' | 'abgelehnt';
 
+// Die gespeicherten Werte bleiben stabil, angezeigt werden die Wunschnamen.
 export const OFFERTEN_STAENDE: Array<{ wert: OffertenStand; name: string }> = [
   { wert: 'eingereicht', name: 'Eingereicht' },
-  { wert: 'geprueft', name: 'Geprüft' },
-  { wert: 'vergeben', name: 'Vergeben' },
+  { wert: 'geprueft', name: 'Prüfung' },
+  { wert: 'vergeben', name: 'Angenommen' },
   { wert: 'abgelehnt', name: 'Abgelehnt' },
 ];
 

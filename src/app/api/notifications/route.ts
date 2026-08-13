@@ -35,7 +35,10 @@ export type Benachrichtigung = {
  * Eintrag auf jeden Fall.
  */
 function ziel(icon: string | null, text: string): Ziel {
-  if (icon === '📑' || icon === '💰') return 'offerten';
+  if (icon === '📑' || icon === '💰' || icon === '🔍') return 'offerten';
+  if ((icon === '✅' || icon === '✕') && /\(.*(Offerte|Kostenschätzung|Richtofferte|Auftragsbestätigung|Nachtrag)\)/i.test(text)) {
+    return 'offerten';
+  }
   if (icon === '📷' || icon === '📄') return 'dateien';
   if (icon === '📅' || icon === '✕') return 'terminplan';
   if (text.includes('To-Do')) return 'todos';

@@ -137,6 +137,8 @@ async function ladeBild(file: File): Promise<HTMLImageElement> {
 export type UploadResult = {
   uploaded: number;
   errors: string[];
+  /** Summe der aus PDF ausgelesenen Offertenbeträge, 0 = keiner erkannt. */
+  betraege: number;
 };
 
 /**
@@ -159,6 +161,7 @@ export async function uploadFiles(params: {
   const list = Array.from(params.files);
   const errors: string[] = [];
   let uploaded = 0;
+  let betraege = 0;
 
   for (const [index, file] of list.entries()) {
     const anzeigename = params.namen?.[index]?.trim() || file.name;
@@ -211,17 +214,21 @@ export async function uploadFiles(params: {
         }
       }
 
-      await post(`/api/projects/${params.projectId}/files/confirm`, {
-        fileId: prepared.fileId,
-        name: anzeigename,
-        mimeType,
-        sizeBytes: inhalt.size,
-        storagePath: prepared.storagePath,
-        thumbPath,
-        todoId: params.todoId ?? undefined,
-        offerFolder: params.offerFolder ?? undefined,
-      });
+      const bestaetigt = await post<{ betragErkannt?: number | null }>(
+        `/api/projects/${params.projectId}/files/confirm`,
+        {
+          fileId: prepared.fileId,
+          name: anzeigename,
+          mimeType,
+          sizeBytes: inhalt.size,
+          storagePath: prepared.storagePath,
+          thumbPath,
+          todoId: params.todoId ?? undefined,
+          offerFolder: params.offerFolder ?? undefined,
+        },
+      );
 
+      if (bestaetigt.betragErkannt) betraege += bestaetigt.betragErkannt;
       uploaded += 1;
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Unbekannter Fehler';
@@ -229,5 +236,5 @@ export async function uploadFiles(params: {
     }
   }
 
-  return { uploaded, errors };
+  return { uploaded, errors, betraege };
 }

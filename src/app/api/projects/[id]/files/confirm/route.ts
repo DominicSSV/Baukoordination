@@ -2,6 +2,8 @@ import { ApiError, handler, ok, optionalString, readJson, requireString } from '
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { logActivity } from '@/lib/activity';
 import { ordnerName, pruefeOrdner } from '@/lib/offers';
+import { betragAusPdf } from '@/lib/server/offerBetrag';
+import { STORAGE_BUCKET } from '@/lib/env';
 import { beteiligteLieferanten } from '@/lib/beteiligte';
 import { serviceClient } from '@/lib/supabase/service';
 
@@ -59,9 +61,16 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     if (!data) throw new ApiError('Die Aufgabe gehört nicht zu diesem Projekt.');
   }
 
-  const { data, error } = await ctx.db
-    .from('files')
-    .insert({
+  const einfuegen = (zeile: Record<string, unknown>) =>
+    ctx.db
+      .from('files')
+      .insert(zeile)
+      .select(
+        'id, project_id, todo_id, name, mime_type, size_bytes, uploaded_by, uploaded_by_supplier_id, uploaded_at',
+      )
+      .single();
+
+  const neueZeile = {
       id: fileId,
       project_id: projectId,
       todo_id: todoId,
@@ -76,12 +85,15 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       uploaded_by: ctx.session.name,
       uploaded_by_supplier_id:
         ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
-      ...(offerFolder ? { offer_folder: offerFolder } : {}),
-    })
-    .select(
-      'id, project_id, todo_id, name, mime_type, size_bytes, uploaded_by, uploaded_by_supplier_id, uploaded_at',
-    )
-    .single();
+      ...(offerFolder ? { offer_folder: offerFolder, offer_status: 'eingereicht' } : {}),
+  };
+
+  const erster = await einfuegen(neueZeile);
+
+  // Ohne Migration 0017 gibt es die Statusspalte noch nicht.
+  const { data, error } = erster.error
+    ? await einfuegen({ ...neueZeile, offer_status: undefined })
+    : erster;
 
   if (error) {
     throw new ApiError(`Datei konnte nicht gespeichert werden: ${error.message}`, 500);
@@ -131,5 +143,31 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       : vertraulicheAufgabe,
   });
 
-  return ok({ file: data, warning }, { status: 201 });
+  // Bei Offerten im PDF-Format den Betrag exkl. MwSt. herauslesen. Eine
+  // Heuristik – schlägt sie fehl, bleibt das Feld leer und niemand merkt etwas.
+  let betragErkannt: number | null = null;
+  if (offerFolder && (body.mimeType ?? '') === 'application/pdf') {
+    try {
+      const download = await serviceClient()
+        .storage.from(STORAGE_BUCKET)
+        .download(storagePath);
+
+      if (!download.error && download.data && download.data.size < 15 * 1024 * 1024) {
+        const puffer = new Uint8Array(await download.data.arrayBuffer());
+        betragErkannt = await betragAusPdf(puffer);
+
+        if (betragErkannt !== null) {
+          await ctx.db
+            .from('files')
+            .update({ offer_amount: betragErkannt })
+            .eq('id', fileId)
+            .is('offer_amount', null);
+        }
+      }
+    } catch (e) {
+      console.warn('[offerten] Betrag nicht auslesbar', e);
+    }
+  }
+
+  return ok({ file: data, warning, betragErkannt }, { status: 201 });
 });
