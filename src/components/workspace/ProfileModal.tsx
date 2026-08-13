@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import Avatar from '@/components/Avatar';
 import { useFeedback } from '@/components/Feedback';
+import { post } from '@/lib/client/api';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import type { SessionInfo } from '@/types';
 
@@ -20,7 +21,21 @@ export default function ProfileModal({
 }) {
   const { toast, reportError } = useFeedback();
   const [busy, setBusy] = useState(false);
+  const [mailBusy, setMailBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+
+  /** Prüft in einem Schritt Schlüssel, Absenderadresse und Zustellung. */
+  async function testmail() {
+    setMailBusy(true);
+    try {
+      const { an } = await post<{ an: string }>('/api/mail/test');
+      toast(`✉️ Testmail an ${an} verschickt.`);
+    } catch (error) {
+      reportError(error, 'Testmail konnte nicht verschickt werden.');
+    } finally {
+      setMailBusy(false);
+    }
+  }
 
   async function waehlen(file: File | undefined) {
     if (!file) return;
@@ -101,6 +116,30 @@ export default function ProfileModal({
             e.target.value = '';
           }}
         />
+
+        {session.kind === 'admin' && (
+          <div className="mail-status">
+            <div className="mail-status-kopf">
+              <strong>Automatischer Mailversand</strong>
+              <span className={session.mailEnabled ? 'mail-an' : 'mail-aus'}>
+                {session.mailEnabled ? 'eingerichtet' : 'nicht eingerichtet'}
+              </span>
+            </div>
+            <p>
+              {session.mailEnabled
+                ? 'Bei jeder Aktivität geht eine Nachricht an die Beteiligten. Prüfe die Zustellung mit einer Testmail an dich selbst.'
+                : 'In Vercel fehlt die Umgebungsvariable RESEND_API_KEY. Solange sie fehlt, wird nichts verschickt – die App funktioniert sonst normal.'}
+            </p>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={testmail}
+              disabled={mailBusy || !session.email}
+            >
+              {mailBusy ? 'Wird verschickt…' : '✉️ Testmail an mich'}
+            </button>
+          </div>
+        )}
 
         <div className="form-actions" style={{ flexWrap: 'wrap' }}>
           <button

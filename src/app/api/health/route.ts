@@ -53,7 +53,22 @@ export async function GET() {
     anon_key: describeKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
     service_role_key: describeKey(process.env.SUPABASE_SERVICE_ROLE_KEY),
     jwt_secret: describeKey(process.env.SUPABASE_JWT_SECRET),
-    mailversand: process.env.RESEND_API_KEY ? 'konfiguriert' : 'nicht konfiguriert',
+    mailversand: {
+      schluessel: process.env.RESEND_API_KEY
+        ? {
+            vorhanden: true,
+            beginnt_mit_re: process.env.RESEND_API_KEY.trim().startsWith('re_'),
+            laenge: process.env.RESEND_API_KEY.trim().length,
+          }
+        : { vorhanden: false },
+      absender: process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev> (Standard)',
+      antwort_an: process.env.MAIL_REPLY_TO || '(keine)',
+      bei_jeder_aktivitaet: process.env.NOTIFY_ON_EVERY_ACTIVITY !== 'false',
+      hinweis: process.env.RESEND_API_KEY
+        ? undefined
+        : 'RESEND_API_KEY fehlt – es wird nichts verschickt. In Vercel eintragen ' +
+          'und danach neu bereitstellen.',
+    },
   };
 
   // Echter Verbindungstest: liest die Anzahl freigeschalteter Admins. Schlägt das fehl,

@@ -87,6 +87,39 @@ async function send(params: {
   }
 }
 
+/**
+ * Testmail an die eigene Adresse – prüft Schlüssel, Absender und Zustellung in
+ * einem Schritt. Fehler werden bewusst durchgereicht statt geschluckt.
+ */
+export async function sendTestMail(an: string, name: string): Promise<void> {
+  const html = wrapHtml('Der Mailversand funktioniert', `
+    <p style="font-size:14px;line-height:1.6;margin:0 0 16px;">
+      Ciao ${escapeHtml(name.split(/\s+/)[0] || 'zusammen')}<br />
+      wenn du das liest, verschickt die Baukoordination ab sofort automatisch
+      Benachrichtigungen – bei neuen Aufgaben, Kommentaren, Dateien und
+      überschrittenen Fristen.
+    </p>
+    <p style="font-size:13px;line-height:1.6;color:#6B6B69;margin:0 0 16px;">
+      Absender: ${escapeHtml(mailFrom())}<br />
+      ${mailReplyTo() ? `Antworten gehen an: ${escapeHtml(mailReplyTo()!)}` : 'Es ist keine eigene Antwortadresse hinterlegt.'}
+    </p>
+    <p style="margin:0;">
+      <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Baukoordination öffnen</a>
+    </p>
+  `);
+
+  await send({
+    to: [an],
+    subject: 'Testmail aus der Baukoordination',
+    text:
+      'Wenn du das liest, funktioniert der automatische Mailversand.\n\n' +
+      `Absender: ${mailFrom()}\n` +
+      (mailReplyTo() ? `Antworten gehen an: ${mailReplyTo()}\n` : '') +
+      `\n${appBaseUrl()}`,
+    html,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Einladung
 // ---------------------------------------------------------------------------
