@@ -14,7 +14,7 @@ const SCHERZ_CODE = '6340';
 
 const SPRUECHE = [
   'So einfach geht das nun also wirklich nicht 😄',
-  'Netter Versuch. Das ist die Postleitzahl von Baar, kein Zugangscode.',
+  'Netter Versuch. Das ist die Postleitzahl von unserem Sitz in Baar, nicht der Zugangscode.',
   'Immer noch nein. Aber Ausdauer hast du, das muss man dir lassen.',
   'Auch beim vierten Mal öffnet sich hier nichts. Ehrlich.',
   'Okay, du gewinnst – aber nur an Hartnäckigkeit. Frag Dominic nach dem Code.',
