@@ -249,6 +249,17 @@ export default function ProjectHeader({
                     >
                       ⟳ Aktualisieren
                     </button>
+                    {/* Holt nur die Daten neu. Wenn etwas hakt oder eine neue
+                        Version veröffentlicht wurde, hilft der komplette Neustart. */}
+                    <button
+                      type="button"
+                      className="menu-item"
+                      role="menuitem"
+                      onClick={() => window.location.reload()}
+                      title="Lädt die gesamte App neu"
+                    >
+                      ⟲ Seite neu laden
+                    </button>
                   </div>
                 )}
               </div>
