@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { del, patch, post } from '@/lib/client/api';
 import { heute } from '@/lib/due';
@@ -81,6 +81,12 @@ export default function ScheduleTab({
   const [zieht, setZieht] = useState(false);
   const [vorlage, setVorlage] = useState<Vorlage>(leerVorlage);
   const labelRef = useRef<HTMLInputElement>(null);
+
+  // Zeilen umsortieren: gezogene Zeile, Zeile darunter/darüber als Ziel und die
+  // schon angezeigte neue Abfolge, damit es beim Ablegen nicht kurz zurückspringt.
+  const [zeileGezogen, setZeileGezogen] = useState<string | null>(null);
+  const [zeileZiel, setZeileZiel] = useState<string | null>(null);
+  const [folge, setFolge] = useState<string[] | null>(null);
 
   const projectId = detail.project.id;
   const plan = detail.schedule;
@@ -336,6 +342,55 @@ export default function ScheduleTab({
       });
   }, [plan]);
 
+  /**
+   * Solange eine gerade verschobene Reihenfolge noch gespeichert wird, gilt sie
+   * vor der Nummerierung aus der Datenbank – sonst würde die Zeile sichtbar
+   * zurückspringen, bis die Antwort da ist.
+   */
+  const zeilen = useMemo(() => {
+    if (!folge) return gruppen;
+    const platz = new Map(folge.map((key, i) => [key, i]));
+    return [...gruppen].sort(
+      (a, b) =>
+        (platz.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+        (platz.get(b.key) ?? Number.MAX_SAFE_INTEGER),
+    );
+  }, [gruppen, folge]);
+
+  /**
+   * Ablegen: die gezogene Zeile rutscht vor die Zeile, über der losgelassen
+   * wurde – oder ans Ende, wenn unterhalb der letzten Zeile abgelegt wird.
+   */
+  function zeileAblegen(zielKey: string | null) {
+    const quelle = zeileGezogen;
+    setZeileGezogen(null);
+    setZeileZiel(null);
+    if (!quelle || quelle === zielKey) return;
+
+    const aktuell = zeilen.map((g) => g.key);
+    const neueFolge = aktuell.filter((key) => key !== quelle);
+    const index = zielKey ? neueFolge.indexOf(zielKey) : -1;
+    if (index === -1) neueFolge.push(quelle);
+    else neueFolge.splice(index, 0, quelle);
+
+    setFolge(neueFolge);
+
+    const proZeile = new Map(zeilen.map((g) => [g.key, g.spuren.flat()]));
+    const ids = neueFolge.flatMap((key) =>
+      (proZeile.get(key) ?? []).map((task) => task.id),
+    );
+
+    void run(async () => {
+      try {
+        await post('/api/schedule/reorder', { order: ids });
+        await reload();
+      } finally {
+        // Ab jetzt stimmt die Nummerierung aus der Datenbank wieder.
+        setFolge(null);
+      }
+    }, 'Reihenfolge konnte nicht gespeichert werden.');
+  }
+
   const rasterBreite = tage * TAG_BREITE;
 
   function istWochenende(tag: string): boolean {
@@ -439,7 +494,7 @@ export default function ScheduleTab({
             </div>
           </div>
 
-          {gruppen.map((g) => {
+          {zeilen.map((g) => {
             const person = assigneePerson(detail, g.owner);
             const zeilenVorlage: Vorlage = {
               responsible: g.responsible,
@@ -449,11 +504,35 @@ export default function ScheduleTab({
 
             return (
               <div
-                className="plan-zeile"
+                className={`plan-zeile ${zeileGezogen === g.key ? 'zieht' : ''} ${
+                  zeileZiel === g.key ? 'ziel' : ''
+                }`}
                 key={g.key}
                 style={{ minHeight: g.spuren.length * SPUR_HOEHE + 12 }}
+                onDragOver={(e) => {
+                  if (!isAdmin || !zeileGezogen) return;
+                  e.preventDefault();
+                  setZeileZiel(g.key);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  zeileAblegen(g.key);
+                }}
               >
-                <div className="plan-links">
+                <div
+                  className="plan-links"
+                  draggable={isAdmin}
+                  onDragStart={() => setZeileGezogen(g.key)}
+                  onDragEnd={() => {
+                    setZeileGezogen(null);
+                    setZeileZiel(null);
+                  }}
+                >
+                  {isAdmin && (
+                    <span className="zieh-griff" title="Zeile verschieben">
+                      ⠿
+                    </span>
+                  )}
                   {g.owner ? (
                     <div className="plan-person" title={`Organisiert von ${person.name}`}>
                       <Avatar url={person.avatarUrl} name={person.name} size={30} />
@@ -492,29 +571,73 @@ export default function ScheduleTab({
 
                       const offen = task.notes.some((n) => n.status === 'offen');
 
+                      const links = startVersatz * TAG_BREITE;
+                      const breite = laenge * TAG_BREITE - 4;
+                      const oben = spurNr * SPUR_HOEHE + 6;
+
+                      // Grobe Schätzung der Textbreite (11.5px halbfett). Passt
+                      // der Name nicht in den Balken, steht er daneben – lieber
+                      // etwas überstehen als abgeschnitten.
+                      const textBreite =
+                        task.label.length * 6.4 + (task.notes.length ? 32 : 0);
+                      const passt = textBreite <= breite - 16;
+                      const platzRechts = rasterBreite - (links + breite) - 8;
+                      const textLinks =
+                        textBreite <= platzRechts
+                          ? links + breite + 6
+                          : Math.max(0, links - textBreite - 6);
+
+                      const notizZeichen = task.notes.length > 0 && (
+                        <span className={`balken-notiz ${offen ? 'offen' : ''}`}>
+                          💬{task.notes.length}
+                        </span>
+                      );
+
                       return (
-                        <div
-                          key={task.id}
-                          className={`plan-balken ${notizTaskId === task.id ? 'aktiv' : ''}`}
-                          style={{
-                            left: startVersatz * TAG_BREITE,
-                            width: laenge * TAG_BREITE - 4,
-                            top: spurNr * SPUR_HOEHE + 6,
-                            background: task.color,
-                            color: schriftfarbeAuf(task.color),
-                          }}
-                          title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
-                          onClick={() =>
-                            setNotizTaskId((a) => (a === task.id ? null : task.id))
-                          }
-                        >
-                          {task.label}
-                          {task.notes.length > 0 && (
-                            <span className={`balken-notiz ${offen ? 'offen' : ''}`}>
-                              💬{task.notes.length}
-                            </span>
+                        <Fragment key={task.id}>
+                          <div
+                            className={`plan-balken ${
+                              notizTaskId === task.id ? 'aktiv' : ''
+                            }`}
+                            style={{
+                              left: links,
+                              width: breite,
+                              top: oben,
+                              background: task.color,
+                              color: schriftfarbeAuf(task.color),
+                            }}
+                            title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
+                            onClick={() =>
+                              setNotizTaskId((a) => (a === task.id ? null : task.id))
+                            }
+                          >
+                            {passt && (
+                              <>
+                                {task.label}
+                                {notizZeichen}
+                              </>
+                            )}
+                          </div>
+
+                          {!passt && (
+                            <div
+                              className={`plan-balken-text ${
+                                notizTaskId === task.id ? 'aktiv' : ''
+                              }`}
+                              style={{ left: textLinks, top: oben }}
+                              onClick={() =>
+                                setNotizTaskId((a) => (a === task.id ? null : task.id))
+                              }
+                            >
+                              <span
+                                className="plan-balken-punkt"
+                                style={{ background: task.color }}
+                              />
+                              {task.label}
+                              {notizZeichen}
+                            </div>
                           )}
-                        </div>
+                        </Fragment>
                       );
                     }),
                   )}
@@ -525,7 +648,17 @@ export default function ScheduleTab({
 
           {/* Leere Zeile zum Anlegen: hier zieht man einen neuen Zeitraum auf. */}
           {isAdmin && (
-            <div className="plan-zeile plan-zeile-neu">
+            <div
+              className="plan-zeile plan-zeile-neu"
+              onDragOver={(e) => {
+                if (zeileGezogen) e.preventDefault();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                // Unterhalb der letzten Zeile abgelegt: ans Ende sortieren.
+                zeileAblegen(null);
+              }}
+            >
               <div className="plan-links">
                 <div className="plan-person plan-person-leer" />
                 <div className="plan-links-text">

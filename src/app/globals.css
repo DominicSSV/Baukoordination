@@ -2261,3 +2261,48 @@ button:disabled {
   background: var(--highlight);
   color: #262624;
 }
+
+/* --- Zeilen des Terminplans verschieben ------------------------------------ */
+.plan-zeile .plan-links[draggable='true'] {
+  cursor: grab;
+}
+
+.plan-zeile.zieht {
+  opacity: 0.45;
+}
+
+.plan-zeile.ziel {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* Name neben dem Balken, wenn er nicht hineinpasst – abgeschnitten wäre er
+   unbrauchbar, lieber steht er im Raster daneben. */
+.plan-balken-text {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.plan-balken-text.aktiv {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.plan-balken-punkt {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
