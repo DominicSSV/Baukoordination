@@ -32,6 +32,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     ort?: string;
     scheduleStart?: string | null;
     scheduleEnd?: string | null;
+    status?: string;
   }>(request);
 
   const patch: Record<string, unknown> = {};
@@ -48,6 +49,13 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   if (body.scheduleEnd !== undefined) {
     patch.schedule_end = parseDueDate(body.scheduleEnd);
   }
+  if (body.status !== undefined) {
+    const erlaubt = ['planung', 'umsetzung', 'abschluss', 'abgeschlossen'];
+    if (!erlaubt.includes(String(body.status))) {
+      throw new ApiError('Unbekannter Projektstatus.');
+    }
+    patch.status = body.status;
+  }
 
   if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
 
@@ -55,7 +63,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     .from('projects')
     .update(patch)
     .eq('id', id)
-    .select('id, name, ort, created_at, schedule_start, schedule_end')
+    .select('id, name, ort, created_at, schedule_start, schedule_end, status, order_index')
     .single();
 
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);

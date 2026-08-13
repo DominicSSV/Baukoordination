@@ -8,7 +8,19 @@ export type Project = {
   /** Zeitraum des Terminplans, JJJJ-MM-TT. Leer = aus den Arbeiten abgeleitet. */
   schedule_start?: string | null;
   schedule_end?: string | null;
+  /** Gruppe in der Seitenleiste. */
+  status?: ProjektStatus;
+  order_index?: number;
 };
+
+export type ProjektStatus = 'planung' | 'umsetzung' | 'abschluss' | 'abgeschlossen';
+
+export const PROJEKT_STATUS: Array<{ wert: ProjektStatus; name: string }> = [
+  { wert: 'planung', name: 'In Planung' },
+  { wert: 'umsetzung', name: 'In Umsetzung' },
+  { wert: 'abschluss', name: 'In Abschluss' },
+  { wert: 'abgeschlossen', name: 'Abgeschlossen' },
+];
 
 /** Eine Zeile im Balkenplan. */
 export type ScheduleTask = {
@@ -23,6 +35,20 @@ export type ScheduleTask = {
   end_date: string;
   color: string;
   order_index: number;
+  /** Anmerkungen und Terminvorschläge zu dieser Arbeit. */
+  notes: ScheduleNote[];
+};
+
+export type ScheduleNote = {
+  id: string;
+  task_id: string;
+  text: string;
+  author: string;
+  author_supplier_id: string | null;
+  vorschlag_start: string | null;
+  vorschlag_ende: string | null;
+  status: 'offen' | 'uebernommen' | 'abgelehnt';
+  created_at: string;
 };
 
 export type Supplier = {

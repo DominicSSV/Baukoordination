@@ -33,6 +33,22 @@ export function schriftfarbeAuf(hintergrund: string): string {
   return helligkeit > 150 ? '#262624' : '#FFFFFF';
 }
 
+/**
+ * Kalenderwoche nach ISO 8601 – so zählt man sie in der Schweiz.
+ * Woche 1 ist die Woche mit dem ersten Donnerstag des Jahres.
+ */
+export function kalenderwoche(datum: string): number {
+  const d = new Date(`${datum}T00:00:00Z`);
+  const wochentag = (d.getUTCDay() + 6) % 7; // Montag = 0
+  d.setUTCDate(d.getUTCDate() - wochentag + 3); // Donnerstag dieser Woche
+
+  const ersterDonnerstag = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const versatz = (ersterDonnerstag.getUTCDay() + 6) % 7;
+  ersterDonnerstag.setUTCDate(ersterDonnerstag.getUTCDate() - versatz + 3);
+
+  return 1 + Math.round((d.getTime() - ersterDonnerstag.getTime()) / (7 * 86_400_000));
+}
+
 export function tagPlus(datum: string, tage: number): string {
   const d = new Date(`${datum}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + tage);

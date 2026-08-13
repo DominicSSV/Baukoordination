@@ -1938,3 +1938,282 @@ button:disabled {
   background: #fff;
   max-width: 210px;
 }
+
+/* Kalenderwochen-Zeile über den Tagen. */
+.plan-kw {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 3px 6px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+}
+
+/* Zeitraum im Raster aufziehen */
+.plan-zelle.klickbar {
+  cursor: crosshair;
+}
+
+.plan-zelle.gewaehlt {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.plan-zeile-neu .plan-arbeit {
+  font-weight: 600;
+}
+
+.plan-zeile-neu:hover .plan-arbeit {
+  color: var(--accent) !important;
+}
+
+.plan-balken {
+  cursor: pointer;
+}
+
+/* --- Projektgruppen in der Seitenleiste ------------------------------------ */
+.projekt-gruppe {
+  margin-bottom: 6px;
+}
+
+.gruppe-kopf {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 8px;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  text-align: left;
+}
+
+.gruppe-kopf:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.gruppe-pfeil {
+  font-size: 11px;
+  transition: transform 0.15s;
+}
+
+.gruppe-pfeil.zu {
+  transform: rotate(-90deg);
+}
+
+.gruppe-anzahl {
+  margin-left: auto;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.gruppe-inhalt {
+  padding-left: 4px;
+}
+
+.gruppe-leer {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  padding: 8px 10px;
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.zieh-griff {
+  color: var(--ink-faint);
+  font-size: 13px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.project-item.zieht {
+  opacity: 0.4;
+}
+
+.project-item.ziel {
+  box-shadow: 0 -2px 0 var(--accent);
+}
+
+@media (max-width: 760px) {
+  /* Auf dem Handy stehen die Gruppen untereinander, nicht als Streifen. */
+  .project-list {
+    display: block;
+    overflow-x: visible;
+  }
+
+  .gruppe-inhalt {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .gruppe-leer {
+    flex-shrink: 0;
+  }
+}
+
+/* --- Rückmeldungen zum Terminplan ------------------------------------------ */
+.plan-notiz-marke {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  align-self: flex-start;
+}
+
+.plan-notiz-marke:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.notiz-karte {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.notiz-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.notiz-kopf strong {
+  font-size: 15px;
+  display: block;
+}
+
+.notiz-zeitraum {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.notiz-zeile {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.notiz-zeile:last-of-type {
+  border-bottom: none;
+}
+
+.notiz-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.notiz-vorschlag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--highlight-soft);
+  color: #8a6116;
+}
+
+.notiz-vorschlag.uebernommen {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.notiz-vorschlag.abgelehnt {
+  background: var(--danger-soft);
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+.notiz-meta {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.notiz-meta button {
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.notiz-meta button:hover {
+  color: var(--danger);
+}
+
+.notiz-aktionen {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notiz-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.notiz-form > input[type='text'] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
+.notiz-form-zeile {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.notiz-form-titel {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.notiz-form-zeile input[type='date'] {
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  background: #fff;
+}

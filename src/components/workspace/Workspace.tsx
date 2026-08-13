@@ -219,13 +219,9 @@ function WorkspaceInner({
           </button>
           <span className="me-text">
             {session.name}
-            <span style={{ opacity: 0.6 }}>
-              {session.kind === 'supplier'
-                ? ' (Lieferant)'
-                : session.funktion
-                  ? ` · ${session.funktion}`
-                  : ''}
-            </span>
+            {session.kind === 'supplier' && (
+              <span style={{ opacity: 0.6 }}> (Lieferant)</span>
+            )}
           </span>
           <button type="button" onClick={logout} aria-label="Abmelden" title="Abmelden">
             <span className="me-logout-text">abmelden</span>
@@ -243,6 +239,7 @@ function WorkspaceInner({
           isAdmin={isAdmin}
           onSelect={selectProject}
           onCreate={createProject}
+          onReordered={setProjects}
         />
 
         <div className="content">
@@ -343,7 +340,12 @@ function WorkspaceInner({
                 />
               )}
               {tab === 'terminplan' && (
-                <ScheduleTab detail={detail} isAdmin={isAdmin} reload={reload} />
+                <ScheduleTab
+                  detail={detail}
+                  session={session}
+                  isAdmin={isAdmin}
+                  reload={reload}
+                />
               )}
               {tab === 'dateien' && (
                 <FilesTab detail={detail} reload={reload} onOpenFile={setViewerFileId} />

@@ -77,7 +77,7 @@ export default function ProfileModal({
             <div style={{ fontWeight: 600, fontSize: 15 }}>{session.name}</div>
             <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>
               {session.kind === 'admin'
-                ? [session.firma, session.funktion].filter(Boolean).join(' · ')
+                ? session.firma
                 : [session.firma, 'Lieferant'].filter(Boolean).join(' · ')}
             </div>
             {session.kind === 'admin' && session.email && (

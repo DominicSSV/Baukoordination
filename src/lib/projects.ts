@@ -10,6 +10,7 @@ import type {
   Project,
   ProjectDetail,
   ProjectFile,
+  ScheduleNote,
   ScheduleTask,
   Supplier,
   Todo,
@@ -77,13 +78,24 @@ async function loadAdminProfiles(): Promise<AdminProfile[]> {
 
 /** Projekte, die der Aufrufer sehen darf. Für Lieferanten filtert bereits die RLS. */
 export async function listProjects(ctx: Ctx): Promise<Project[]> {
-  const { data, error } = await ctx.db
+  const mitStatus = await ctx.db
     .from('projects')
-    .select('id, name, ort, created_at')
+    .select('id, name, ort, created_at, status, order_index')
+    .order('order_index', { ascending: true })
     .order('created_at', { ascending: true });
 
-  if (error) throw new Error(`Projekte konnten nicht geladen werden: ${error.message}`);
-  return (data ?? []) as Project[];
+  // status/order_index kommen erst mit Migration 0009.
+  const res = mitStatus.error
+    ? await ctx.db
+        .from('projects')
+        .select('id, name, ort, created_at')
+        .order('created_at', { ascending: true })
+    : mitStatus;
+
+  if (res.error) {
+    throw new Error(`Projekte konnten nicht geladen werden: ${res.error.message}`);
+  }
+  return (res.data ?? []) as Project[];
 }
 
 async function signedUrls(paths: string[]): Promise<Map<string, string>> {
@@ -305,6 +317,33 @@ export async function loadProjectDetail(
     console.warn('[projects] Terminplan nicht verfügbar', planRes.error.message);
   }
 
+  const planZeilen = (planRes.error ? [] : (planRes.data ?? [])) as Array<
+    Omit<ScheduleTask, 'notes'>
+  >;
+
+  // Rückmeldungen der Lieferanten. Fehlt die Tabelle (Migration 0010), bleibt
+  // der Plan ohne Anmerkungen nutzbar.
+  const notizenRes = planZeilen.length
+    ? await db
+        .from('schedule_notes')
+        .select(
+          'id, task_id, text, author, author_supplier_id, vorschlag_start, vorschlag_ende, status, created_at',
+        )
+        .in('task_id', planZeilen.map((t) => t.id))
+        .order('created_at', { ascending: true })
+    : { data: [], error: null };
+
+  if (notizenRes.error) {
+    console.warn('[projects] Rückmeldungen nicht verfügbar', notizenRes.error.message);
+  }
+
+  const notizenJeArbeit = new Map<string, ScheduleNote[]>();
+  for (const n of (notizenRes.error ? [] : (notizenRes.data ?? [])) as ScheduleNote[]) {
+    const liste = notizenJeArbeit.get(n.task_id) ?? [];
+    liste.push(n);
+    notizenJeArbeit.set(n.task_id, liste);
+  }
+
   return {
     project,
     todos,
@@ -314,6 +353,9 @@ export async function loadProjectDetail(
     suppliers,
     otherSuppliers,
     admins,
-    schedule: (planRes.error ? [] : (planRes.data ?? [])) as ScheduleTask[],
+    schedule: planZeilen.map((t) => ({
+      ...t,
+      notes: notizenJeArbeit.get(t.id) ?? [],
+    })),
   };
 }
