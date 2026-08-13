@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { patch, post } from '@/lib/client/api';
 import type { Project } from '@/types';
@@ -30,6 +30,29 @@ export default function ProjectHeader({
   const [name, setName] = useState(project.name);
   const [ort, setOrt] = useState(project.ort ?? '');
   const [busy, setBusy] = useState(false);
+
+  const [menuOffen, setMenuOffen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Menü schliesst bei Klick daneben und mit Escape – sonst bliebe es auf dem
+  // Handy offen stehen, wo es keinen Rand zum "Wegklicken" gibt.
+  useEffect(() => {
+    if (!menuOffen) return;
+
+    function beiKlick(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOffen(false);
+    }
+    function beiTaste(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOffen(false);
+    }
+
+    document.addEventListener('mousedown', beiKlick);
+    document.addEventListener('keydown', beiTaste);
+    return () => {
+      document.removeEventListener('mousedown', beiKlick);
+      document.removeEventListener('keydown', beiTaste);
+    };
+  }, [menuOffen]);
 
   const [duplicating, setDuplicating] = useState(false);
   const [copyName, setCopyName] = useState('');
@@ -167,35 +190,67 @@ export default function ProjectHeader({
                 <h1>{project.name}</h1>
                 {project.ort && <div className="ploc">📍 {project.ort}</div>}
               </div>
-              <div className="sign-actions">
-                {isAdmin && (
-                  <>
-                    <button
-                      type="button"
-                      className="refresh-btn"
-                      onClick={startEdit}
-                      title="Projektname und Ort ändern"
-                    >
-                      ✏️ Umbenennen
-                    </button>
-                    <button
-                      type="button"
-                      className="refresh-btn"
-                      onClick={startDuplicate}
-                      title="Projekt als Vorlage für ein neues verwenden"
-                    >
-                      ⧉ Duplizieren
-                    </button>
-                  </>
-                )}
+
+              {/* Ein Menü statt drei Knöpfen: auf dem Handy war die Knopfreihe
+                  breiter als die Karte und lief aus dem Bild. */}
+              <div className="sign-menu" ref={menuRef}>
                 <button
                   type="button"
-                  className="refresh-btn"
-                  onClick={onRefresh}
-                  disabled={refreshing}
+                  className="menu-btn"
+                  onClick={() => setMenuOffen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOffen}
+                  aria-label="Projekt-Menü"
+                  title="Projekt-Menü"
                 >
-                  <span className={refreshing ? 'spin' : ''}>⟳</span> Aktualisieren
+                  <span className={refreshing ? 'spin' : ''}>
+                    {refreshing ? '⟳' : '⋯'}
+                  </span>
                 </button>
+
+                {menuOffen && (
+                  <div className="menu-list" role="menu">
+                    {isAdmin && (
+                      <>
+                        <button
+                          type="button"
+                          className="menu-item"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOffen(false);
+                            startEdit();
+                          }}
+                        >
+                          ✏️ Umbenennen
+                        </button>
+                        <button
+                          type="button"
+                          className="menu-item"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOffen(false);
+                            startDuplicate();
+                          }}
+                        >
+                          ⧉ Duplizieren
+                        </button>
+                        <div className="menu-trenner" />
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="menu-item"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOffen(false);
+                        onRefresh();
+                      }}
+                      disabled={refreshing}
+                    >
+                      ⟳ Aktualisieren
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
