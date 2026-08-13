@@ -81,6 +81,22 @@ export async function GET() {
       const seed = await db.from('admin_seed').select('email').limit(1);
       const view = await db.from('admin_public').select('user_id').limit(1);
 
+      const plan = await db.from('schedule_tasks').select('id').limit(1);
+      const planZeitraum = await db.from('projects').select('schedule_start').limit(1);
+      report.migration_0006 = {
+        terminplan: !plan.error && !planZeitraum.error,
+        hinweis:
+          plan.error || planZeitraum.error
+            ? 'Migration 0006 fehlt. Der Terminplan lässt sich ohne sie nicht speichern.'
+            : undefined,
+      };
+
+      const bilder = await db.from('admins').select('avatar_path').limit(1);
+      report.migration_0005 = {
+        profilbilder: !bilder.error,
+        hinweis: bilder.error ? 'Migration 0005 fehlt. Keine Profilbilder.' : undefined,
+      };
+
       const frist = await db.from('todos').select('due_date').limit(1);
       report.migration_0004 = {
         fristen: !frist.error,
