@@ -1209,8 +1209,11 @@ button:disabled {
 
 .loader-mark {
   display: block;
-  animation: spin 1.1s linear infinite;
+  animation: spin 1.4s linear infinite;
   transform-origin: 50% 50%;
+  /* Ohne diesen Hinweis rundet der Browser die Zwischenschritte gröber und die
+     Drehung wirkt ruckelig. */
+  will-change: transform;
 }
 
 .loader-label {
