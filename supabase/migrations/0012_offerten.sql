@@ -18,7 +18,13 @@ alter table public.files
   add constraint files_offer_folder_check
   check (
     offer_folder is null
-    or offer_folder in ('kostenschaetzung', 'richtofferte', 'offerte', 'nachtrag')
+    or offer_folder in (
+      'kostenschaetzung',
+      'richtofferte',
+      'offerte',
+      'auftragsbestaetigung',
+      'nachtrag'
+    )
   );
 
 create index if not exists files_offer_idx

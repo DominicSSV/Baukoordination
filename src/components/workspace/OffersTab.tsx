@@ -93,8 +93,10 @@ export default function OffersTab({
 
       <p className="offer-hinweis">
         {isAdmin
-          ? 'Hier laufen alle Einreichungen der Lieferanten zusammen. Jeder Lieferant sieht ausschliesslich seine eigenen Unterlagen.'
-          : 'Deine Unterlagen sieht nur die Swiss Solar Ventures AG – andere Lieferanten sehen sie nicht.'}
+          ? 'Hier laufen alle Einreichungen zusammen. Ein Lieferant sieht nur die Unterlagen seiner eigenen Firma.'
+          : session.firma
+            ? `Diese Unterlagen sehen die Swiss Solar Ventures AG und deine Kolleginnen und Kollegen von ${session.firma} – andere Lieferanten nicht.`
+            : 'Deine Unterlagen sieht nur die Swiss Solar Ventures AG – andere Lieferanten sehen sie nicht.'}
       </p>
 
       {OFFERTEN_ORDNER.map((ordner) => {

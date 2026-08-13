@@ -105,6 +105,15 @@ export async function GET() {
             : undefined,
       };
 
+      const firmenregel = await db.rpc('darf_offerte_sehen', { p_uploader: null });
+      report.migration_0013 = {
+        offerten_je_firma: !firmenregel.error,
+        hinweis: firmenregel.error
+          ? 'Migration 0013 fehlt. Ohne sie sieht jede Ansprechperson nur die eigenen ' +
+            'Offerten, nicht die ihrer Firma – und der Ordner "Auftragsbestätigung" wird abgewiesen.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

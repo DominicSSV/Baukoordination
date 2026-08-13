@@ -24,6 +24,12 @@ export const OFFERTEN_ORDNER = [
     hinweis: 'Verbindliche Angebote.',
   },
   {
+    wert: 'auftragsbestaetigung',
+    name: 'Auftragsbestätigung',
+    icon: '✅',
+    hinweis: 'Bestätigung des erteilten Auftrags.',
+  },
+  {
     wert: 'nachtrag',
     name: 'Nachtrag',
     icon: '➕',
@@ -38,6 +44,16 @@ export function pruefeOrdner(wert: unknown): OffertenOrdner | null {
   if (typeof wert !== 'string') return null;
   const treffer = OFFERTEN_ORDNER.find((o) => o.wert === wert.trim());
   return treffer ? treffer.wert : null;
+}
+
+/**
+ * Firmenname auf eine vergleichbare Form bringen. Gross-/Kleinschreibung und
+ * Leerzeichen sollen nicht darüber entscheiden, wer zusammengehört; ohne
+ * Firmeneintrag gibt es keine Zugehörigkeit (null).
+ */
+export function firmaSchluessel(firma: string | null | undefined): string | null {
+  const wert = (firma ?? '').trim().toLowerCase();
+  return wert || null;
 }
 
 /** Anzeigename eines Ordners, z.B. für Protokoll und Kacheln. */

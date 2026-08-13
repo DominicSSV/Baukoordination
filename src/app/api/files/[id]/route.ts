@@ -1,5 +1,6 @@
 import { ApiError, forbidden, handler, ok } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
+import { darfOfferteSehen } from '@/lib/auth/offerAccess';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
 
@@ -47,14 +48,13 @@ async function loadFile(id: string): Promise<Datei> {
 }
 
 /**
- * Offerten sind vertraulich. Die Datenbank blendet sie für fremde Lieferanten
- * zwar aus, diese Route liest aber bewusst mit Dienstschlüssel – also wird hier
- * noch einmal ausdrücklich geprüft.
+ * Offerten sind vertraulich. Die Datenbank blendet fremde zwar aus, diese Route
+ * liest aber bewusst mit Dienstschlüssel – also wird hier noch einmal
+ * ausdrücklich geprüft. Erlaubt sind die eigenen und die der eigenen Firma.
  */
-function pruefeOffertenzugriff(ctx: Sitzung, file: Datei) {
+async function pruefeOffertenzugriff(ctx: Sitzung, file: Datei) {
   if (!file.offer_folder) return;
-  if (ctx.session.kind !== 'supplier') return;
-  if (file.uploaded_by_supplier_id === ctx.session.supplierId) return;
+  if (await darfOfferteSehen(ctx.session, file.uploaded_by_supplier_id)) return;
   throw new ApiError('Datei nicht gefunden.', 404);
 }
 
@@ -64,7 +64,7 @@ export const GET = handler(async (request: Request, { params }: Params) => {
   const ctx = await requireSession();
   const file = await loadFile(id);
   await requireProjectAccess(ctx, file.project_id);
-  pruefeOffertenzugriff(ctx, file);
+  await pruefeOffertenzugriff(ctx, file);
 
   const download = new URL(request.url).searchParams.get('download') === '1';
 
@@ -92,7 +92,7 @@ export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const ctx = await requireSession();
   const file = await loadFile(id);
   await requireProjectAccess(ctx, file.project_id);
-  pruefeOffertenzugriff(ctx, file);
+  await pruefeOffertenzugriff(ctx, file);
 
   if (
     ctx.session.kind === 'supplier' &&

@@ -1,6 +1,7 @@
 import 'server-only';
 import { Resend } from 'resend';
 import { appBaseUrl, mailFrom, mailReplyTo, resendApiKey } from '@/lib/env';
+import { firmenKollegen } from '@/lib/auth/offerAccess';
 import { serviceClient } from '@/lib/supabase/service';
 import type { ActivityEntry, Project, Supplier } from '@/types';
 
@@ -257,23 +258,27 @@ export async function allProjectParties(
 }
 
 /**
- * Empfänger für vertrauliche Vorgänge: alle Bauherrenvertreter und genau der
- * eine Lieferant, den es betrifft – etwa beim Einreichen einer Offerte.
+ * Empfänger für vertrauliche Vorgänge: alle Bauherrenvertreter und die
+ * betroffene Lieferantenfirma – also auch die weiteren Ansprechpersonen
+ * derselben Firma, die gemeinsam am Angebot arbeiten.
  */
 async function adminsUndEinLieferant(
   supplierId: string,
   exceptEmail?: string | null,
 ): Promise<string[]> {
   const db = serviceClient();
+  const kollegen = await firmenKollegen(supplierId);
 
   const [{ data: admins }, { data: supplier }] = await Promise.all([
     db.from('admins').select('email'),
-    db.from('suppliers').select('email').eq('id', supplierId).maybeSingle(),
+    db.from('suppliers').select('email').in('id', kollegen),
   ]);
 
   const mails = [
     ...(admins ?? []).map((a: { email: string | null }) => a.email?.trim()),
-    supplier?.email?.trim(),
+    ...((supplier ?? []) as Array<{ email: string | null }>).map((s) =>
+      s.email?.trim(),
+    ),
   ].filter((e): e is string => Boolean(e));
 
   const ausgeschlossen = exceptEmail?.trim().toLowerCase();
