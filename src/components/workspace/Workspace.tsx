@@ -229,7 +229,12 @@ function WorkspaceInner({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="brand-logo" src="/logo.png" alt="Swiss Solar Ventures AG" />
           <div className="brand-titles">
-            <div className="brand-name">Baukoordination – Swiss Solar Ventures AG</div>
+            {/* Auf dem Handy bleibt nur "Baukoordination" stehen – für den
+                Firmennamen ist neben Glocke und Bild kein Platz. */}
+            <div className="brand-name">
+              Baukoordination
+              <span className="brand-firma"> – Swiss Solar Ventures AG</span>
+            </div>
             <div className="brand-sub">Projekte · Lieferanten · To-Dos · Dateien</div>
           </div>
         </div>

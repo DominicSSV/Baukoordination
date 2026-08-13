@@ -1382,13 +1382,16 @@ button:disabled {
   }
 
   .brand-logo {
-    height: 26px;
+    height: 34px;
   }
 
   .brand-name {
-    font-size: 13.5px;
+    font-size: 15px;
   }
 
+  /* Ohne Firmenname und Untertitel wird die Zeile kurz genug, dass das grössere
+     Logo daneben Platz hat. */
+  .brand-firma,
   .brand-sub {
     display: none;
   }
@@ -1413,6 +1416,23 @@ button:disabled {
     opacity: 0.85;
     display: flex;
     align-items: center;
+  }
+
+  /* Auf ganz schmalen Geräten würde sonst "Baukoordination" hinten
+     abgeschnitten – lieber Logo und Schrift eine Spur kleiner. */
+  @media (max-width: 370px) {
+    .brand-logo {
+      height: 29px;
+    }
+
+    .brand-name {
+      font-size: 13.5px;
+    }
+
+    .me-badge {
+      padding: 6px 7px;
+      gap: 5px;
+    }
   }
 
   .layout {
