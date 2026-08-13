@@ -185,7 +185,8 @@ export default function ActivityTab({
             <div className="activity-person">
               <Avatar url={person.avatarUrl} name={person.name} size={30} />
               <span className="activity-badge" aria-hidden="true">
-                {a.icon ?? '•'}
+                {/* Ältere Offerten-Einträge tragen noch ein anderes Symbol. */}
+                {(a.icon === '💰' ? '📑' : a.icon) ?? '•'}
               </span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>

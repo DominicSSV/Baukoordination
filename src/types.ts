@@ -90,6 +90,11 @@ export type Todo = {
   text: string;
   /** 'internal' | 'admin:<user_id>' | 'supplier:<supplier_id>' – siehe lib/assignee.ts */
   assigned_to: string;
+  /**
+   * Alle Zuständigen. assigned_to ist immer der erste Eintrag – ältere Aufgaben
+   * und Einbauten, die nur einen Zuständigen kennen, funktionieren dadurch weiter.
+   */
+  assignees: string[];
   done: boolean;
   done_by: string | null;
   done_at: string | null;

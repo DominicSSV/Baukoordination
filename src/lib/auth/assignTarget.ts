@@ -52,6 +52,30 @@ export async function assigneeDisplayName(value: string): Promise<string> {
   return data?.name?.trim() || data?.firma?.trim() || 'Unbekannt';
 }
 
+/**
+ * Mehrere Zuständige prüfen und bereinigen.
+ *
+ * Doppelte fliegen heraus, die Reihenfolge bleibt. Ist nichts angegeben, gilt
+ * die Swiss Solar Ventures AG allgemein – eine Aufgabe ohne Zuständigen wäre
+ * eine Aufgabe, die niemand sieht.
+ */
+export async function resolveAssignees(
+  session: Session,
+  projectId: string,
+  raw: unknown,
+): Promise<string[]> {
+  const liste = Array.isArray(raw) ? raw : [raw];
+  const geprueft: string[] = [];
+
+  for (const wert of liste) {
+    if (typeof wert !== 'string' || !wert.trim()) continue;
+    const sauber = await resolveAssignee(session, projectId, wert);
+    if (!geprueft.includes(sauber)) geprueft.push(sauber);
+  }
+
+  return geprueft.length ? geprueft : [INTERNAL];
+}
+
 export async function resolveAssignee(
   session: Session,
   projectId: string,

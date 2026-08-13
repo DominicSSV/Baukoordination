@@ -4,21 +4,16 @@ import { useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
-import { fmtDate, supplierLabel } from '@/lib/format';
+import { fmtDate } from '@/lib/format';
 import {
   fmtDueDate,
   istHeuteFaellig,
   istUeberfaellig,
 } from '@/lib/due';
-import { INTERNAL_PARTY } from '@/lib/branding';
-import {
-  adminAssignee,
-  assigneeLabel,
-  supplierAssignee,
-  INTERNAL,
-} from '@/lib/assignee';
+import { adminAssignee, assigneeLabel, INTERNAL } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
+import AssigneePicker from '@/components/workspace/AssigneePicker';
 import Avatar from '@/components/Avatar';
 import { assigneePerson, findPerson, personLabel } from '@/lib/people';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
@@ -39,11 +34,11 @@ export default function TodosTab({
   const projectId = detail.project.id;
 
   const [newText, setNewText] = useState('');
-  const [newAssignee, setNewAssignee] = useState('');
+  const [newAssignees, setNewAssignees] = useState<string[]>([]);
   const [newDue, setNewDue] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
-  const [editAssignee, setEditAssignee] = useState('');
+  const [editAssignees, setEditAssignees] = useState<string[]>([]);
   const [editDue, setEditDue] = useState('');
 
   // Aufgaben gehen immer an eine bestimmte Person. Nur solange noch gar kein
@@ -60,7 +55,7 @@ export default function TodosTab({
     return adminAssignee(detail.admins[0].user_id);
   })();
 
-  const effectiveNewAssignee = newAssignee || defaultAssignee;
+  const effectiveNewAssignees = newAssignees.length ? newAssignees : [defaultAssignee];
   const [openComments, setOpenComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -85,14 +80,23 @@ export default function TodosTab({
     }
   }
 
+  /** Ein Merkzeichen je Zuständigem – eine Aufgabe kann mehreren gehören. */
   function assigneeChip(todo: Todo) {
-    const person = assigneePerson(detail, todo.assigned_to);
-    return (
-      <span className="assignee-chip" title={assigneeLabel(todo.assigned_to, detail.admins, detail.suppliers)}>
-        <Avatar url={person.avatarUrl} name={person.name} size={18} />
-        {personLabel(person)}
-      </span>
-    );
+    const liste = todo.assignees?.length ? todo.assignees : [todo.assigned_to];
+
+    return liste.map((wert) => {
+      const person = assigneePerson(detail, wert);
+      return (
+        <span
+          key={wert}
+          className="assignee-chip"
+          title={assigneeLabel(wert, detail.admins, detail.suppliers)}
+        >
+          <Avatar url={person.avatarUrl} name={person.name} size={18} />
+          {personLabel(person)}
+        </span>
+      );
+    });
   }
 
   /** Admin darf alle Aufgaben bearbeiten, ein Lieferant nur selbst erstellte. */
@@ -111,11 +115,11 @@ export default function TodosTab({
       if (!text) return;
       await post(`/api/projects/${projectId}/todos`, {
         text,
-        assignedTo: effectiveNewAssignee,
+        assignees: effectiveNewAssignees,
         dueDate: newDue || null,
       });
       setNewText('');
-      setNewAssignee('');
+      setNewAssignees([]);
       setNewDue('');
       await reload();
       toast('✓ Aufgabe angelegt.');
@@ -136,7 +140,7 @@ export default function TodosTab({
       if (!text) throw new Error('Die Aufgabe darf nicht leer sein.');
       await patch(`/api/todos/${todo.id}`, {
         text,
-        assignedTo: editAssignee,
+        assignees: editAssignees.length ? editAssignees : [todo.assigned_to],
         dueDate: editDue || null,
       });
       setEditingId(null);
@@ -213,57 +217,6 @@ export default function TodosTab({
     }
   }
 
-  /**
-   * Auswahl der Zuständigen: immer eine konkrete Person. Ein Lieferant sieht nur
-   * die Bauherrenvertreter, andere Lieferanten stehen allein dem Admin zur Auswahl.
-   *
-   * `current` fängt Aufgaben ab, deren bisheriger Zuständiger nicht mehr in der
-   * Liste steht – etwa Altbestand auf die Firma allgemein oder ein Lieferant, dem
-   * der Zugriff entzogen wurde. Ohne diesen Eintrag würde das Auswahlfeld beim
-   * Öffnen stillschweigend auf den ersten Namen springen.
-   */
-  function assigneeOptions(includeSuppliers: boolean, current?: string) {
-    const bekannt = new Set<string>();
-    detail.admins.forEach((a) => bekannt.add(adminAssignee(a.user_id)));
-    if (includeSuppliers) {
-      detail.suppliers.forEach((s) => bekannt.add(supplierAssignee(s.id)));
-    }
-    if (!hasAdmins) bekannt.add(INTERNAL);
-
-    const abweichend = current && !bekannt.has(current) ? current : null;
-
-    return (
-      <>
-        {abweichend && (
-          <option value={abweichend}>
-            {assigneeLabel(abweichend, detail.admins, detail.suppliers)} (bisher)
-          </option>
-        )}
-        <optgroup label={INTERNAL_PARTY}>
-          {!hasAdmins && <option value={INTERNAL}>{INTERNAL_PARTY}</option>}
-          {detail.admins.map((a) => (
-            <option key={a.user_id} value={adminAssignee(a.user_id)}>
-              {a.name}
-            </option>
-          ))}
-        </optgroup>
-        {includeSuppliers && detail.suppliers.length > 0 && (
-          <optgroup label="Lieferanten">
-            {detail.suppliers.map((s) => (
-              <option key={s.id} value={supplierAssignee(s.id)}>
-                {personLabel({
-                  name: supplierLabel(s),
-                  firma: s.firma ?? null,
-                  avatarUrl: null,
-                })}
-              </option>
-            ))}
-          </optgroup>
-        )}
-      </>
-    );
-  }
-
   return (
     <div className="card">
       {wartend && (
@@ -312,18 +265,13 @@ export default function TodosTab({
                     }}
                     autoFocus
                   />
-                  <select
-                    value={editAssignee}
-                    onChange={(e) => setEditAssignee(e.target.value)}
-                    style={{
-                      padding: '6px 8px',
-                      border: '1px solid var(--line)',
-                      borderRadius: 6,
-                      fontSize: 12.5,
-                    }}
-                  >
-                    {assigneeOptions(isAdmin, todo.assigned_to)}
-                  </select>
+                  <AssigneePicker
+                    value={editAssignees}
+                    onChange={setEditAssignees}
+                    admins={detail.admins}
+                    suppliers={isAdmin ? detail.suppliers : []}
+                    erlaubtIntern={!hasAdmins}
+                  />
                   <label
                     style={{
                       display: 'block',
@@ -621,7 +569,9 @@ export default function TodosTab({
                   onClick={() => {
                     setEditingId(todo.id);
                     setEditText(todo.text);
-                    setEditAssignee(todo.assigned_to);
+                    setEditAssignees(
+                      todo.assignees?.length ? todo.assignees : [todo.assigned_to],
+                    );
                     setEditDue(todo.due_date ?? '');
                   }}
                 >
@@ -659,12 +609,13 @@ export default function TodosTab({
             }}
             placeholder="Neue Aufgabe, z.B. „Fenster im OG kontrollieren“"
           />
-          <select
-            value={effectiveNewAssignee}
-            onChange={(e) => setNewAssignee(e.target.value)}
-          >
-            {assigneeOptions(isAdmin)}
-          </select>
+          <AssigneePicker
+            value={effectiveNewAssignees}
+            onChange={setNewAssignees}
+            admins={detail.admins}
+            suppliers={isAdmin ? detail.suppliers : []}
+            erlaubtIntern={!hasAdmins}
+          />
           <input
             type="date"
             value={newDue}

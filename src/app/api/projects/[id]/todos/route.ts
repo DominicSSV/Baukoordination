@@ -1,6 +1,6 @@
 import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
-import { assigneeDisplayName, resolveAssignee } from '@/lib/auth/assignTarget';
+import { assigneeDisplayName, resolveAssignees } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
 import { fmtDueDate, parseDueDate } from '@/lib/due';
 
@@ -20,11 +20,18 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const body = await readJson<{
     text?: string;
     assignedTo?: string;
+    assignees?: string[];
     dueDate?: string | null;
   }>(request);
 
   const text = requireString(body.text, 'Aufgabe', 1000);
-  const assignedTo = await resolveAssignee(ctx.session, projectId, body.assignedTo);
+  // assignees ist der neue Weg, assignedTo bleibt als Rückfall für ältere Aufrufe.
+  const zustaendige = await resolveAssignees(
+    ctx.session,
+    projectId,
+    body.assignees ?? body.assignedTo,
+  );
+  const assignedTo = zustaendige[0];
   const dueDate = parseDueDate(body.dueDate);
 
   // Neue Aufgaben landen unten – die Reihenfolge ändert der Admin per Pfeiltasten.
@@ -36,28 +43,39 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     .limit(1)
     .maybeSingle();
 
-  const result = await ctx.db
+  const zeile = {
+    project_id: projectId,
+    text,
+    assigned_to: assignedTo,
+    created_by: ctx.session.name,
+    created_by_supplier_id:
+      ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+    due_date: dueDate,
+    order_index: (last?.order_index ?? 0) + 1,
+  };
+
+  const SPALTEN =
+    'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date';
+
+  const mitListe = await ctx.db
     .from('todos')
-    .insert({
-      project_id: projectId,
-      text,
-      assigned_to: assignedTo,
-      created_by: ctx.session.name,
-      created_by_supplier_id:
-        ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
-      due_date: dueDate,
-      order_index: (last?.order_index ?? 0) + 1,
-    })
-    .select(
-      'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
-    )
+    .insert({ ...zeile, assignees: zustaendige })
+    .select(`${SPALTEN}, assignees`)
     .single();
+
+  // Ohne Migration 0014 gibt es die Spalte assignees noch nicht – dann wird wie
+  // bisher nur der erste Zuständige gespeichert.
+  const result = mitListe.error
+    ? await ctx.db.from('todos').insert(zeile).select(SPALTEN).single()
+    : mitListe;
 
   if (result.error) {
     throw new ApiError(`Aufgabe konnte nicht angelegt werden: ${result.error.message}`, 500);
   }
 
-  const empfaenger = await assigneeDisplayName(assignedTo);
+  const empfaenger = (
+    await Promise.all(zustaendige.map((z) => assigneeDisplayName(z)))
+  ).join(', ');
 
   const warning = await logActivity(ctx.db, {
     projectId,

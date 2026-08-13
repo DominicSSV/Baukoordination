@@ -196,9 +196,7 @@ export default function FilesTab({
                     {fmtSize(f.size_bytes)} · {personLabel(person)}
                   </div>
                   {ordnerName(f.offer_folder) && (
-                    <div className="file-offer-tag">
-                      💰 {ordnerName(f.offer_folder)}
-                    </div>
+                    <div className="file-offer-tag">{ordnerName(f.offer_folder)}</div>
                   )}
                   {linkedTodo && (
                     <div className="file-linked-todo" title={linkedTodo.text}>

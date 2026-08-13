@@ -1,12 +1,19 @@
 import { ApiError, forbidden, handler, ok, readJson, requireString } from '@/lib/api';
 import { requireSession, type Ctx } from '@/lib/auth/guards';
 import { requireProjectAccess } from '@/lib/auth/guards';
-import { assigneeDisplayName, resolveAssignee } from '@/lib/auth/assignTarget';
+import { assigneeDisplayName, resolveAssignees } from '@/lib/auth/assignTarget';
 import { logActivity } from '@/lib/activity';
 import { parseDueDate } from '@/lib/due';
 import { serviceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
+
+/** Dieselbe Änderung ohne die Spalte assignees – für Datenbanken vor 0014. */
+function ohneListe(patch: Record<string, unknown>): Record<string, unknown> {
+  const rest = { ...patch };
+  delete rest.assignees;
+  return rest;
+}
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,20 +22,33 @@ type TodoRow = {
   project_id: string;
   text: string;
   assigned_to: string;
+  assignees: string[] | null;
   done: boolean;
   created_by_supplier_id: string | null;
 };
 
 async function loadTodo(ctx: Ctx, id: string): Promise<TodoRow> {
-  const { data } = await serviceClient()
+  const db = serviceClient();
+
+  const mitListe = await db
     .from('todos')
-    .select('id, project_id, text, assigned_to, done, created_by_supplier_id')
+    .select('id, project_id, text, assigned_to, assignees, done, created_by_supplier_id')
     .eq('id', id)
     .maybeSingle();
 
-  if (!data) throw new ApiError('Aufgabe nicht gefunden.', 404);
-  await requireProjectAccess(ctx, data.project_id);
-  return data as TodoRow;
+  // Ohne Migration 0014 gibt es die Spalte assignees noch nicht.
+  const res = mitListe.error
+    ? await db
+        .from('todos')
+        .select('id, project_id, text, assigned_to, done, created_by_supplier_id')
+        .eq('id', id)
+        .maybeSingle()
+    : mitListe;
+
+  if (!res.data) throw new ApiError('Aufgabe nicht gefunden.', 404);
+  await requireProjectAccess(ctx, (res.data as { project_id: string }).project_id);
+  const zeile = res.data as Omit<TodoRow, 'assignees'> & { assignees?: string[] | null };
+  return { ...zeile, assignees: zeile.assignees ?? null };
 }
 
 /**
@@ -45,6 +65,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     done?: boolean;
     text?: string;
     assignedTo?: string;
+    assignees?: string[];
     dueDate?: string | null;
   }>(request);
 
@@ -58,6 +79,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   const wantsContentChange =
     body.text !== undefined ||
     body.assignedTo !== undefined ||
+    body.assignees !== undefined ||
     body.dueDate !== undefined;
 
   if (wantsContentChange && isSupplier && !ownsTodo) {
@@ -70,12 +92,16 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     patch.text = requireString(body.text, 'Aufgabe', 1000);
   }
 
-  if (body.assignedTo !== undefined) {
-    patch.assigned_to = await resolveAssignee(
+  if (body.assignees !== undefined || body.assignedTo !== undefined) {
+    const zustaendige = await resolveAssignees(
       ctx.session,
       todo.project_id,
-      body.assignedTo,
+      body.assignees ?? body.assignedTo,
     );
+    // assigned_to bleibt der erste Eintrag – Mahnungen und Protokolltexte,
+    // die nur einen Zuständigen kennen, greifen weiterhin darauf zu.
+    patch.assigned_to = zustaendige[0];
+    patch.assignees = zustaendige;
   }
 
   if (body.dueDate !== undefined) {
@@ -95,14 +121,25 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
 
-  const { data, error } = await ctx.db
+  const SPALTEN =
+    'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date';
+
+  const mitListe = await ctx.db
     .from('todos')
     .update(patch)
     .eq('id', id)
-    .select(
-      'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
-    )
+    .select(`${SPALTEN}, assignees`)
     .single();
+
+  // Ohne Migration 0014 gibt es die Spalte assignees noch nicht.
+  const { data, error } = mitListe.error
+    ? await ctx.db
+        .from('todos')
+        .update(ohneListe(patch))
+        .eq('id', id)
+        .select(SPALTEN)
+        .single()
+    : mitListe;
 
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
@@ -121,11 +158,15 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   // Wird eine Aufgabe an jemand anderen übergeben, erfährt der neue Zuständige
   // sonst nichts davon – deshalb ein eigener Protokolleintrag samt Benachrichtigung.
-  if (
-    patch.assigned_to !== undefined &&
-    patch.assigned_to !== todo.assigned_to
-  ) {
-    const empfaenger = await assigneeDisplayName(String(patch.assigned_to));
+  const neueZustaendige = patch.assignees as string[] | undefined;
+  const geaendert =
+    neueZustaendige !== undefined &&
+    neueZustaendige.join('|') !== (todo.assignees ?? [todo.assigned_to]).join('|');
+
+  if (geaendert) {
+    const empfaenger = (
+      await Promise.all(neueZustaendige.map((z) => assigneeDisplayName(z)))
+    ).join(', ');
     warning =
       (await logActivity(ctx.db, {
         projectId: todo.project_id,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { handler, ok } from '@/lib/api';
 import { serviceClient } from '@/lib/supabase/service';
-import { assigneeRecipients, mailEnabled, sendOverdueNotice } from '@/lib/email';
+import { allAssigneeRecipients, mailEnabled, sendOverdueNotice } from '@/lib/email';
 import { fmtDueDate, heute } from '@/lib/due';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,7 @@ type FaelligeAufgabe = {
   id: string;
   text: string;
   assigned_to: string;
+  assignees: string[] | null;
   due_date: string;
   project_id: string;
   projects: { name: string } | null;
@@ -39,14 +40,24 @@ export const GET = handler(async (request: Request) => {
   const db = serviceClient();
   const stichtag = heute();
 
-  const { data, error } = await db
-    .from('todos')
-    .select('id, text, assigned_to, due_date, project_id, projects(name)')
-    .eq('done', false)
-    .not('due_date', 'is', null)
-    .lt('due_date', stichtag)
-    .is('overdue_notified_at', null)
-    .limit(200);
+  const abfrage = (spalten: string) =>
+    db
+      .from('todos')
+      .select(spalten)
+      .eq('done', false)
+      .not('due_date', 'is', null)
+      .lt('due_date', stichtag)
+      .is('overdue_notified_at', null)
+      .limit(200);
+
+  const mitListe = await abfrage(
+    'id, text, assigned_to, assignees, due_date, project_id, projects(name)',
+  );
+
+  // Ohne Migration 0014 gibt es die Spalte assignees noch nicht.
+  const { data, error } = mitListe.error
+    ? await abfrage('id, text, assigned_to, due_date, project_id, projects(name)')
+    : mitListe;
 
   if (error) {
     return NextResponse.json(
@@ -70,7 +81,10 @@ export const GET = handler(async (request: Request) => {
 
   for (const aufgabe of aufgaben) {
     try {
-      const empfaenger = await assigneeRecipients(aufgabe.assigned_to);
+      const empfaenger = await allAssigneeRecipients(
+        aufgabe.assignees,
+        aufgabe.assigned_to,
+      );
 
       if (empfaenger.length) {
         const tage = Math.max(

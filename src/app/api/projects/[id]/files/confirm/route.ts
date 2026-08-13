@@ -106,7 +106,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     text: offerFolder
       ? `hat "${name}" unter ${ordnerName(offerFolder)} eingereicht`
       : `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
-    icon: offerFolder ? '💰' : isImage ? '📷' : '📄',
+    icon: offerFolder ? '📑' : isImage ? '📷' : '📄',
     nurFuerSupplierId: offerFolder
       ? (data.uploaded_by_supplier_id as string | null)
       : null,

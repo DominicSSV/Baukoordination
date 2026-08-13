@@ -153,7 +153,7 @@ export async function loadProjectDetail(
     db
       .from('todos')
       .select(
-        'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
+        'id, project_id, text, assigned_to, assignees, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
       )
       .eq('project_id', projectId)
       .order('order_index', { ascending: true })
@@ -174,7 +174,19 @@ export async function loadProjectDetail(
     db.from('project_access').select('supplier_id').eq('project_id', projectId),
   ]);
 
-  if (todosRes.error) throw new Error(`To-Dos: ${todosRes.error.message}`);
+  // Ohne Migration 0014 gibt es die Spalte mit mehreren Zuständigen noch nicht.
+  const aufgaben = todosRes.error
+    ? await db
+        .from('todos')
+        .select(
+          'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
+        )
+        .eq('project_id', projectId)
+        .order('order_index', { ascending: true })
+        .order('created_at', { ascending: true })
+    : todosRes;
+
+  if (aufgaben.error) throw new Error(`To-Dos: ${aufgaben.error.message}`);
 
   // Ohne Migration 0012 gibt es die Ordnerspalte noch nicht – dann eben ohne.
   const dateien = filesRes.error
@@ -191,7 +203,9 @@ export async function loadProjectDetail(
   if (activityRes.error) throw new Error(`Aktivität: ${activityRes.error.message}`);
   if (accessRes.error) throw new Error(`Zugriffsrechte: ${accessRes.error.message}`);
 
-  const todoRows = (todosRes.data ?? []) as Omit<Todo, 'comments'>[];
+  const todoRows = (aufgaben.data ?? []) as Array<
+    Omit<Todo, 'comments' | 'assignees'> & { assignees?: string[] | null }
+  >;
 
   const commentsRes = todoRows.length
     ? await db
@@ -215,6 +229,8 @@ export async function loadProjectDetail(
 
   const todos: Todo[] = todoRows.map((t) => ({
     ...t,
+    // Ohne Migration 0014 zählt der eine bisherige Zuständige.
+    assignees: t.assignees?.length ? t.assignees : [t.assigned_to],
     comments: commentsByTodo.get(t.id) ?? [],
   }));
 

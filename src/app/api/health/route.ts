@@ -114,6 +114,15 @@ export async function GET() {
           : undefined,
       };
 
+      const mehrfach = await db.from('todos').select('assignees').limit(1);
+      report.migration_0014 = {
+        mehrere_zustaendige: !mehrfach.error,
+        hinweis: mehrfach.error
+          ? 'Migration 0014 fehlt. Aufgaben lassen sich nur einer Person zuweisen, ' +
+            'und Lieferanten sehen weiterhin alle Aufgaben des Projekts.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

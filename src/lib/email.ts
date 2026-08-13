@@ -311,6 +311,15 @@ export async function sendDigest(
  * Ist die Aufgabe der Firma allgemein zugewiesen, geht die Mahnung an alle
  * Bauherrenvertreter – sonst läge sie bei niemandem auf dem Tisch.
  */
+export async function allAssigneeRecipients(
+  assignees: string[] | null | undefined,
+  fallback: string,
+): Promise<string[]> {
+  const liste = assignees?.length ? assignees : [fallback];
+  const alle = await Promise.all(liste.map((a) => assigneeRecipients(a)));
+  return Array.from(new Set(alle.flat()));
+}
+
 export async function assigneeRecipients(assignedTo: string): Promise<string[]> {
   const db = serviceClient();
 
