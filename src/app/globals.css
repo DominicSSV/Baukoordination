@@ -1376,17 +1376,17 @@ button:disabled {
   }
 
   .brand {
-    gap: 8px;
+    gap: 14px;
     flex: 1;
     min-width: 0;
   }
 
   .brand-logo {
-    height: 34px;
+    height: 42px;
   }
 
   .brand-name {
-    font-size: 15px;
+    font-size: 18px;
   }
 
   /* Ohne Firmenname und Untertitel wird die Zeile kurz genug, dass das grössere
@@ -1396,10 +1396,11 @@ button:disabled {
     display: none;
   }
 
-  /* Rechts bleibt nur das Personen-Symbol und der Abmelde-Knopf als Symbol. */
+  /* Rechts bleibt nur das Personen-Symbol und der Abmelde-Knopf als Symbol.
+     Je enger dieses Feld, desto mehr Platz für Logo und Titel. */
   .me-badge {
-    padding: 6px 9px;
-    gap: 6px;
+    padding: 6px 7px;
+    gap: 4px;
   }
 
   .me-text,
@@ -1420,18 +1421,31 @@ button:disabled {
 
   /* Auf ganz schmalen Geräten würde sonst "Baukoordination" hinten
      abgeschnitten – lieber Logo und Schrift eine Spur kleiner. */
-  @media (max-width: 370px) {
+  @media (max-width: 385px) {
+    .brand {
+      gap: 10px;
+    }
+
     .brand-logo {
-      height: 29px;
+      height: 36px;
     }
 
     .brand-name {
-      font-size: 13.5px;
+      font-size: 15.5px;
+    }
+  }
+
+  @media (max-width: 351px) {
+    .brand {
+      gap: 8px;
     }
 
-    .me-badge {
-      padding: 6px 7px;
-      gap: 5px;
+    .brand-logo {
+      height: 28px;
+    }
+
+    .brand-name {
+      font-size: 12.5px;
     }
   }
 
