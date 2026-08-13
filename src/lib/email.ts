@@ -44,13 +44,27 @@ function wrapHtml(title: string, bodyHtml: string): string {
         <h1 style="font-size:20px;margin:4px 0 16px;color:#262624;">${escapeHtml(title)}</h1>
         ${bodyHtml}
         <p style="margin:22px 0 0;font-size:11.5px;color:#929291;border-top:1px solid #D9D9D9;padding-top:12px;">
-          Swiss Solar Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination versendet.
+          Swiss Solar Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination
+          versendet.<br />
+          <strong>Bitte antworte nicht auf diese E-Mail</strong> – dieses Postfach wird nicht
+          gelesen. Schreib deine Rückmeldung direkt in der App als Kommentar oder melde dich
+          bei deiner Ansprechperson.
         </p>
       </td>
     </tr>
   </table>
 </body></html>`;
 }
+
+/**
+ * Hinweis am Fuss jeder verschickten Nachricht. Als Absender dient eine Adresse
+ * ohne Postfach – Antworten kämen also nirgends an. Der Hinweis steht nur in dem,
+ * was die App selbst verschickt; Texte zum Selbstverschicken bleiben sauber.
+ */
+const KEINE_ANTWORT =
+  'Bitte antworte nicht auf diese E-Mail – dieses Postfach wird nicht gelesen. ' +
+  'Schreib deine Rückmeldung direkt in der App als Kommentar oder melde dich bei ' +
+  'deiner Ansprechperson bei der Swiss Solar Ventures AG.';
 
 async function send(params: {
   to: string[];
@@ -71,7 +85,7 @@ async function send(params: {
     to: params.to,
     ...(antwortAn ? { replyTo: antwortAn } : {}),
     subject: params.subject,
-    text: params.text,
+    text: `${params.text}\n\n—\n${KEINE_ANTWORT}`,
     html: params.html,
     headers: params.dringend
       ? {
@@ -101,7 +115,7 @@ export async function sendTestMail(an: string, name: string): Promise<void> {
     </p>
     <p style="font-size:13px;line-height:1.6;color:#6B6B69;margin:0 0 16px;">
       Absender: ${escapeHtml(mailFrom())}<br />
-      ${mailReplyTo() ? `Antworten gehen an: ${escapeHtml(mailReplyTo()!)}` : 'Es ist keine eigene Antwortadresse hinterlegt.'}
+      ${mailReplyTo() ? `Antworten gehen an: ${escapeHtml(mailReplyTo()!)}` : 'Antworten sind nicht vorgesehen – so ist es gewollt.'}
     </p>
     <p style="margin:0;">
       <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Baukoordination öffnen</a>
