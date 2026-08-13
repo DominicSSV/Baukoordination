@@ -111,6 +111,16 @@ export default function ScheduleTab({
   const [zeileGezogen, setZeileGezogen] = useState<string | null>(null);
   const [zeileZiel, setZeileZiel] = useState<string | null>(null);
   const [folge, setFolge] = useState<string[] | null>(null);
+  /**
+   * Offene Auswahl der zuständigen Person: welche Zeile, und wo das Menü steht.
+   * Es hängt am Fenster statt in der Zeile, weil das Raster seitlich scrollt und
+   * die Liste sonst abgeschnitten würde.
+   */
+  const [personWahl, setPersonWahl] = useState<{
+    key: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const projectId = detail.project.id;
   const plan = detail.schedule;
@@ -158,6 +168,33 @@ export default function ScheduleTab({
     ],
     [detail.admins, detail.suppliers],
   );
+
+  const personenGruppen = useMemo(
+    () => Array.from(new Set(personen.map((p) => p.gruppe))),
+    [personen],
+  );
+
+  // Die Personenauswahl schliesst bei einem Klick daneben und mit Escape.
+  useEffect(() => {
+    if (!personWahl) return;
+
+    function beiKlick(e: MouseEvent) {
+      const ziel = e.target as HTMLElement;
+      if (!ziel.closest('.plan-person-menu') && !ziel.closest('.plan-person-knopf')) {
+        setPersonWahl(null);
+      }
+    }
+    function beiTaste(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPersonWahl(null);
+    }
+
+    document.addEventListener('mousedown', beiKlick);
+    document.addEventListener('keydown', beiTaste);
+    return () => {
+      document.removeEventListener('mousedown', beiKlick);
+      document.removeEventListener('keydown', beiTaste);
+    };
+  }, [personWahl]);
 
   // Loslassen auch ausserhalb des Rasters beenden lassen, sonst bliebe die
   // Auswahl kleben, wenn die Maus die Karte verlässt.
@@ -262,6 +299,21 @@ export default function ScheduleTab({
       await del(`/api/schedule/notes/${notizId}`);
       await reload();
     }, 'Anmerkung konnte nicht entfernt werden.');
+
+  /**
+   * Zuständige Person einer ganzen Zeile ändern. Weil eine Zeile für ein Gewerk
+   * einer Person steht, wandern alle ihre Arbeiten mit.
+   */
+  function zustaendigenAendern(tasks: ScheduleTask[], owner: string) {
+    setPersonWahl(null);
+    void run(async () => {
+      for (const task of tasks) {
+        await patch(`/api/schedule/${task.id}`, { owner: owner || null });
+      }
+      await reload();
+      toast('✓ Zuständige Person geändert.');
+    }, 'Zuständige Person konnte nicht geändert werden.');
+  }
 
   function bearbeiten(task: ScheduleTask) {
     setEditingId(task.id);
@@ -567,7 +619,7 @@ export default function ScheduleTab({
               <div
                 className={`plan-zeile ${zeileGezogen === g.key ? 'zieht' : ''} ${
                   zeileZiel === g.key ? 'ziel' : ''
-                }`}
+                } ${personWahl?.key === g.key ? 'menue-offen' : ''}`}
                 key={g.key}
                 style={{ minHeight: g.spuren.length * SPUR_HOEHE + 12 }}
                 onDragOver={(e) => {
@@ -594,8 +646,34 @@ export default function ScheduleTab({
                       ⠿
                     </span>
                   )}
-                  {g.owner ? (
-                    <div className="plan-person" title={`Organisiert von ${person.name}`}>
+                  {/* Das Bild ist zugleich der Knopf, um die zuständige Person
+                      nachträglich zu wechseln. */}
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      className="plan-person plan-person-knopf"
+                      title={
+                        g.owner
+                          ? `Zuständig: ${person.name} – zum Ändern klicken`
+                          : 'Zuständige Person wählen'
+                      }
+                      onClick={(e) => {
+                        const kasten = e.currentTarget.getBoundingClientRect();
+                        setPersonWahl((a) =>
+                          a?.key === g.key
+                            ? null
+                            : { key: g.key, x: kasten.left, y: kasten.bottom + 4 },
+                        );
+                      }}
+                    >
+                      {g.owner ? (
+                        <Avatar url={person.avatarUrl} name={person.name} size={30} />
+                      ) : (
+                        <span className="plan-person-frei">＋</span>
+                      )}
+                    </button>
+                  ) : g.owner ? (
+                    <div className="plan-person" title={`Zuständig: ${person.name}`}>
                       <Avatar url={person.avatarUrl} name={person.name} size={30} />
                     </div>
                   ) : (
@@ -710,6 +788,53 @@ export default function ScheduleTab({
         </div>
       </div>
 
+
+      {/* Auswahl der zuständigen Person – hängt am Fenster, damit sie nicht im
+          seitlich scrollenden Raster abgeschnitten wird. */}
+      {personWahl &&
+        (() => {
+          const zeile = zeilen.find((g) => g.key === personWahl.key);
+          if (!zeile) return null;
+          const arbeiten = zeile.spuren.flat().map((b) => b.task);
+
+          return (
+            <div
+              className="plan-person-menu"
+              style={{
+                left: Math.max(8, personWahl.x),
+                top: personWahl.y,
+              }}
+            >
+              <div className="plan-person-menu-titel">
+                Zuständig für {zeile.responsible || 'diese Zeile'}
+              </div>
+              <button
+                type="button"
+                className={!zeile.owner ? 'gewaehlt' : ''}
+                onClick={() => zustaendigenAendern(arbeiten, '')}
+              >
+                Niemand
+              </button>
+              {personenGruppen.map((gruppe) => (
+                <Fragment key={gruppe}>
+                  <div className="plan-person-menu-titel">{gruppe}</div>
+                  {personen
+                    .filter((p) => p.gruppe === gruppe)
+                    .map((p) => (
+                      <button
+                        key={p.wert}
+                        type="button"
+                        className={zeile.owner === p.wert ? 'gewaehlt' : ''}
+                        onClick={() => zustaendigenAendern(arbeiten, p.wert)}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                </Fragment>
+              ))}
+            </div>
+          );
+        })()}
 
       {/* Rückmeldungen zur gewählten Arbeit */}
       {(() => {
