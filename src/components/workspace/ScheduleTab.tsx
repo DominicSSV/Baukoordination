@@ -21,6 +21,8 @@ import type { ProjectDetail, ScheduleTask, SessionInfo } from '@/types';
 
 /** Breite einer Tagesspalte in Pixel. */
 const TAG_BREITE = 30;
+/** Höhe einer Balkenspur; mehrere Spuren stapeln sich in derselben Zeile. */
+const SPUR_HOEHE = 32;
 
 type Entwurf = {
   responsible: string;
@@ -282,6 +284,58 @@ export default function ScheduleTab({
     return gruppen;
   }, [tagesListe]);
 
+  /**
+   * Arbeiten desselben Gewerks derselben Person teilen sich eine Zeile –
+   * so steht der Gärtner einmal links, egal wie oft er im Plan vorkommt.
+   * Überschneiden sich zwei seiner Arbeiten zeitlich, rutscht die zweite in
+   * eine weitere Spur darunter, damit sich die Balken nicht überdecken.
+   */
+  const gruppen = useMemo(() => {
+    const map = new Map<
+      string,
+      { key: string; responsible: string; owner: string; color: string; arbeiten: ScheduleTask[]; rang: number }
+    >();
+
+    for (const task of plan) {
+      const responsible = task.responsible ?? '';
+      const owner = task.owner ?? '';
+      const key = `${owner}|${responsible}`;
+      const vorhanden = map.get(key);
+      if (vorhanden) {
+        vorhanden.arbeiten.push(task);
+        vorhanden.rang = Math.min(vorhanden.rang, task.order_index);
+      } else {
+        map.set(key, {
+          key,
+          responsible,
+          owner,
+          color: task.color,
+          arbeiten: [task],
+          rang: task.order_index,
+        });
+      }
+    }
+
+    return Array.from(map.values())
+      .sort((a, b) => a.rang - b.rang)
+      .map((g) => {
+        const spuren: ScheduleTask[][] = [];
+        const sortiert = [...g.arbeiten].sort((a, b) =>
+          a.start_date.localeCompare(b.start_date),
+        );
+
+        for (const task of sortiert) {
+          const passende = spuren.find(
+            (spur) => spur[spur.length - 1].end_date < task.start_date,
+          );
+          if (passende) passende.push(task);
+          else spuren.push([task]);
+        }
+
+        return { ...g, spuren };
+      });
+  }, [plan]);
+
   const rasterBreite = tage * TAG_BREITE;
 
   function istWochenende(tag: string): boolean {
@@ -385,27 +439,22 @@ export default function ScheduleTab({
             </div>
           </div>
 
-          {plan.map((task) => {
-            const startVersatz = Math.max(0, tageZwischen(von, task.start_date) - 1);
-            const laenge = Math.max(
-              1,
-              tageZwischen(
-                task.start_date < von ? von : task.start_date,
-                task.end_date > bis ? bis : task.end_date,
-              ),
-            );
-            const sichtbar = task.end_date >= von && task.start_date <= bis;
-            const person = assigneePerson(detail, task.owner);
+          {gruppen.map((g) => {
+            const person = assigneePerson(detail, g.owner);
             const zeilenVorlage: Vorlage = {
-              responsible: task.responsible ?? '',
-              owner: task.owner ?? '',
-              color: task.color,
+              responsible: g.responsible,
+              owner: g.owner,
+              color: g.color,
             };
 
             return (
-              <div className="plan-zeile" key={task.id}>
+              <div
+                className="plan-zeile"
+                key={g.key}
+                style={{ minHeight: g.spuren.length * SPUR_HOEHE + 12 }}
+              >
                 <div className="plan-links">
-                  {task.owner ? (
+                  {g.owner ? (
                     <div className="plan-person" title={`Organisiert von ${person.name}`}>
                       <Avatar url={person.avatarUrl} name={person.name} size={30} />
                     </div>
@@ -413,62 +462,61 @@ export default function ScheduleTab({
                     <div className="plan-person plan-person-leer" />
                   )}
                   <div className="plan-links-text">
-                    <div className="plan-verantwortlich">{task.responsible || '—'}</div>
-                    <div className="plan-arbeit">{task.label}</div>
-                    {task.notes.length > 0 && (
-                      <button
-                        type="button"
-                        className="plan-notiz-marke"
-                        onClick={() =>
-                          setNotizTaskId((a) => (a === task.id ? null : task.id))
-                        }
-                      >
-                        💬 {task.notes.length}
-                        {task.notes.some((n) => n.status === 'offen') && ' offen'}
-                      </button>
-                    )}
+                    <div className="plan-gewerk">{g.responsible || '—'}</div>
+                    <div className="plan-anzahl">
+                      {g.spuren.flat().length} Arbeit
+                      {g.spuren.flat().length === 1 ? '' : 'en'}
+                    </div>
                   </div>
-                  {isAdmin && (
-                    <div className="plan-links-aktionen">
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        title="Bearbeiten"
-                        onClick={() => bearbeiten(task)}
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        title="Entfernen"
-                        onClick={() => loeschen(task)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
                 </div>
+
                 <div className="plan-rechts" style={{ width: rasterBreite }}>
-                  {zellen(task.id, zeilenVorlage)}
-                  {sichtbar && (
-                    <div
-                      className="plan-balken"
-                      style={{
-                        left: startVersatz * TAG_BREITE,
-                        width: laenge * TAG_BREITE - 4,
-                        background: task.color,
-                        color: schriftfarbeAuf(task.color),
-                      }}
-                      title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
-                      onClick={() =>
-                        setNotizTaskId((aktuell) =>
-                          aktuell === task.id ? null : task.id,
-                        )
-                      }
-                    >
-                      {task.label}
-                    </div>
+                  {zellen(g.key, zeilenVorlage)}
+
+                  {/* Mehrere Arbeiten teilen sich die Zeile. Überschneiden sie
+                      sich zeitlich, rutschen sie in eine zweite Spur. */}
+                  {g.spuren.map((spur, spurNr) =>
+                    spur.map((task) => {
+                      const startVersatz = Math.max(
+                        0,
+                        tageZwischen(von, task.start_date) - 1,
+                      );
+                      const laenge = Math.max(
+                        1,
+                        tageZwischen(
+                          task.start_date < von ? von : task.start_date,
+                          task.end_date > bis ? bis : task.end_date,
+                        ),
+                      );
+                      if (task.end_date < von || task.start_date > bis) return null;
+
+                      const offen = task.notes.some((n) => n.status === 'offen');
+
+                      return (
+                        <div
+                          key={task.id}
+                          className={`plan-balken ${notizTaskId === task.id ? 'aktiv' : ''}`}
+                          style={{
+                            left: startVersatz * TAG_BREITE,
+                            width: laenge * TAG_BREITE - 4,
+                            top: spurNr * SPUR_HOEHE + 6,
+                            background: task.color,
+                            color: schriftfarbeAuf(task.color),
+                          }}
+                          title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
+                          onClick={() =>
+                            setNotizTaskId((a) => (a === task.id ? null : task.id))
+                          }
+                        >
+                          {task.label}
+                          {task.notes.length > 0 && (
+                            <span className={`balken-notiz ${offen ? 'offen' : ''}`}>
+                              💬{task.notes.length}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }),
                   )}
                 </div>
               </div>
@@ -519,14 +567,34 @@ export default function ScheduleTab({
                   {fmtDueDate(gewaehlt.start_date)} – {fmtDueDate(gewaehlt.end_date)}
                 </span>
               </div>
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => setNotizTaskId(null)}
-                title="Schliessen"
-              >
-                ✕
-              </button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => bearbeiten(gewaehlt)}
+                    >
+                      ✏️ Bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => loeschen(gewaehlt)}
+                    >
+                      🗑️ Entfernen
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setNotizTaskId(null)}
+                  title="Schliessen"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {gewaehlt.notes.length ? (
