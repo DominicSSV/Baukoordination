@@ -156,10 +156,7 @@ export default function NotificationBell({
                     setOffen(false);
                   }}
                 >
-                  <span className="glocke-icon" aria-hidden="true">
-                    {e.icon ?? '•'}
-                  </span>
-                  <Avatar url={null} name={e.actorName} size={26} />
+                  <Avatar url={e.actorAvatarUrl} name={e.actorName} size={30} />
                   <span className="glocke-text">
                     <span className="glocke-satz">
                       <strong>{e.actorName}</strong> {e.text}

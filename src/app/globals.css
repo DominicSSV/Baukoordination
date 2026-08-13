@@ -2689,7 +2689,7 @@ button:disabled {
 .glocke-eintrag {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
   padding: 9px 10px;
   border: none;
@@ -2708,12 +2708,6 @@ button:disabled {
 
 .glocke-eintrag.neu:hover {
   background: #cdf0de;
-}
-
-.glocke-icon {
-  font-size: 14px;
-  line-height: 1.4;
-  flex-shrink: 0;
 }
 
 .glocke-text {
