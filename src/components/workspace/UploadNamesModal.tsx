@@ -25,23 +25,38 @@ function ohneEndung(dateiname: string): string {
 export default function UploadNamesModal({
   files,
   titel,
+  mitBetrag = false,
   onAbbrechen,
   onBestaetigen,
 }: {
   files: File[];
   titel: string;
+  /** Zeigt zusätzlich ein Feld für den Betrag – beim Einreichen von Offerten. */
+  mitBetrag?: boolean;
   onAbbrechen: () => void;
-  onBestaetigen: (namen: string[]) => void;
+  onBestaetigen: (namen: string[], betraege: Array<number | null>) => void;
 }) {
   const [namen, setNamen] = useState<string[]>(() =>
     files.map((f) => ohneEndung(f.name)),
   );
+  const [betraege, setBetraege] = useState<string[]>(() => files.map(() => ''));
 
   const vollstaendig = namen.every((n) => n.trim().length > 0);
 
+  /** "12'400.50", "12400,50" und "12400" ergeben alle dieselbe Zahl. */
+  function alsZahl(roh: string): number | null {
+    const wert = roh.replace(/['\s]/g, '').replace(',', '.').trim();
+    if (!wert) return null;
+    const zahl = Number(wert);
+    return Number.isFinite(zahl) && zahl >= 0 ? Math.round(zahl * 100) / 100 : null;
+  }
+
   function absenden() {
     if (!vollstaendig) return;
-    onBestaetigen(namen.map((n, i) => `${n.trim()}${endung(files[i].name)}`));
+    onBestaetigen(
+      namen.map((n, i) => `${n.trim()}${endung(files[i].name)}`),
+      betraege.map(alsZahl),
+    );
   }
 
   return (
@@ -81,6 +96,28 @@ export default function UploadNamesModal({
               />
               <span className="upload-name-endung">{endung(f.name)}</span>
             </div>
+
+            {/* Bei Offerten gleich den Betrag erfassen. Aus PDF wird er wenn
+                möglich automatisch gelesen – dieses Feld hat Vorrang. */}
+            {mitBetrag && (
+              <div className="upload-name-eingabe" style={{ marginTop: 6 }}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={betraege[i]}
+                  placeholder="z.B. 152'000"
+                  onChange={(e) =>
+                    setBetraege((current) =>
+                      current.map((b, j) => (j === i ? e.target.value : b)),
+                    )
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') absenden();
+                  }}
+                />
+                <span className="upload-name-endung">exkl. MWST, CHF</span>
+              </div>
+            )}
           </div>
         ))}
 

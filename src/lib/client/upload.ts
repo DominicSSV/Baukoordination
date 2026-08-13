@@ -159,6 +159,8 @@ export async function uploadFiles(params: {
    * Eintrag, gilt der ursprüngliche Dateiname.
    */
   namen?: string[];
+  /** Von Hand erfasste Beträge, in derselben Reihenfolge wie die Dateien. */
+  betraege?: Array<number | null>;
 }): Promise<UploadResult> {
   const list = Array.from(params.files);
   const errors: string[] = [];
@@ -189,6 +191,7 @@ export async function uploadFiles(params: {
           withThumb: Boolean(thumbBlob),
           todoId: params.todoId ?? undefined,
           offerFolder: params.offerFolder ?? undefined,
+          betrag: params.betraege?.[index] ?? undefined,
         },
       );
 
@@ -231,6 +234,7 @@ export async function uploadFiles(params: {
           thumbPath,
           todoId: params.todoId ?? undefined,
           offerFolder: params.offerFolder ?? undefined,
+          betrag: params.betraege?.[index] ?? undefined,
         },
       );
 

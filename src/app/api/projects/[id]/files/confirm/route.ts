@@ -31,6 +31,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     thumbPath?: string;
     todoId?: string;
     offerFolder?: string;
+    betrag?: number | null;
   }>(request);
 
   const fileId = requireString(body.fileId, 'fileId', 64);
@@ -85,7 +86,15 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       uploaded_by: ctx.session.name,
       uploaded_by_supplier_id:
         ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
-      ...(offerFolder ? { offer_folder: offerFolder, offer_status: 'eingereicht' } : {}),
+      ...(offerFolder
+        ? {
+            offer_folder: offerFolder,
+            offer_status: 'eingereicht',
+            ...(typeof body.betrag === 'number' && body.betrag >= 0
+              ? { offer_amount: Math.round(body.betrag * 100) / 100 }
+              : {}),
+          }
+        : {}),
   };
 
   const erster = await einfuegen(neueZeile);
@@ -148,7 +157,10 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   let betragErkannt: number | null = null;
   let betragHinweis: string | null = null;
 
-  if (offerFolder && (body.mimeType ?? '') === 'application/pdf') {
+  // Ein von Hand erfasster Betrag hat Vorrang – dann gar nicht erst suchen.
+  const betragVonHand = typeof body.betrag === 'number' && body.betrag >= 0;
+
+  if (!betragVonHand && offerFolder && (body.mimeType ?? '') === 'application/pdf') {
     try {
       const download = await serviceClient()
         .storage.from(STORAGE_BUCKET)

@@ -70,7 +70,7 @@ export default function OffersTab({
     setWartend({ ordner, files: Array.from(files) });
   }
 
-  async function hochladen(namen: string[]) {
+  async function hochladen(namen: string[], betraegeVonHand: Array<number | null>) {
     const auftrag = wartend;
     setWartend(null);
     if (!auftrag) return;
@@ -83,6 +83,7 @@ export default function OffersTab({
         offerFolder: ordner,
         files: auftrag.files,
         namen,
+        betraege: betraegeVonHand,
       });
       await reload();
 
@@ -92,7 +93,7 @@ export default function OffersTab({
       if (result.uploaded) {
         toast(
           result.betraege
-            ? `✓ ${result.uploaded} Datei(en) eingereicht · Betrag erkannt: CHF ${chf(result.betraege)}`
+            ? `✓ ${result.uploaded} Datei(en) eingereicht · exkl. MWST CHF ${chf(result.betraege)}`
             : `✓ ${result.uploaded} Datei(en) eingereicht.`,
         );
         // Warum kein Betrag kam, gehört gesagt – sonst rätselt man.
@@ -183,6 +184,7 @@ export default function OffersTab({
         <UploadNamesModal
           files={wartend.files}
           titel={`Einreichen unter „${ordnerName(wartend.ordner)}“`}
+          mitBetrag
           onAbbrechen={() => setWartend(null)}
           onBestaetigen={hochladen}
         />
@@ -223,7 +225,7 @@ export default function OffersTab({
               </span>
               {isAdmin && dateien.some((f) => f.offer_amount !== null) && (
                 <span className="offer-summe">
-                  CHF{' '}
+                  exkl. MWST CHF{' '}
                   {chf(
                     dateien.reduce((sum, f) => sum + (f.offer_amount ?? 0), 0),
                   )}
@@ -310,7 +312,7 @@ export default function OffersTab({
                           {/* Betrag: erfassbar von uns und vom Einreichenden. */}
                           {isAdmin || eigen ? (
                             <span className="offer-betrag">
-                              CHF{' '}
+                              exkl. MWST CHF{' '}
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -334,7 +336,7 @@ export default function OffersTab({
                           ) : (
                             f.offer_amount !== null && (
                               <span className="offer-betrag-fest">
-                                CHF {chf(f.offer_amount)}
+                                exkl. MWST CHF {chf(f.offer_amount)}
                               </span>
                             )
                           )}
