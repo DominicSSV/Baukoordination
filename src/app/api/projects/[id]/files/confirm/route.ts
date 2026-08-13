@@ -146,6 +146,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   // Bei Offerten im PDF-Format den Betrag exkl. MwSt. herauslesen. Eine
   // Heuristik – schlägt sie fehl, bleibt das Feld leer und niemand merkt etwas.
   let betragErkannt: number | null = null;
+  let betragHinweis: string | null = null;
+
   if (offerFolder && (body.mimeType ?? '') === 'application/pdf') {
     try {
       const download = await serviceClient()
@@ -154,7 +156,18 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
       if (!download.error && download.data && download.data.size < 15 * 1024 * 1024) {
         const puffer = new Uint8Array(await download.data.arrayBuffer());
-        betragErkannt = await betragAusPdf(puffer);
+        const befund = await betragAusPdf(puffer);
+        betragErkannt = befund.betrag;
+
+        if (befund.grund === 'kein-text') {
+          betragHinweis =
+            'Diese PDF enthält keinen lesbaren Text – sie wurde ohne Zeichentabelle ' +
+            'erstellt. Der Betrag muss von Hand eingetragen werden.';
+        } else if (befund.grund === 'nicht-gefunden') {
+          betragHinweis =
+            'Im Text war kein Total exkl. MwSt. zu finden. Bitte den Betrag ' +
+            'von Hand eintragen.';
+        }
 
         if (betragErkannt !== null) {
           await ctx.db
@@ -169,5 +182,5 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     }
   }
 
-  return ok({ file: data, warning, betragErkannt }, { status: 201 });
+  return ok({ file: data, warning, betragErkannt, betragHinweis }, { status: 201 });
 });

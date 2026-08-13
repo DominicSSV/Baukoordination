@@ -95,6 +95,8 @@ export default function OffersTab({
             ? `✓ ${result.uploaded} Datei(en) eingereicht · Betrag erkannt: CHF ${chf(result.betraege)}`
             : `✓ ${result.uploaded} Datei(en) eingereicht.`,
         );
+        // Warum kein Betrag kam, gehört gesagt – sonst rätselt man.
+        if (result.betragHinweis) toast(`ℹ️ ${result.betragHinweis}`);
       }
     } catch (error) {
       reportError(error, 'Upload fehlgeschlagen.');

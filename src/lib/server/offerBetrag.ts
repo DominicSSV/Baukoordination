@@ -1,18 +1,50 @@
 import 'server-only';
 import { extractText, getDocumentProxy } from 'unpdf';
 
+/** Warum kein Betrag herauskam – für einen brauchbaren Hinweis in der Ansicht. */
+export type BetragBefund = {
+  betrag: number | null;
+  grund: 'gefunden' | 'kein-text' | 'nicht-gefunden';
+};
+
+/**
+ * Wörter, die in praktisch jeder Offerte vorkommen. Findet sich keines davon,
+ * ist der Text nicht lesbar – siehe textLesbar().
+ */
+const STICHWOERTER = [
+  'total', 'mwst', 'chf', 'offerte', 'datum', 'preis', 'menge', 'betrag',
+  'position', 'artikel', 'seite', 'netto', 'summe', 'anzahl', 'stk',
+];
+
+/**
+ * Ist der ausgelesene Text überhaupt echter Text?
+ *
+ * Manche Programme betten Schriften ohne Zeichentabelle ein (Identity-H ohne
+ * ToUnicode und ohne cmap). Dann liefert jedes Werkzeug – auch das Kopieren aus
+ * dem Acrobat Reader – nur Buchstabensalat. Das erkennt man daran, dass keines
+ * der üblichen Wörter vorkommt, obwohl reichlich Text da ist.
+ */
+function textLesbar(text: string): boolean {
+  const klein = text.toLowerCase();
+  return STICHWOERTER.some((w) => klein.includes(w));
+}
+
 /**
  * Liest aus einer Offerten-PDF den Betrag exklusive Mehrwertsteuer.
  *
  * Es ist eine Heuristik über den Text der PDF – sie findet die üblichen
  * Schweizer Schreibweisen ("Total exkl. MwSt", "Nettobetrag", …). Findet sie
- * nichts Verlässliches, gibt sie null zurück und der Betrag bleibt zum
- * Selbst-Eintragen offen. Lieber kein Betrag als ein falscher.
+ * nichts Verlässliches, bleibt der Betrag leer und zum Selbst-Eintragen offen.
+ * Lieber kein Betrag als ein falscher.
  */
-export async function betragAusPdf(daten: Uint8Array): Promise<number | null> {
+export async function betragAusPdf(daten: Uint8Array): Promise<BetragBefund> {
   const pdf = await getDocumentProxy(daten);
   const { text } = await extractText(pdf, { mergePages: true });
-  return findeBetragExklMwst(text);
+
+  if (!textLesbar(text)) return { betrag: null, grund: 'kein-text' };
+
+  const betrag = findeBetragExklMwst(text);
+  return { betrag, grund: betrag === null ? 'nicht-gefunden' : 'gefunden' };
 }
 
 /** Zahl im Schweizer oder deutschen Format lesen, z.B. 12'400.50 oder 12.400,50. */

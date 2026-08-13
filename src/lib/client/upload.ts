@@ -139,6 +139,8 @@ export type UploadResult = {
   errors: string[];
   /** Summe der aus PDF ausgelesenen Offertenbeträge, 0 = keiner erkannt. */
   betraege: number;
+  /** Erklärung, falls ein Betrag nicht ausgelesen werden konnte. */
+  betragHinweis: string | null;
 };
 
 /**
@@ -162,6 +164,7 @@ export async function uploadFiles(params: {
   const errors: string[] = [];
   let uploaded = 0;
   let betraege = 0;
+  let betragHinweis: string | null = null;
 
   for (const [index, file] of list.entries()) {
     const anzeigename = params.namen?.[index]?.trim() || file.name;
@@ -214,7 +217,10 @@ export async function uploadFiles(params: {
         }
       }
 
-      const bestaetigt = await post<{ betragErkannt?: number | null }>(
+      const bestaetigt = await post<{
+        betragErkannt?: number | null;
+        betragHinweis?: string | null;
+      }>(
         `/api/projects/${params.projectId}/files/confirm`,
         {
           fileId: prepared.fileId,
@@ -229,6 +235,7 @@ export async function uploadFiles(params: {
       );
 
       if (bestaetigt.betragErkannt) betraege += bestaetigt.betragErkannt;
+      if (bestaetigt.betragHinweis) betragHinweis = bestaetigt.betragHinweis;
       uploaded += 1;
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Unbekannter Fehler';
@@ -236,5 +243,5 @@ export async function uploadFiles(params: {
     }
   }
 
-  return { uploaded, errors, betraege };
+  return { uploaded, errors, betraege, betragHinweis };
 }
