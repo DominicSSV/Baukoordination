@@ -23,6 +23,30 @@ import type { ProjectDetail, ScheduleTask, SessionInfo } from '@/types';
 const TAG_BREITE = 30;
 /** Höhe einer Balkenspur; mehrere Spuren stapeln sich in derselben Zeile. */
 const SPUR_HOEHE = 32;
+/** Abstand zwischen Balken und dem Namen daneben. */
+const TEXT_ABSTAND = 6;
+
+/** Ein Balken samt Platzbedarf seines Namens, in Pixeln. */
+type Balken = {
+  task: ScheduleTask;
+  links: number;
+  breite: number;
+  textBreite: number;
+  /** Rechter Rand inklusive Name – bis hierhin ist die Spur belegt. */
+  belegtBis: number;
+};
+
+/**
+ * Geschätzte Breite der Beschriftung neben einem Balken. Genau messen liesse
+ * sie sich erst nach dem Zeichnen; die Schätzung reicht, weil rundherum
+ * ohnehin etwas Luft eingeplant ist.
+ */
+function namenBreite(task: ScheduleTask): number {
+  const zeichen = task.label.length * 6.4;
+  const notiz = task.notes.length > 0 ? 32 : 0;
+  // Farbpunkt, Innenabstand und ein wenig Reserve.
+  return Math.ceil(zeichen + notiz + 24);
+}
 
 type Entwurf = {
   responsible: string;
@@ -325,22 +349,57 @@ export default function ScheduleTab({
     return Array.from(map.values())
       .sort((a, b) => a.rang - b.rang)
       .map((g) => {
-        const spuren: ScheduleTask[][] = [];
-        const sortiert = [...g.arbeiten].sort((a, b) =>
-          a.start_date.localeCompare(b.start_date),
-        );
+        const spuren: Balken[][] = [];
+        const sortiert = [...g.arbeiten]
+          .filter((t) => t.end_date >= von && t.start_date <= bis)
+          .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
         for (const task of sortiert) {
-          const passende = spuren.find(
-            (spur) => spur[spur.length - 1].end_date < task.start_date,
+          const links =
+            Math.max(0, tageZwischen(von, task.start_date) - 1) * TAG_BREITE;
+          const laenge = Math.max(
+            1,
+            tageZwischen(
+              task.start_date < von ? von : task.start_date,
+              task.end_date > bis ? bis : task.end_date,
+            ),
           );
-          if (passende) passende.push(task);
-          else spuren.push([task]);
+          const breite = laenge * TAG_BREITE - 4;
+          const textBreite = namenBreite(task);
+          const balken: Balken = {
+            task,
+            links,
+            breite,
+            textBreite,
+            belegtBis: links + breite + TEXT_ABSTAND + textBreite,
+          };
+
+          // Der Name gehört zum Balken: erst wenn auch er Platz hat, darf die
+          // nächste Arbeit in dieselbe Spur – sonst überdecken sich die Texte.
+          const passende = spuren.find(
+            (spur) => spur[spur.length - 1].belegtBis <= links,
+          );
+          if (passende) passende.push(balken);
+          else spuren.push([balken]);
         }
 
         return { ...g, spuren };
       });
-  }, [plan]);
+  }, [plan, von, bis]);
+
+  /**
+   * Wie weit die Namen rechts über das Tagesraster hinausragen. Um so viel wird
+   * die Fläche breiter gemacht, damit auch die letzte Arbeit lesbar bleibt.
+   */
+  const namenReserve = useMemo(() => {
+    let breiteste = 0;
+    for (const g of gruppen) {
+      for (const spur of g.spuren) {
+        for (const b of spur) breiteste = Math.max(breiteste, b.belegtBis);
+      }
+    }
+    return Math.max(0, Math.ceil(breiteste - tage * TAG_BREITE));
+  }, [gruppen, tage]);
 
   /**
    * Solange eine gerade verschobene Reihenfolge noch gespeichert wird, gilt sie
@@ -377,7 +436,7 @@ export default function ScheduleTab({
 
     const proZeile = new Map(zeilen.map((g) => [g.key, g.spuren.flat()]));
     const ids = neueFolge.flatMap((key) =>
-      (proZeile.get(key) ?? []).map((task) => task.id),
+      (proZeile.get(key) ?? []).map((b) => b.task.id),
     );
 
     void run(async () => {
@@ -392,6 +451,8 @@ export default function ScheduleTab({
   }
 
   const rasterBreite = tage * TAG_BREITE;
+  /** Tagesraster plus dem Platz, den die Namen rechts daneben brauchen. */
+  const flaecheBreite = rasterBreite + namenReserve;
 
   function istWochenende(tag: string): boolean {
     const wt = new Date(`${tag}T00:00:00`).getDay();
@@ -455,7 +516,7 @@ export default function ScheduleTab({
           style={{ ['--tag-breite' as string]: `${TAG_BREITE}px` }}
         >
           <div className="plan-kopf-links">Wer / Gewerk / Arbeit</div>
-          <div className="plan-kopf-rechts" style={{ width: rasterBreite }}>
+          <div className="plan-kopf-rechts" style={{ width: flaecheBreite }}>
             <div className="plan-monate">
               {monate.map((m, i) => (
                 <div
@@ -549,49 +610,16 @@ export default function ScheduleTab({
                   </div>
                 </div>
 
-                <div className="plan-rechts" style={{ width: rasterBreite }}>
+                <div className="plan-rechts" style={{ width: flaecheBreite }}>
                   {zellen(g.key, zeilenVorlage)}
 
-                  {/* Mehrere Arbeiten teilen sich die Zeile. Überschneiden sie
-                      sich zeitlich, rutschen sie in eine zweite Spur. */}
+                  {/* Mehrere Arbeiten teilen sich die Zeile. Reicht der Platz
+                      für Balken und Namen nicht, rutscht die nächste Arbeit in
+                      eine weitere Spur darunter. */}
                   {g.spuren.map((spur, spurNr) =>
-                    spur.map((task) => {
-                      const startVersatz = Math.max(
-                        0,
-                        tageZwischen(von, task.start_date) - 1,
-                      );
-                      const laenge = Math.max(
-                        1,
-                        tageZwischen(
-                          task.start_date < von ? von : task.start_date,
-                          task.end_date > bis ? bis : task.end_date,
-                        ),
-                      );
-                      if (task.end_date < von || task.start_date > bis) return null;
-
-                      const offen = task.notes.some((n) => n.status === 'offen');
-
-                      const links = startVersatz * TAG_BREITE;
-                      const breite = laenge * TAG_BREITE - 4;
+                    spur.map(({ task, links, breite }) => {
                       const oben = spurNr * SPUR_HOEHE + 6;
-
-                      // Grobe Schätzung der Textbreite (11.5px halbfett). Passt
-                      // der Name nicht in den Balken, steht er daneben – lieber
-                      // etwas überstehen als abgeschnitten.
-                      const textBreite =
-                        task.label.length * 6.4 + (task.notes.length ? 32 : 0);
-                      const passt = textBreite <= breite - 16;
-                      const platzRechts = rasterBreite - (links + breite) - 8;
-                      const textLinks =
-                        textBreite <= platzRechts
-                          ? links + breite + 6
-                          : Math.max(0, links - textBreite - 6);
-
-                      const notizZeichen = task.notes.length > 0 && (
-                        <span className={`balken-notiz ${offen ? 'offen' : ''}`}>
-                          💬{task.notes.length}
-                        </span>
-                      );
+                      const offen = task.notes.some((n) => n.status === 'offen');
 
                       return (
                         <Fragment key={task.id}>
@@ -610,33 +638,31 @@ export default function ScheduleTab({
                             onClick={() =>
                               setNotizTaskId((a) => (a === task.id ? null : task.id))
                             }
+                          />
+
+                          {/* Der Name steht immer rechts neben dem Balken –
+                              gleich für alle Arbeiten, nie abgeschnitten. */}
+                          <div
+                            className={`plan-balken-text ${
+                              notizTaskId === task.id ? 'aktiv' : ''
+                            }`}
+                            style={{ left: links + breite + TEXT_ABSTAND, top: oben }}
+                            title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
+                            onClick={() =>
+                              setNotizTaskId((a) => (a === task.id ? null : task.id))
+                            }
                           >
-                            {passt && (
-                              <>
-                                {task.label}
-                                {notizZeichen}
-                              </>
+                            <span
+                              className="plan-balken-punkt"
+                              style={{ background: task.color }}
+                            />
+                            {task.label}
+                            {task.notes.length > 0 && (
+                              <span className={`balken-notiz ${offen ? 'offen' : ''}`}>
+                                💬{task.notes.length}
+                              </span>
                             )}
                           </div>
-
-                          {!passt && (
-                            <div
-                              className={`plan-balken-text ${
-                                notizTaskId === task.id ? 'aktiv' : ''
-                              }`}
-                              style={{ left: textLinks, top: oben }}
-                              onClick={() =>
-                                setNotizTaskId((a) => (a === task.id ? null : task.id))
-                              }
-                            >
-                              <span
-                                className="plan-balken-punkt"
-                                style={{ background: task.color }}
-                              />
-                              {task.label}
-                              {notizZeichen}
-                            </div>
-                          )}
                         </Fragment>
                       );
                     }),
@@ -667,7 +693,7 @@ export default function ScheduleTab({
                   </div>
                 </div>
               </div>
-              <div className="plan-rechts" style={{ width: rasterBreite }}>
+              <div className="plan-rechts" style={{ width: flaecheBreite }}>
                 {zellen('neu', leerVorlage)}
               </div>
             </div>
@@ -678,7 +704,7 @@ export default function ScheduleTab({
               <div className="plan-links" style={{ color: 'var(--ink-faint)' }}>
                 Noch keine Arbeiten erfasst.
               </div>
-              <div className="plan-rechts" style={{ width: rasterBreite }} />
+              <div className="plan-rechts" style={{ width: flaecheBreite }} />
             </div>
           )}
         </div>
