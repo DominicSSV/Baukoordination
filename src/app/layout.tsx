@@ -19,7 +19,18 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Baukoordination – Swiss Solar Ventures AG',
   description: 'Projekte, Lieferanten, To-Dos und Dateien der Swiss Solar Ventures AG',
-  icons: { icon: '/logo.png' },
+  // Auf dem Startbildschirm des Handys erscheint das Haus-Zeichen auf dunklem
+  // Grund – iOS nimmt dafür ausschliesslich das apple-touch-icon.
+  icons: {
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: { url: '/apple-touch-icon.png', sizes: '180x180' },
+  },
+  // Kurzer Name unter dem Symbol, sonst schreibt iOS den ganzen Titel hin.
+  // capable: false ist Absicht – siehe die Begründung in app/manifest.ts.
+  appleWebApp: { capable: false, title: 'Baukoordination' },
 };
 
 export const viewport: Viewport = {
