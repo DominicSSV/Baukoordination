@@ -2882,6 +2882,24 @@ button:disabled {
   color: var(--ink-faint);
 }
 
+/* Auf dem Handy hing die Liste an der Glocke – und rechts von der Glocke stehen
+   noch Bild und Abmelde-Knopf. Die Liste ragte deshalb links aus dem Fenster
+   hinaus, die Überschrift war angeschnitten. Jetzt hängt sie am rechten Rand
+   des ganzen Personen-Feldes; dessen Rand ist zugleich der Fensterrand, also
+   steht sie vollständig auf dem Schirm – ohne feste Zahlenwerte, die beim
+   nächsten Umbau wieder nicht stimmen würden.
+
+   Muss nach .glocke stehen: bei gleicher Spezifität gewinnt die spätere Regel. */
+@media (max-width: 760px) {
+  .me-badge {
+    position: relative;
+  }
+
+  .glocke {
+    position: static;
+  }
+}
+
 /* --- Namen beim Hochladen -------------------------------------------------- */
 .upload-name-zeile {
   margin-bottom: 12px;

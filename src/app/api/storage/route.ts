@@ -52,6 +52,34 @@ async function inhalt(bucket: string, prefix = '', tiefe = 0): Promise<Eintrag[]
 }
 
 /**
+ * Was Supabase selbst über die Belegung führt – dieselbe Quelle wie das
+ * Dashboard. Ohne Migration 0018 gibt es die Funktionen noch nicht; dann
+ * bleibt es bei unserer eigenen Zählung.
+ */
+async function vonSupabase(): Promise<{
+  buckets: Array<{ bucket: string; bytes: number }>;
+  datenbank: number | null;
+} | null> {
+  const db = serviceClient();
+
+  const [belegung, groesse] = await Promise.all([
+    db.rpc('speicher_pro_bucket'),
+    db.rpc('datenbank_groesse'),
+  ]);
+
+  if (belegung.error) return null;
+
+  const buckets = ((belegung.data ?? []) as Array<{ bucket: string; bytes: number }>)
+    .map((z) => ({ bucket: z.bucket, bytes: Number(z.bytes ?? 0) }))
+    .filter((z) => z.bytes > 0);
+
+  return {
+    buckets,
+    datenbank: groesse.error ? null : Number(groesse.data ?? 0),
+  };
+}
+
+/**
  * Wie viel Speicher tatsächlich belegt ist – gesamt und je Projekt.
  *
  * Nur für uns: Ein Lieferant erführe daraus, wie viel die anderen Firmen
@@ -110,8 +138,19 @@ export const GET = handler(async () => {
     }))
     .sort((a, b) => b.bytes - a.bytes);
 
+  // Wenn Supabase seine eigene Zahl liefert, gilt die – sie ist massgebend für
+  // die Abrechnung. Die Aufteilung je Projekt kommt weiterhin aus der Liste,
+  // denn Supabase kennt unsere Ordnerstruktur nicht.
+  const amtlich = await vonSupabase();
+  const gesamtAmtlich = amtlich
+    ? amtlich.buckets.reduce((summe, b) => summe + b.bytes, 0)
+    : null;
+
   return ok({
-    gesamt,
+    gesamt: gesamtAmtlich ?? gesamt,
+    /** true = Zahl von Supabase selbst, nicht von uns zusammengezählt. */
+    ausSupabase: gesamtAmtlich !== null,
+    datenbank: amtlich?.datenbank ?? null,
     papierkorb,
     vorschau,
     avatare: avatarBytes,

@@ -8,6 +8,10 @@ import Spinner from '@/components/Spinner';
 
 type Belegung = {
   gesamt: number;
+  /** true = Zahl von Supabase selbst, sonst von der App zusammengezählt. */
+  ausSupabase: boolean;
+  /** Grösse der Datenbank – eigenes Kontingent, null ohne Migration 0018. */
+  datenbank: number | null;
   papierkorb: number;
   /** Anteil der automatisch erzeugten Vorschaubilder. */
   vorschau: number;
@@ -99,13 +103,23 @@ export default function StorageModal({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
+            {daten.datenbank !== null && (
+              <div className="speicher-zeile" style={{ borderBottom: 'none' }}>
+                <span className="speicher-name">
+                  Datenbank <span className="speicher-anzahl">(eigenes Kontingent)</span>
+                </span>
+                <span className="speicher-wert">{fmtSize(daten.datenbank)}</span>
+              </div>
+            )}
+
             <p className="speicher-hinweis">
-              Gezählt ist, was tatsächlich im Speicher liegt – Dokumente, Fotos,
-              Vorschaubilder ({fmtSize(daten.vorschau)}) und Profilbilder (
-              {fmtSize(daten.avatare)}). Fotos werden beim Hochladen automatisch
-              auf rund 1 MB verkleinert, darum bleibt es lange klein. Die
-              Datenbank mit To-Dos, Kommentaren und Terminplan zählt separat und
-              ist hier nicht enthalten.
+              {daten.ausSupabase
+                ? 'Der Gesamtwert kommt von Supabase selbst – dieselbe Zahl wie im Dashboard. '
+                : 'Zusammengezählt aus den Dateien im Speicher. Nach der Datenbank-Aktualisierung 0018 kommt der Wert direkt von Supabase. '}
+              Enthalten sind Dokumente, Fotos, Vorschaubilder (
+              {fmtSize(daten.vorschau)}) und Profilbilder ({fmtSize(daten.avatare)}).
+              Fotos werden beim Hochladen automatisch auf rund 1 MB verkleinert,
+              darum bleibt es lange klein.
             </p>
 
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
