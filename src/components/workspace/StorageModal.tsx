@@ -9,10 +9,13 @@ import Spinner from '@/components/Spinner';
 type Belegung = {
   gesamt: number;
   papierkorb: number;
+  /** Anteil der automatisch erzeugten Vorschaubilder. */
+  vorschau: number;
+  /** Profilbilder liegen in einem eigenen Bereich. */
+  avatare: number;
   anzahl: number;
   grenze: number;
   projekte: Array<{ id: string; name: string; bytes: number; anzahl: number }>;
-  fehler?: string;
 };
 
 /**
@@ -97,9 +100,12 @@ export default function StorageModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <p className="speicher-hinweis">
-              Gezählt sind die hochgeladenen Dateien. Die kleinen Vorschaubilder
-              kommen im Speicher noch dazu, sie fallen aber kaum ins Gewicht.
-              Fotos werden beim Hochladen automatisch auf rund 1 MB verkleinert.
+              Gezählt ist, was tatsächlich im Speicher liegt – Dokumente, Fotos,
+              Vorschaubilder ({fmtSize(daten.vorschau)}) und Profilbilder (
+              {fmtSize(daten.avatare)}). Fotos werden beim Hochladen automatisch
+              auf rund 1 MB verkleinert, darum bleibt es lange klein. Die
+              Datenbank mit To-Dos, Kommentaren und Terminplan zählt separat und
+              ist hier nicht enthalten.
             </p>
 
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
