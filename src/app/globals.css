@@ -617,10 +617,17 @@ button:disabled {
 
 /* --- Speicherplatz -------------------------------------------------------- */
 
-/* Ganz unten in der Projektliste, bewusst unauffällig. */
+/* Ganz unten in der Projektliste, bewusst unauffällig – und dicht
+   untereinander, damit die beiden als ein Block gelesen werden. */
+.fuss-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 16px;
+}
+
 .speicher-link {
-  margin-top: 14px;
-  padding: 6px 4px;
+  padding: 3px 4px;
   background: none;
   border: none;
   text-align: left;

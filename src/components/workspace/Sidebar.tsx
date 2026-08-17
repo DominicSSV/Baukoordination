@@ -280,17 +280,17 @@ export default function Sidebar({
 
       {/* Bewusst klein und ganz unten: interessiert selten, soll aber auffindbar
           sein, ohne dafür ins Supabase-Dashboard zu müssen. */}
+      {/* Der Papierkorb gilt für alle Projekte – vorher hing er am einzelnen
+          Projekt, und man musste raten, wo etwas gelandet war. */}
       {isAdmin && (
-        <>
+        <div className="fuss-links">
           <button type="button" className="speicher-link" onClick={onSpeicher}>
             Speicherplatz
           </button>
-          {/* Ein Korb für alle Projekte – vorher hing er am einzelnen Projekt,
-              und man musste raten, wo etwas gelandet war. */}
           <button type="button" className="speicher-link" onClick={onPapierkorb}>
-            🗑️ Papierkorb
+            Papierkorb
           </button>
-        </>
+        </div>
       )}
     </div>
   );
