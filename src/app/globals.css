@@ -2723,6 +2723,132 @@ button:disabled {
   margin: 12px 0 0;
 }
 
+/* --- Kontakte ------------------------------------------------------------- */
+.kontakt-modal {
+  max-width: 760px;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.kontakt-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.kontakt-suche {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+
+.kontakt-gruppe-titel {
+  margin-top: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+}
+
+.kontakt-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.kontakt-zeile.bearbeitet {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* Das Bild ist zugleich der Knopf, um es zu wechseln. */
+.kontakt-bild {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  display: flex;
+}
+
+.kontakt-bild:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.kontakt-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.kontakt-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.kontakt-firma {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.kontakt-meta {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.kontakt-ohne {
+  color: var(--danger);
+}
+
+.kontakt-knoepfe {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.kontakt-form {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.kontakt-form input {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.kontakt-fest {
+  display: flex;
+  align-items: center;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kontakt-leer {
+  font-size: 13px;
+  color: var(--ink-faint);
+  padding: 10px 0;
+  margin: 0;
+}
+
 /* --- Ordner im Register "Dokumente" --------------------------------------- */
 
 /* Der Ordnerkopf bleibt ein Knopf zum Auf- und Zuklappen; Umbenennen und

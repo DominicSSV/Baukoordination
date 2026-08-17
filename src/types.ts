@@ -170,6 +170,27 @@ export const OFFERTEN_STAENDE: Array<{ wert: OffertenStand; name: string }> = [
   { wert: 'abgelehnt', name: 'Abgelehnt' },
 ];
 
+/**
+ * Eine Person im Register "Kontakte" – wir und die Lieferanten in einer Liste.
+ * Nur für die Swiss Solar Ventures AG: Hier stehen Zugangscodes und die
+ * Kontaktdaten sämtlicher Firmen beieinander.
+ */
+export type Kontakt = {
+  art: 'admin' | 'lieferant';
+  id: string;
+  name: string;
+  firma: string;
+  /** Funktion bei uns bzw. Gewerk beim Lieferanten. */
+  rolle: string | null;
+  kontakt: string | null;
+  email: string | null;
+  /** Zugangscode – nur bei Lieferanten. */
+  code: string | null;
+  avatarUrl: string | null;
+  /** Projekte, für die der Lieferant freigegeben ist. */
+  projekte: string[];
+};
+
 /** Ein weggeworfener Eintrag, wie ihn der Papierkorb zeigt. */
 export type PapierkorbEintrag = {
   art: 'todo' | 'datei';

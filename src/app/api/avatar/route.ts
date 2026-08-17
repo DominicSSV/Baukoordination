@@ -21,11 +21,29 @@ type Ziel =
 /**
  * Wessen Bild darf der Angemeldete ändern?
  *
- * Ohne supplierId immer das eigene. Mit supplierId das eines Lieferanten – das
- * darf der Bauherrenvertreter, der die Kartei führt, und der Lieferant bei sich
- * selbst. Fremde Bauherrenvertreter kann niemand ändern.
+ * Ohne Angabe immer das eigene. Mit supplierId das eines Lieferanten – das darf
+ * der Bauherrenvertreter, der die Kartei führt, und der Lieferant bei sich
+ * selbst. Mit adminId das einer Kollegin oder eines Kollegen; das bleibt der
+ * Swiss Solar Ventures AG vorbehalten, damit die Kartei an einer Stelle
+ * gepflegt werden kann. Ein Lieferant kommt an fremde Bilder nie heran.
  */
-function zielBestimmen(ctx: Ctx, supplierId: string | null): Ziel {
+function zielBestimmen(
+  ctx: Ctx,
+  supplierId: string | null,
+  adminId: string | null = null,
+): Ziel {
+  if (adminId) {
+    if (ctx.session.kind !== 'admin') {
+      throw forbidden('Diese Aktion ist dem Bauherrenvertreter vorbehalten.');
+    }
+    return {
+      tabelle: 'admins',
+      spalte: 'user_id',
+      id: adminId,
+      ordner: `admins/${adminId}`,
+    };
+  }
+
   if (supplierId) {
     if (ctx.session.kind === 'supplier' && ctx.session.supplierId !== supplierId) {
       throw forbidden('Du kannst nur dein eigenes Profilbild ändern.');
@@ -68,8 +86,12 @@ async function bisherigerPfad(ziel: Ziel): Promise<string | null> {
 /** Schritt 1: Upload vorbereiten. Der Browser lädt danach direkt in den Speicher. */
 export const POST = handler(async (request: Request) => {
   const ctx = await requireSession();
-  const body = await readJson<{ supplierId?: string }>(request);
-  const ziel = zielBestimmen(ctx, optionalString(body.supplierId, 64));
+  const body = await readJson<{ supplierId?: string; adminId?: string }>(request);
+  const ziel = zielBestimmen(
+    ctx,
+    optionalString(body.supplierId, 64),
+    optionalString(body.adminId, 64),
+  );
 
   // Zufälliger Name pro Upload, damit ein ausgetauschtes Bild nicht aus dem
   // Zwischenspeicher des Browsers kommt.
@@ -93,8 +115,16 @@ export const POST = handler(async (request: Request) => {
 /** Schritt 2: Nach dem Upload den Pfad übernehmen und das alte Bild entfernen. */
 export const PUT = handler(async (request: Request) => {
   const ctx = await requireSession();
-  const body = await readJson<{ supplierId?: string; path?: string }>(request);
-  const ziel = zielBestimmen(ctx, optionalString(body.supplierId, 64));
+  const body = await readJson<{
+    supplierId?: string;
+    adminId?: string;
+    path?: string;
+  }>(request);
+  const ziel = zielBestimmen(
+    ctx,
+    optionalString(body.supplierId, 64),
+    optionalString(body.adminId, 64),
+  );
   const pfad = requireString(body.path, 'Pfad', 300);
 
   if (!pfad.startsWith(`${ziel.ordner}/`)) {
@@ -122,8 +152,8 @@ export const PUT = handler(async (request: Request) => {
 /** Bild entfernen – die Ansicht zeigt danach wieder die Initialen. */
 export const DELETE = handler(async (request: Request) => {
   const ctx = await requireSession();
-  const supplierId = new URL(request.url).searchParams.get('supplierId');
-  const ziel = zielBestimmen(ctx, supplierId);
+  const suche = new URL(request.url).searchParams;
+  const ziel = zielBestimmen(ctx, suche.get('supplierId'), suche.get('adminId'));
 
   const alt = await bisherigerPfad(ziel);
 

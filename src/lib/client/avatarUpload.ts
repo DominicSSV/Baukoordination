@@ -46,15 +46,22 @@ async function quadratischVerkleinern(file: File, kante = 320): Promise<Blob> {
   return blob;
 }
 
-/** Lädt ein Profilbild hoch und gibt die Anzeige-URL zurück. */
+/**
+ * Lädt ein Profilbild hoch und gibt die Anzeige-URL zurück.
+ *
+ * Ohne Angabe das eigene Bild. Mit supplierId das eines Lieferanten, mit
+ * adminId das einer Kollegin – wer das darf, entscheidet die Route.
+ */
 export async function uploadAvatar(
   file: File,
   supplierId?: string | null,
+  adminId?: string | null,
 ): Promise<string | null> {
   const blob = await quadratischVerkleinern(file);
 
   const vorbereitet = await post<Vorbereitet>('/api/avatar', {
     supplierId: supplierId ?? undefined,
+    adminId: adminId ?? undefined,
   });
 
   const upload = await browserClient()
@@ -67,13 +74,23 @@ export async function uploadAvatar(
 
   const { avatar_url } = await api<{ avatar_url: string | null }>('/api/avatar', {
     method: 'PUT',
-    body: JSON.stringify({ supplierId: supplierId ?? undefined, path: vorbereitet.path }),
+    body: JSON.stringify({
+      supplierId: supplierId ?? undefined,
+      adminId: adminId ?? undefined,
+      path: vorbereitet.path,
+    }),
   });
 
   return avatar_url;
 }
 
-export async function removeAvatar(supplierId?: string | null): Promise<void> {
-  const query = supplierId ? `?supplierId=${encodeURIComponent(supplierId)}` : '';
+export async function removeAvatar(
+  supplierId?: string | null,
+  adminId?: string | null,
+): Promise<void> {
+  const suche = new URLSearchParams();
+  if (supplierId) suche.set('supplierId', supplierId);
+  if (adminId) suche.set('adminId', adminId);
+  const query = suche.size ? `?${suche}` : '';
   await api(`/api/avatar${query}`, { method: 'DELETE' });
 }

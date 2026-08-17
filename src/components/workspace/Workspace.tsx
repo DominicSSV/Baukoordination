@@ -20,6 +20,7 @@ import NotificationBell from '@/components/workspace/NotificationBell';
 import MyWeek from '@/components/workspace/MyWeek';
 import TrashModal from '@/components/workspace/TrashModal';
 import StorageModal from '@/components/workspace/StorageModal';
+import ContactsModal from '@/components/workspace/ContactsModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -101,6 +102,7 @@ function WorkspaceInner({
   const [zeigeWoche, setZeigeWoche] = useState(true);
   const [zeigePapierkorb, setZeigePapierkorb] = useState(false);
   const [zeigeSpeicher, setZeigeSpeicher] = useState(false);
+  const [zeigeKontakte, setZeigeKontakte] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
@@ -360,6 +362,7 @@ function WorkspaceInner({
           onReordered={setProjects}
           onSpeicher={() => setZeigeSpeicher(true)}
           onPapierkorb={() => setZeigePapierkorb(true)}
+          onKontakte={() => setZeigeKontakte(true)}
         />
 
         <div className="content">
@@ -539,6 +542,10 @@ function WorkspaceInner({
       )}
 
       {zeigeSpeicher && <StorageModal onClose={() => setZeigeSpeicher(false)} />}
+
+      {zeigeKontakte && (
+        <ContactsModal onClose={() => setZeigeKontakte(false)} onChanged={reload} />
+      )}
 
       {message && <MessageModal draft={message} onClose={() => setMessage(null)} />}
       {viewerFileId && (

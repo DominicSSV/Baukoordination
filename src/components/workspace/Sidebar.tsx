@@ -18,6 +18,7 @@ export default function Sidebar({
   onReordered,
   onSpeicher,
   onPapierkorb,
+  onKontakte,
 }: {
   projects: Project[];
   activeId: string | null;
@@ -32,6 +33,8 @@ export default function Sidebar({
   onSpeicher: () => void;
   /** Öffnet den Papierkorb über alle Projekte – nur für uns sichtbar. */
   onPapierkorb: () => void;
+  /** Öffnet die Kontaktliste – nur für uns sichtbar. */
+  onKontakte: () => void;
 }) {
   const { reportError } = useFeedback();
   const [showForm, setShowForm] = useState(false);
@@ -289,6 +292,9 @@ export default function Sidebar({
           </button>
           <button type="button" className="speicher-link" onClick={onPapierkorb}>
             Papierkorb
+          </button>
+          <button type="button" className="speicher-link" onClick={onKontakte}>
+            Kontakte
           </button>
         </div>
       )}
