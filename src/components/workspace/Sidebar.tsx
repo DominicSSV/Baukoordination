@@ -16,7 +16,6 @@ export default function Sidebar({
   onSelect,
   onCreate,
   onReordered,
-  onSpeicher,
   onPapierkorb,
   onKontakte,
 }: {
@@ -29,8 +28,6 @@ export default function Sidebar({
   onSelect: (id: string) => void;
   onCreate: (name: string, ort: string) => Promise<void>;
   onReordered: (projects: Project[]) => void;
-  /** Öffnet die Speicherübersicht – nur für uns sichtbar. */
-  onSpeicher: () => void;
   /** Öffnet den Papierkorb über alle Projekte – nur für uns sichtbar. */
   onPapierkorb: () => void;
   /** Öffnet die Kontaktliste – nur für uns sichtbar. */
@@ -287,9 +284,6 @@ export default function Sidebar({
           Projekt, und man musste raten, wo etwas gelandet war. */}
       {isAdmin && (
         <div className="fuss-links">
-          <button type="button" className="speicher-link" onClick={onSpeicher}>
-            Speicherplatz
-          </button>
           <button type="button" className="speicher-link" onClick={onPapierkorb}>
             Papierkorb
           </button>

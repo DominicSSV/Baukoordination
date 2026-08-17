@@ -20,6 +20,7 @@ import NotificationBell from '@/components/workspace/NotificationBell';
 import MyWeek from '@/components/workspace/MyWeek';
 import TrashModal from '@/components/workspace/TrashModal';
 import StorageModal from '@/components/workspace/StorageModal';
+import StorageBadge from '@/components/workspace/StorageBadge';
 import ContactsModal from '@/components/workspace/ContactsModal';
 import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
@@ -105,6 +106,12 @@ function WorkspaceInner({
   const [zeigeSpeicher, setZeigeSpeicher] = useState(false);
   const [zeigeKontakte, setZeigeKontakte] = useState(false);
   const [zeigeSuche, setZeigeSuche] = useState(false);
+  // Wird hochgezählt, wenn die Speicherkarte neu rechnen soll – nach dem
+  // Schliessen der Übersicht, wo eventuell etwas endgültig entfernt wurde.
+  const [speicherStand, setSpeicherStand] = useState(0);
+  // Auf dem Handy stecken Speicherkarte, Suche und Neuladen hinter "⋯":
+  // sechs Symbole und der Titel passen nebeneinander nicht auf den Schirm.
+  const [werkzeugeOffen, setWerkzeugeOffen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
@@ -302,6 +309,32 @@ function WorkspaceInner({
               kein Projekt offen ist – deshalb steht der Knopf immer hier. */}
           <button
             type="button"
+            className="topbar-icon topbar-mehr"
+            onClick={() => setWerkzeugeOffen((o) => !o)}
+            title="Werkzeuge"
+            aria-label="Werkzeuge"
+            aria-expanded={werkzeugeOffen}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="5" cy="12" r="1.9" fill="currentColor" />
+              <circle cx="12" cy="12" r="1.9" fill="currentColor" />
+              <circle cx="19" cy="12" r="1.9" fill="currentColor" />
+            </svg>
+          </button>
+
+          <div
+            className={`topbar-werkzeuge ${werkzeugeOffen ? 'offen' : ''}`}
+            onClick={() => setWerkzeugeOffen(false)}
+          >
+          {isAdmin && (
+            <StorageBadge
+              stand={speicherStand}
+              onOeffnen={() => setZeigeSpeicher(true)}
+            />
+          )}
+
+          <button
+            type="button"
             className="topbar-icon"
             onClick={() => setZeigeSuche(true)}
             title="Suchen"
@@ -346,6 +379,8 @@ function WorkspaceInner({
             </svg>
           </button>
 
+          </div>
+
           <NotificationBell
             werBinIch={
               session.kind === 'admin' ? session.userId : session.supplierId
@@ -385,7 +420,6 @@ function WorkspaceInner({
           onSelect={selectProject}
           onCreate={createProject}
           onReordered={setProjects}
-          onSpeicher={() => setZeigeSpeicher(true)}
           onPapierkorb={() => setZeigePapierkorb(true)}
           onKontakte={() => setZeigeKontakte(true)}
         />
@@ -566,7 +600,14 @@ function WorkspaceInner({
         <TrashModal onClose={() => setZeigePapierkorb(false)} onChanged={reload} />
       )}
 
-      {zeigeSpeicher && <StorageModal onClose={() => setZeigeSpeicher(false)} />}
+      {zeigeSpeicher && (
+        <StorageModal
+          onClose={() => {
+            setZeigeSpeicher(false);
+            setSpeicherStand((n) => n + 1);
+          }}
+        />
+      )}
 
       {zeigeSuche && (
         <SearchModal
