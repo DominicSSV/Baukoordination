@@ -2495,6 +2495,44 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+/* Mehrere Zuständige: Die Bilder überlappen leicht, so bleibt die Spalte
+   gleich breit, egal ob eine oder drei Personen dranstehen. */
+.plan-personen {
+  display: flex;
+  align-items: center;
+}
+
+.plan-person-bild {
+  display: flex;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.plan-person-bild + .plan-person-bild {
+  margin-left: -10px;
+}
+
+.plan-person-mehr {
+  margin-left: -6px;
+  padding: 0 5px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  background: var(--line);
+  box-shadow: 0 0 0 2px var(--surface);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.plan-person-menu-hinweis {
+  padding: 0 8px 6px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--ink-faint);
+}
+
 /* Farbwahl für eine ganze Zeile – gleiche Machart wie die Personenauswahl. */
 .plan-farb-menu {
   position: fixed;

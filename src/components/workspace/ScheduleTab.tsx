@@ -331,15 +331,19 @@ export default function ScheduleTab({
    * Zuständige Person einer ganzen Zeile ändern. Weil eine Zeile für ein Gewerk
    * einer Person steht, wandern alle ihre Arbeiten mit.
    */
-  function zustaendigenAendern(tasks: ScheduleTask[], owner: string) {
-    setPersonWahl(null);
+  function zustaendigeAendern(tasks: ScheduleTask[], owners: string[]) {
     void run(async () => {
-      for (const task of tasks) {
-        await patch(`/api/schedule/${task.id}`, { owner: owner || null });
-      }
+      const antwort = await post<{ nurEiner?: boolean }>('/api/schedule/zustaendig', {
+        ids: tasks.map((t) => t.id),
+        owners,
+      });
       await reload();
-      toast('✓ Zuständige Person geändert.');
-    }, 'Zuständige Person konnte nicht geändert werden.');
+      toast(
+        antwort.nurEiner
+          ? '✓ Gespeichert – mehrere Zuständige gibt es erst nach der Datenbank-Aktualisierung 0022.'
+          : '✓ Zuständige geändert.',
+      );
+    }, 'Zuständige konnten nicht geändert werden.');
   }
 
   /**
@@ -417,13 +421,23 @@ export default function ScheduleTab({
   const gruppen = useMemo(() => {
     const map = new Map<
       string,
-      { key: string; responsible: string; owner: string; color: string; arbeiten: ScheduleTask[]; rang: number }
+      {
+        key: string;
+        responsible: string;
+        owner: string;
+        owners: string[];
+        color: string;
+        arbeiten: ScheduleTask[];
+        rang: number;
+      }
     >();
 
     for (const task of plan) {
       const responsible = task.responsible ?? '';
-      const owner = task.owner ?? '';
-      const key = `${owner}|${responsible}`;
+      // Sortiert, damit dieselben zwei Personen in beliebiger Reihenfolge
+      // dieselbe Zeile ergeben.
+      const owners = [...task.owners].sort();
+      const key = `${owners.join(',')}|${responsible}`;
       const vorhanden = map.get(key);
       if (vorhanden) {
         vorhanden.arbeiten.push(task);
@@ -432,7 +446,8 @@ export default function ScheduleTab({
         map.set(key, {
           key,
           responsible,
-          owner,
+          owner: owners[0] ?? '',
+          owners,
           color: task.color,
           arbeiten: [task],
           rang: task.order_index,
@@ -650,7 +665,22 @@ export default function ScheduleTab({
           </div>
 
           {zeilen.map((g) => {
-            const person = assigneePerson(detail, g.owner);
+            // Sind mehrere zuständig, stehen die Bilder gestaffelt
+            // nebeneinander – wie bei einer Gruppe in der Kontaktliste.
+            const personen2 = g.owners.map((o) => assigneePerson(detail, o));
+            const namenListe = personen2.map((p) => personLabel(p)).join(', ');
+            const bilder = personen2.slice(0, 3).map((p, i) => (
+              <span className="plan-person-bild" key={g.owners[i]}>
+                <Avatar url={p.avatarUrl} name={p.name} size={30} />
+              </span>
+            ));
+            if (personen2.length > 3) {
+              bilder.push(
+                <span className="plan-person-mehr" key="mehr">
+                  +{personen2.length - 3}
+                </span>,
+              );
+            }
             const zeilenVorlage: Vorlage = {
               responsible: g.responsible,
               owner: g.owner,
@@ -695,9 +725,9 @@ export default function ScheduleTab({
                       type="button"
                       className="plan-person plan-person-knopf"
                       title={
-                        g.owner
-                          ? `Zuständig: ${personLabel(person)} – zum Ändern klicken`
-                          : 'Zuständige Person wählen'
+                        g.owners.length
+                          ? `Zuständig: ${namenListe} – zum Ändern klicken`
+                          : 'Zuständige Personen wählen'
                       }
                       onClick={(e) => {
                         const kasten = e.currentTarget.getBoundingClientRect();
@@ -708,15 +738,15 @@ export default function ScheduleTab({
                         );
                       }}
                     >
-                      {g.owner ? (
-                        <Avatar url={person.avatarUrl} name={person.name} size={30} />
+                      {g.owners.length ? (
+                        <span className="plan-personen">{bilder}</span>
                       ) : (
                         <span className="plan-person-frei">＋</span>
                       )}
                     </button>
-                  ) : g.owner ? (
-                    <div className="plan-person" title={`Zuständig: ${personLabel(person)}`}>
-                      <Avatar url={person.avatarUrl} name={person.name} size={30} />
+                  ) : g.owners.length ? (
+                    <div className="plan-person" title={`Zuständig: ${namenListe}`}>
+                      <span className="plan-personen">{bilder}</span>
                     </div>
                   ) : (
                     <div className="plan-person plan-person-leer" />
@@ -900,10 +930,13 @@ export default function ScheduleTab({
               <div className="plan-person-menu-titel">
                 Zuständig für {zeile.responsible || 'diese Zeile'}
               </div>
+              <div className="plan-person-menu-hinweis">
+                Mehrere möglich – zum Abwählen nochmals antippen.
+              </div>
               <button
                 type="button"
-                className={!zeile.owner ? 'gewaehlt' : ''}
-                onClick={() => zustaendigenAendern(arbeiten, '')}
+                className={!zeile.owners.length ? 'gewaehlt' : ''}
+                onClick={() => zustaendigeAendern(arbeiten, [])}
               >
                 Niemand
               </button>
@@ -916,8 +949,15 @@ export default function ScheduleTab({
                       <button
                         key={p.wert}
                         type="button"
-                        className={zeile.owner === p.wert ? 'gewaehlt' : ''}
-                        onClick={() => zustaendigenAendern(arbeiten, p.wert)}
+                        className={zeile.owners.includes(p.wert) ? 'gewaehlt' : ''}
+                        onClick={() =>
+                          zustaendigeAendern(
+                            arbeiten,
+                            zeile.owners.includes(p.wert)
+                              ? zeile.owners.filter((o) => o !== p.wert)
+                              : [...zeile.owners, p.wert],
+                          )
+                        }
                       >
                         {p.name}
                       </button>

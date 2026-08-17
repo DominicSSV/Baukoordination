@@ -397,20 +397,34 @@ export async function loadProjectDetail(
 
   const admins = await loadAdminProfiles();
 
-  // Der Terminplan darf fehlen, solange Migration 0006 nicht eingespielt ist.
-  const planRes = await db
+  // Der Terminplan darf fehlen, solange Migration 0006 nicht eingespielt ist,
+  // und die Liste der Zuständigen kommt erst mit 0022.
+  const planMitListe = await db
     .from('schedule_tasks')
-    .select('id, project_id, responsible, owner, label, start_date, end_date, color, order_index')
+    .select(
+      'id, project_id, responsible, owner, owners, label, start_date, end_date, color, order_index',
+    )
     .eq('project_id', projectId)
     .order('order_index', { ascending: true })
     .order('start_date', { ascending: true });
+
+  const planRes = planMitListe.error
+    ? await db
+        .from('schedule_tasks')
+        .select(
+          'id, project_id, responsible, owner, label, start_date, end_date, color, order_index',
+        )
+        .eq('project_id', projectId)
+        .order('order_index', { ascending: true })
+        .order('start_date', { ascending: true })
+    : planMitListe;
 
   if (planRes.error) {
     console.warn('[projects] Terminplan nicht verfügbar', planRes.error.message);
   }
 
   const planZeilen = (planRes.error ? [] : (planRes.data ?? [])) as Array<
-    Omit<ScheduleTask, 'notes'>
+    Omit<ScheduleTask, 'notes' | 'owners'> & { owners?: string[] | null }
   >;
 
   // Rückmeldungen der Lieferanten. Fehlt die Tabelle (Migration 0010), bleibt
@@ -475,6 +489,9 @@ export async function loadProjectDetail(
     admins,
     schedule: planZeilen.map((t) => ({
       ...t,
+      // Ohne Migration 0022 zählt der einzelne Zuständige – dann eben als
+      // Liste mit einem Eintrag, damit die Ansicht nur einen Fall kennt.
+      owners: t.owners?.length ? t.owners : t.owner ? [t.owner] : [],
       notes: notizenJeArbeit.get(t.id) ?? [],
     })),
   };

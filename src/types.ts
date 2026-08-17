@@ -30,6 +30,11 @@ export type ScheduleTask = {
   responsible: string | null;
   /** Wer sie organisiert: 'admin:<user_id>' oder 'supplier:<id>', sonst null. */
   owner: string | null;
+  /**
+   * Alle Zuständigen – an einem Gewerk sind oft zwei dran. owner ist der erste
+   * Eintrag; ohne Migration 0022 bleibt die Liste leer und owner gilt allein.
+   */
+  owners: string[];
   label: string;
   start_date: string;
   end_date: string;
