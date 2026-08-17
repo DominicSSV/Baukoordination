@@ -10,7 +10,7 @@ import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
 import { ordnerName } from '@/lib/offers';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
-import type { ProjectDetail } from '@/types';
+import type { ProjectDetail, ProjectFile } from '@/types';
 
 export default function FilesTab({
   detail,
@@ -53,6 +53,35 @@ export default function FilesTab({
     } finally {
       setUploading(false);
     }
+  }
+
+  /**
+   * Woher eine Datei stammt, als lesbarer Pfad – z.B.
+   * „Dokumente · Photovoltaik · Bewilligung“ oder „Offerten · Auftragsbestätigung“.
+   *
+   * Hier laufen alle Dateien des Projekts zusammen; ohne die Herkunft weiss man
+   * bei „IA_PVA-DC …“ nicht mehr, wo sie eigentlich abgelegt ist.
+   */
+  function herkunft(f: ProjectFile): string | null {
+    if (f.offer_folder) {
+      const name = ordnerName(f.offer_folder);
+      if (!name) return null;
+      // „Offerten · Offerten“ wäre albern – der Ordner heisst wie das Register.
+      return name === 'Offerten' ? name : `Offerten · ${name}`;
+    }
+
+    if (f.document_folder) {
+      const ordner = detail.documentFolders.find((o) => o.id === f.document_folder);
+      if (!ordner) return 'Dokumente';
+      const eltern = ordner.parent_id
+        ? detail.documentFolders.find((o) => o.id === ordner.parent_id)
+        : null;
+      return eltern
+        ? `Dokumente · ${eltern.name} · ${ordner.name}`
+        : `Dokumente · ${ordner.name}`;
+    }
+
+    return null;
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -195,8 +224,10 @@ export default function FilesTab({
                     <Avatar url={person.avatarUrl} name={f.uploaded_by} size={16} />
                     {fmtSize(f.size_bytes)} · {personLabel(person)}
                   </div>
-                  {ordnerName(f.offer_folder) && (
-                    <div className="file-offer-tag">{ordnerName(f.offer_folder)}</div>
+                  {herkunft(f) && (
+                    <div className="file-offer-tag" title={herkunft(f) ?? ''}>
+                      {herkunft(f)}
+                    </div>
                   )}
                   {linkedTodo && (
                     <div className="file-linked-todo" title={linkedTodo.text}>

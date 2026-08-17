@@ -2735,8 +2735,13 @@ button:disabled {
 }
 
 /* Kennzeichnung im Register "Dateien", damit man Offerten dort erkennt. */
+/* Herkunft der Datei, z.B. „Dokumente · Photovoltaik · Bewilligung“. Lieber
+   zweizeilig als hinten abgeschnitten: Gerade der letzte Teil – der
+   Unterordner – ist der aussagekräftige. */
 .file-offer-tag {
   display: inline-block;
+  max-width: 100%;
+  line-height: 1.4;
   margin-top: 4px;
   padding: 2px 7px;
   border-radius: 20px;
