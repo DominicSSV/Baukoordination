@@ -2644,6 +2644,43 @@ button:disabled {
   margin: 12px 0 0;
 }
 
+/* --- Ordner im Register "Dokumente" --------------------------------------- */
+
+/* Der Ordnerkopf bleibt ein Knopf zum Auf- und Zuklappen; Umbenennen und
+   Löschen stehen daneben, damit sie nicht mitklappen. */
+.ordner-kopf-zeile {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg);
+  padding-right: 8px;
+}
+
+.ordner-kopf-zeile .offer-kopf {
+  flex: 1;
+  min-width: 0;
+}
+
+.ordner-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.ordner-form input {
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
 /* Kennzeichnung im Register "Dateien", damit man Offerten dort erkennt. */
 .file-offer-tag {
   display: inline-block;

@@ -7,6 +7,7 @@ import type { Ctx } from '@/lib/auth/guards';
 import type {
   ActivityEntry,
   AdminProfile,
+  DokumentOrdner,
   FileComment,
   Project,
   ProjectDetail,
@@ -163,7 +164,7 @@ export async function loadProjectDetail(
     db
       .from('files')
       .select(
-        'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder, offer_amount, offer_status',
+        'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder, offer_amount, offer_status, document_folder',
       )
       .eq('project_id', projectId)
       .is('deleted_at', null)
@@ -191,16 +192,47 @@ export async function loadProjectDetail(
 
   if (aufgaben.error) throw new Error(`To-Dos: ${aufgaben.error.message}`);
 
-  // Ohne Migration 0012 gibt es die Ordnerspalte noch nicht – dann eben ohne.
-  const dateien = filesRes.error
-    ? await db
-        .from('files')
-        .select(
-          'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at',
-        )
-        .eq('project_id', projectId)
-        .order('uploaded_at', { ascending: false })
-    : filesRes;
+  // Jede Migration bringt eine Spalte mehr. Fehlt eine, wird der Reihe nach
+  // weniger verlangt, statt dass die Ansicht ganz ausfällt – und zwar
+  // stufenweise, damit das Fehlen von 0019 nicht auch die Offerten mitnimmt.
+  const dateiSpalten = [
+    'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder, offer_amount, offer_status',
+    'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at, offer_folder',
+    'id, project_id, todo_id, name, mime_type, size_bytes, storage_path, thumb_path, uploaded_by, uploaded_by_supplier_id, uploaded_at',
+  ];
+
+  type DateiZeile = {
+    id: string;
+    project_id: string;
+    todo_id: string | null;
+    name: string;
+    mime_type: string | null;
+    size_bytes: number | null;
+    storage_path: string;
+    thumb_path: string | null;
+    uploaded_by: string;
+    uploaded_by_supplier_id: string | null;
+    uploaded_at: string;
+    offer_folder?: string | null;
+    offer_amount?: number | null;
+    offer_status?: string | null;
+    document_folder?: string | null;
+  };
+
+  let dateien: { data: DateiZeile[] | null; error: { message: string } | null } =
+    filesRes as unknown as { data: DateiZeile[] | null; error: { message: string } | null };
+
+  for (const spalten of dateiSpalten) {
+    if (!dateien.error) break;
+    dateien = (await db
+      .from('files')
+      .select(spalten)
+      .eq('project_id', projectId)
+      .order('uploaded_at', { ascending: false })) as unknown as {
+      data: DateiZeile[] | null;
+      error: { message: string } | null;
+    };
+  }
 
   if (dateien.error) throw new Error(`Dateien: ${dateien.error.message}`);
   if (activityRes.error) throw new Error(`Aktivität: ${activityRes.error.message}`);
@@ -283,6 +315,7 @@ export async function loadProjectDetail(
     uploaded_by_supplier_id: f.uploaded_by_supplier_id,
     uploaded_at: f.uploaded_at,
     offer_folder: f.offer_folder ?? null,
+    document_folder: f.document_folder ?? null,
     offer_amount: f.offer_amount ?? null,
     offer_status: f.offer_status ?? null,
     comments: kommentareNachDatei.get(f.id) ?? [],
@@ -403,10 +436,24 @@ export async function loadProjectDetail(
     notizenJeArbeit.set(n.task_id, liste);
   }
 
+  // Ohne Migration 0019 gibt es die Ordner noch nicht – dann bleibt das
+  // Register "Dokumente" leer und weist selbst darauf hin.
+  const ordnerRes = await db
+    .from('document_folders')
+    .select('id, name, position')
+    .eq('project_id', projectId)
+    .order('position', { ascending: true })
+    .order('name', { ascending: true });
+
+  const documentFolders: DokumentOrdner[] = ordnerRes.error
+    ? []
+    : ((ordnerRes.data ?? []) as DokumentOrdner[]);
+
   return {
     project,
     todos,
     files,
+    documentFolders,
     activity: (activityRes.data ?? []) as ActivityEntry[],
     accessIds,
     suppliers,

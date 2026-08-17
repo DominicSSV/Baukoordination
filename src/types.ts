@@ -141,6 +141,12 @@ export type ProjectFile = {
    * hochgeladen hat.
    */
   offer_folder: string | null;
+  /**
+   * Ordner im Register "Dokumente" – null, wenn die Datei woanders liegt.
+   * Dokumente sehen alle, die Zugriff auf das Projekt haben: Pläne und Schemas
+   * braucht jedes Gewerk.
+   */
+  document_folder: string | null;
   /** Anmerkungen zur Datei – gelesen und geschrieben von uns und der Firma. */
   comments: FileComment[];
   /** Betrag der Offerte in Franken, null = nicht erfasst. */
@@ -202,10 +208,19 @@ export type SessionInfo =
       avatarUrl: string | null;
     };
 
+/** Ein Ordner im Register "Dokumente". */
+export type DokumentOrdner = {
+  id: string;
+  name: string;
+  position: number;
+};
+
 export type ProjectDetail = {
   project: Project;
   todos: Todo[];
   files: ProjectFile[];
+  /** Gliederung des Registers "Dokumente"; leer ohne Migration 0019. */
+  documentFolders: DokumentOrdner[];
   activity: ActivityEntry[];
   /** Lieferanten mit Zugriff auf dieses Projekt. */
   accessIds: string[];

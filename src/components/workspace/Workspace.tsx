@@ -15,6 +15,7 @@ import ProjectHeader from '@/components/workspace/ProjectHeader';
 import ProfileModal from '@/components/workspace/ProfileModal';
 import ScheduleTab from '@/components/workspace/ScheduleTab';
 import OffersTab from '@/components/workspace/OffersTab';
+import DocumentsTab from '@/components/workspace/DocumentsTab';
 import NotificationBell from '@/components/workspace/NotificationBell';
 import MyWeek from '@/components/workspace/MyWeek';
 import TrashModal from '@/components/workspace/TrashModal';
@@ -29,6 +30,7 @@ export type TabKey =
   | 'todos'
   | 'terminplan'
   | 'offerten'
+  | 'dokumente'
   | 'dateien'
   | 'aktivitaet';
 
@@ -37,6 +39,7 @@ const REGISTER: TabKey[] = [
   'todos',
   'terminplan',
   'offerten',
+  'dokumente',
   'dateien',
   'aktivitaet',
 ];
@@ -261,6 +264,7 @@ function WorkspaceInner({
       ? session.firma.trim()
       : null;
   const offerten = detail?.files.filter((f) => f.offer_folder).length ?? 0;
+  const dokumente = detail?.files.filter((f) => f.document_folder).length ?? 0;
 
   return (
     <div className="app-shell">
@@ -439,6 +443,13 @@ function WorkspaceInner({
                 </button>
                 <button
                   type="button"
+                  className={`tab-btn ${tab === 'dokumente' ? 'active' : ''}`}
+                  onClick={() => setTab('dokumente')}
+                >
+                  Dokumente <span className="tab-count">{dokumente}</span>
+                </button>
+                <button
+                  type="button"
                   className={`tab-btn ${tab === 'dateien' ? 'active' : ''}`}
                   onClick={() => setTab('dateien')}
                 >
@@ -478,6 +489,15 @@ function WorkspaceInner({
               )}
               {tab === 'offerten' && (
                 <OffersTab
+                  detail={detail}
+                  session={session}
+                  isAdmin={isAdmin}
+                  reload={reload}
+                  onOpenFile={setViewerFileId}
+                />
+              )}
+              {tab === 'dokumente' && (
+                <DocumentsTab
                   detail={detail}
                   session={session}
                   isAdmin={isAdmin}

@@ -153,6 +153,8 @@ export async function uploadFiles(params: {
   todoId?: string | null;
   /** Ordner im Register "Offerten"; leer = gewöhnliche Datei. */
   offerFolder?: string | null;
+  /** Ordner im Register "Dokumente"; leer = gewöhnliche Datei. */
+  documentFolder?: string | null;
   files: FileList | File[];
   /**
    * Angezeigte Namen, in derselben Reihenfolge wie die Dateien. Fehlt ein
@@ -191,6 +193,7 @@ export async function uploadFiles(params: {
           withThumb: Boolean(thumbBlob),
           todoId: params.todoId ?? undefined,
           offerFolder: params.offerFolder ?? undefined,
+          documentFolder: params.documentFolder ?? undefined,
           betrag: params.betraege?.[index] ?? undefined,
         },
       );

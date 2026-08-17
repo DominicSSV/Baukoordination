@@ -31,6 +31,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     thumbPath?: string;
     todoId?: string;
     offerFolder?: string;
+    documentFolder?: string;
     betrag?: number | null;
   }>(request);
 
@@ -40,6 +41,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const thumbPath = optionalString(body.thumbPath, 500);
   const todoId = optionalString(body.todoId, 64);
   const offerFolder = pruefeOrdner(body.offerFolder);
+  const documentFolder = optionalString(body.documentFolder, 64);
 
   if (body.offerFolder !== undefined && body.offerFolder !== null && !offerFolder) {
     throw new ApiError('Unbekannter Offertenordner.');
@@ -50,6 +52,21 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   }
   if (thumbPath && thumbPath !== `${projectId}/thumbs/${fileId}.jpg`) {
     throw new ApiError('Der gemeldete Vorschaupfad passt nicht zum Projekt.', 400);
+  }
+
+  // Der Ordner muss zu diesem Projekt gehören – sonst hinge das Dokument in
+  // einem fremden Projekt, für das die hochladende Person gar keinen Zugriff hat.
+  let dokumentOrdner: string | null = null;
+  if (documentFolder) {
+    const { data, error } = await serviceClient()
+      .from('document_folders')
+      .select('id, name')
+      .eq('id', documentFolder)
+      .eq('project_id', projectId)
+      .maybeSingle();
+    if (error) throw new ApiError('Die Ordner stehen erst nach Migration 0019 zur Verfügung.');
+    if (!data) throw new ApiError('Der Ordner gehört nicht zu diesem Projekt.');
+    dokumentOrdner = data.name as string;
   }
 
   if (todoId) {
@@ -86,6 +103,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       uploaded_by: ctx.session.name,
       uploaded_by_supplier_id:
         ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+      ...(documentFolder ? { document_folder: documentFolder } : {}),
       ...(offerFolder
         ? {
             offer_folder: offerFolder,
@@ -141,8 +159,10 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
     text: offerFolder
       ? `hat "${name}" unter ${ordnerName(offerFolder)} eingereicht`
-      : `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
-    icon: offerFolder ? '📑' : isImage ? '📷' : '📄',
+      : dokumentOrdner
+        ? `hat "${name}" unter Dokumente / ${dokumentOrdner} abgelegt`
+        : `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
+    icon: offerFolder ? '📑' : dokumentOrdner ? '🗂️' : isImage ? '📷' : '📄',
     nurFuerSupplierIds: offerFolder
       ? [
           ...(data.uploaded_by_supplier_id

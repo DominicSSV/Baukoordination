@@ -48,4 +48,12 @@ export const post = <T,>(url: string, body?: unknown) =>
 export const patch = <T,>(url: string, body: unknown) =>
   api<T>(url, { method: 'PATCH', body: JSON.stringify(body) });
 
-export const del = <T,>(url: string) => api<T>(url, { method: 'DELETE' });
+/**
+ * Löschen. Ein Rumpf ist erlaubt – manche Routen brauchen zusätzlich zur Adresse
+ * noch die Angabe, was genau entfernt werden soll (z.B. welcher Ordner).
+ */
+export const del = <T,>(url: string, body?: unknown) =>
+  api<T>(url, {
+    method: 'DELETE',
+    body: body ? JSON.stringify(body) : undefined,
+  });
