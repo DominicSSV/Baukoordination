@@ -79,6 +79,29 @@ export default function DocumentsTab({
     return map;
   }, [detail.files, detail.documentFolders]);
 
+  /** Alle Ordner mit lesbarem Pfad, für die Auswahl beim Verschieben. */
+  const ordnerPfade = useMemo(() => {
+    const liste: Array<{ id: string; pfad: string }> = [];
+    for (const o of haupt) {
+      liste.push({ id: o.id, pfad: o.name });
+      for (const k of kinder.get(o.id) ?? []) {
+        liste.push({ id: k.id, pfad: `${o.name} · ${k.name}` });
+      }
+    }
+    return liste;
+  }, [haupt, kinder]);
+
+  async function verschieben(f: ProjectFile, ordnerId: string) {
+    if (ordnerId === f.document_folder) return;
+    try {
+      await patch(`/api/files/${f.id}`, { documentFolder: ordnerId });
+      await reload();
+      toast('✓ Verschoben.');
+    } catch (error) {
+      reportError(error, 'Verschieben fehlgeschlagen.');
+    }
+  }
+
   /** Ein zugeklappter Hauptordner verdeckt auch seine Unterordner – mitzählen. */
   function anzahlMitKindern(id: string): number {
     const eigene = nachOrdner.get(id)?.length ?? 0;
@@ -323,6 +346,23 @@ export default function DocumentsTab({
                       {fmtSize(f.size_bytes)} · {fmtDate(f.uploaded_at)}
                     </span>
                   </div>
+                  {/* Landet etwas im falschen Ordner, muss man es nicht
+                      löschen und neu hochladen. */}
+                  {f.can_delete && (
+                    <select
+                      className="dokument-verschieben"
+                      value={f.document_folder ?? ''}
+                      title="In einen anderen Ordner verschieben"
+                      aria-label="Ordner wechseln"
+                      onChange={(e) => void verschieben(f, e.target.value)}
+                    >
+                      {ordnerPfade.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.pfad}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   {f.can_delete && (
                     <button
                       type="button"

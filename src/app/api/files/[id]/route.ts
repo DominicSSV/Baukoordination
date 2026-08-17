@@ -105,6 +105,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   const body = await readJson<{
     betrag?: number | null;
     stand?: string | null;
+    documentFolder?: string | null;
   }>(request);
 
   const patch: Record<string, unknown> = {};
@@ -134,6 +135,34 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
       throw new ApiError('Unbekannter Stand.');
     }
     patch.offer_status = body.stand;
+  }
+
+  // Ein Dokument in einen anderen Ordner legen. Verschieben darf, wer die Datei
+  // auch löschen dürfte – wir alles, ein Lieferant das Eigene.
+  if (body.documentFolder !== undefined) {
+    if (
+      ctx.session.kind === 'supplier' &&
+      file.uploaded_by_supplier_id !== ctx.session.supplierId
+    ) {
+      throw forbidden('Du kannst nur eigene Dokumente verschieben.');
+    }
+
+    if (body.documentFolder === null) {
+      patch.document_folder = null;
+    } else {
+      // Der Zielordner muss zum selben Projekt gehören, sonst verschwände das
+      // Dokument in einem Projekt, für das die Person keinen Zugriff hat.
+      const ziel = await serviceClient()
+        .from('document_folders')
+        .select('id')
+        .eq('id', body.documentFolder)
+        .eq('project_id', file.project_id)
+        .maybeSingle();
+
+      if (ziel.error) throw new ApiError('Die Ordner stehen erst nach Migration 0019 zur Verfügung.');
+      if (!ziel.data) throw new ApiError('Der Ordner gehört nicht zu diesem Projekt.');
+      patch.document_folder = body.documentFolder;
+    }
   }
 
   if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
