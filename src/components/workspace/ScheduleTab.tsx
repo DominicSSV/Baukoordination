@@ -116,6 +116,11 @@ export default function ScheduleTab({
    * Es hängt am Fenster statt in der Zeile, weil das Raster seitlich scrollt und
    * die Liste sonst abgeschnitten würde.
    */
+  const [farbWahl, setFarbWahl] = useState<{
+    key: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [personWahl, setPersonWahl] = useState<{
     key: string;
     x: number;
@@ -195,6 +200,28 @@ export default function ScheduleTab({
       document.removeEventListener('keydown', beiTaste);
     };
   }, [personWahl]);
+
+  // Dasselbe für die Farbauswahl.
+  useEffect(() => {
+    if (!farbWahl) return;
+
+    function beiKlick(e: MouseEvent) {
+      const ziel = e.target as HTMLElement;
+      if (!ziel.closest('.plan-farb-menu') && !ziel.closest('.plan-farb-knopf')) {
+        setFarbWahl(null);
+      }
+    }
+    function beiTaste(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFarbWahl(null);
+    }
+
+    document.addEventListener('mousedown', beiKlick);
+    document.addEventListener('keydown', beiTaste);
+    return () => {
+      document.removeEventListener('mousedown', beiKlick);
+      document.removeEventListener('keydown', beiTaste);
+    };
+  }, [farbWahl]);
 
   // Loslassen auch ausserhalb des Rasters beenden lassen, sonst bliebe die
   // Auswahl kleben, wenn die Maus die Karte verlässt.
@@ -313,6 +340,21 @@ export default function ScheduleTab({
       await reload();
       toast('✓ Zuständige Person geändert.');
     }, 'Zuständige Person konnte nicht geändert werden.');
+  }
+
+  /**
+   * Farbe einer ganzen Zeile setzen – z.B. alle Arbeiten von gp-Group blau.
+   *
+   * Eine Anfrage für alle Balken: Bräche sie mittendrin ab, hätte die Zeile
+   * sonst zwei Farben.
+   */
+  function farbeAendern(tasks: ScheduleTask[], color: string) {
+    setFarbWahl(null);
+    void run(async () => {
+      await post('/api/schedule/farbe', { ids: tasks.map((t) => t.id), color });
+      await reload();
+      toast('✓ Farbe geändert.');
+    }, 'Farbe konnte nicht geändert werden.');
   }
 
   function bearbeiten(task: ScheduleTask) {
@@ -684,6 +726,25 @@ export default function ScheduleTab({
                     <div className="plan-anzahl">
                       {g.spuren.flat().length} Arbeit
                       {g.spuren.flat().length === 1 ? '' : 'en'}
+                      {/* Ein Tupfer in der Farbe der Zeile: zugleich Anzeige
+                          und Knopf, um alle Balken auf einmal umzufärben. */}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="plan-farb-knopf"
+                          style={{ background: g.color }}
+                          title={`Farbe für alle Arbeiten von ${g.responsible || 'dieser Zeile'}`}
+                          aria-label="Farbe der ganzen Zeile ändern"
+                          onClick={(e) => {
+                            const kasten = e.currentTarget.getBoundingClientRect();
+                            setFarbWahl((a) =>
+                              a?.key === g.key
+                                ? null
+                                : { key: g.key, x: kasten.left, y: kasten.bottom + 4 },
+                            );
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -791,6 +852,37 @@ export default function ScheduleTab({
 
       {/* Auswahl der zuständigen Person – hängt am Fenster, damit sie nicht im
           seitlich scrollenden Raster abgeschnitten wird. */}
+      {farbWahl &&
+        (() => {
+          const zeile = zeilen.find((g) => g.key === farbWahl.key);
+          if (!zeile) return null;
+          const arbeiten = zeile.spuren.flat().map((b) => b.task);
+
+          return (
+            <div
+              className="plan-farb-menu"
+              style={{ left: Math.max(8, farbWahl.x), top: farbWahl.y }}
+            >
+              <div className="plan-person-menu-titel">
+                Farbe für {zeile.responsible || 'diese Zeile'}
+              </div>
+              <div className="plan-farb-gitter">
+                {PLAN_FARBEN.map((f) => (
+                  <button
+                    key={f.wert}
+                    type="button"
+                    className={`plan-farbe ${zeile.color === f.wert ? 'gewaehlt' : ''}`}
+                    style={{ background: f.wert }}
+                    title={f.name}
+                    aria-label={f.name}
+                    onClick={() => farbeAendern(arbeiten, f.wert)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
       {personWahl &&
         (() => {
           const zeile = zeilen.find((g) => g.key === personWahl.key);

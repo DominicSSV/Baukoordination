@@ -193,7 +193,6 @@ export async function uploadFiles(params: {
           withThumb: Boolean(thumbBlob),
           todoId: params.todoId ?? undefined,
           offerFolder: params.offerFolder ?? undefined,
-          documentFolder: params.documentFolder ?? undefined,
           betrag: params.betraege?.[index] ?? undefined,
         },
       );
@@ -237,6 +236,7 @@ export async function uploadFiles(params: {
           thumbPath,
           todoId: params.todoId ?? undefined,
           offerFolder: params.offerFolder ?? undefined,
+          documentFolder: params.documentFolder ?? undefined,
           betrag: params.betraege?.[index] ?? undefined,
         },
       );
