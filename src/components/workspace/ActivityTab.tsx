@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import type { MessageDraft } from '@/components/workspace/MessageModal';
 import { del, post } from '@/lib/client/api';
@@ -32,9 +32,27 @@ export default function ActivityTab({
   const { toast, reportError, confirm } = useFeedback();
   const [busy, setBusy] = useState(false);
   const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
+  const [suche, setSuche] = useState('');
+  const [wer, setWer] = useState('');
 
-  const alleGewaehlt =
-    detail.activity.length > 0 && gewaehlt.size === detail.activity.length;
+  /** Wer im Protokoll vorkommt – für die Auswahl, ohne doppelte Namen. */
+  const beteiligte = useMemo(
+    () => Array.from(new Set(detail.activity.map((a) => a.actor_name))).sort(),
+    [detail.activity],
+  );
+
+  const eintraege = useMemo(() => {
+    const begriff = suche.trim().toLowerCase();
+    return detail.activity.filter(
+      (a) =>
+        (!wer || a.actor_name === wer) &&
+        (!begriff || a.text.toLowerCase().includes(begriff)),
+    );
+  }, [detail.activity, suche, wer]);
+
+  // Auswählen und Löschen beziehen sich auf das, was gerade zu sehen ist –
+  // sonst löschte "Alle auswählen" auch Verstecktes mit.
+  const alleGewaehlt = eintraege.length > 0 && gewaehlt.size === eintraege.length;
 
   function umschalten(id: string) {
     setGewaehlt((current) => {
@@ -46,7 +64,7 @@ export default function ActivityTab({
   }
 
   function alleUmschalten() {
-    setGewaehlt(alleGewaehlt ? new Set() : new Set(detail.activity.map((a) => a.id)));
+    setGewaehlt(alleGewaehlt ? new Set() : new Set(eintraege.map((a) => a.id)));
   }
 
   /** Nur die Swiss Solar Ventures AG darf Einträge aus dem Protokoll entfernen. */
@@ -131,8 +149,43 @@ export default function ActivityTab({
         Automatisch protokolliert: erledigte Aufgaben, Kommentare und hochgeladene Dateien.
       </p>
 
+      {detail.activity.length > 6 && (
+        <div className="filter-leiste">
+          <input
+            type="text"
+            className="filter-feld"
+            value={suche}
+            placeholder="Im Protokoll suchen…"
+            onChange={(e) => setSuche(e.target.value)}
+          />
+          <select value={wer} onChange={(e) => setWer(e.target.value)}>
+            <option value="">Alle Personen</option>
+            {beteiligte.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {(suche || wer) && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setSuche('');
+                setWer('');
+              }}
+            >
+              Zurücksetzen
+            </button>
+          )}
+          <span className="filter-anzahl">
+            {eintraege.length} von {detail.activity.length}
+          </span>
+        </div>
+      )}
+
       {/* Sammel-Auswahl. Die Leiste erscheint erst, wenn es etwas auszuwählen gibt. */}
-      {isAdmin && detail.activity.length > 0 && (
+      {isAdmin && eintraege.length > 0 && (
         <div className="bulk-bar">
           <label className="bulk-check">
             <input type="checkbox" checked={alleGewaehlt} onChange={alleUmschalten} />
@@ -163,8 +216,8 @@ export default function ActivityTab({
         </div>
       )}
 
-      {detail.activity.length ? (
-        detail.activity.map((a) => {
+      {eintraege.length ? (
+        eintraege.map((a) => {
           const person = findPerson(detail, { name: a.actor_name });
 
           return (
@@ -210,7 +263,11 @@ export default function ActivityTab({
         })
       ) : (
         <div className="empty-state" style={{ padding: '36px 10px' }}>
-          <p>Noch keine Aktivität in diesem Projekt.</p>
+          <p>
+            {detail.activity.length
+              ? 'Kein Eintrag passt zu diesem Filter.'
+              : 'Noch keine Aktivität in diesem Projekt.'}
+          </p>
         </div>
       )}
     </div>

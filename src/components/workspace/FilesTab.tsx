@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type DragEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { del } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
@@ -28,6 +28,9 @@ export default function FilesTab({
   const cameraInput = useRef<HTMLInputElement>(null);
   // Erst benennen, dann hochladen – "IMG_4711.jpg" hilft später niemandem.
   const [wartend, setWartend] = useState<File[] | null>(null);
+  const [suche, setSuche] = useState('');
+  const [ablage, setAblage] = useState('');
+  const [wer, setWer] = useState('');
 
   function handleFiles(files: FileList | File[] | null) {
     if (!files || !('length' in files) || !files.length) return;
@@ -83,6 +86,29 @@ export default function FilesTab({
 
     return null;
   }
+
+  /** Grobe Einteilung für den Filter – dieselben Töpfe wie in der Herkunft. */
+  function ablageArt(f: ProjectFile): string {
+    if (f.offer_folder) return 'offerten';
+    if (f.document_folder) return 'dokumente';
+    if (f.todo_id) return 'todo';
+    return 'frei';
+  }
+
+  const hochlader = useMemo(
+    () => Array.from(new Set(detail.files.map((f) => f.uploaded_by))).sort(),
+    [detail.files],
+  );
+
+  const dateien = useMemo(() => {
+    const begriff = suche.trim().toLowerCase();
+    return detail.files.filter(
+      (f) =>
+        (!ablage || ablageArt(f) === ablage) &&
+        (!wer || f.uploaded_by === wer) &&
+        (!begriff || f.name.toLowerCase().includes(begriff)),
+    );
+  }, [detail.files, suche, ablage, wer]);
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -167,9 +193,52 @@ export default function FilesTab({
         />
       </div>
 
-      {detail.files.length ? (
+      {detail.files.length > 6 && (
+        <div className="filter-leiste">
+          <input
+            type="text"
+            className="filter-feld"
+            value={suche}
+            placeholder="Dateiname suchen…"
+            onChange={(e) => setSuche(e.target.value)}
+          />
+          <select value={ablage} onChange={(e) => setAblage(e.target.value)}>
+            <option value="">Alle Ablagen</option>
+            <option value="dokumente">Dokumente</option>
+            <option value="offerten">Offerten</option>
+            <option value="todo">An einem To-Do</option>
+            <option value="frei">Ohne Zuordnung</option>
+          </select>
+          <select value={wer} onChange={(e) => setWer(e.target.value)}>
+            <option value="">Alle Personen</option>
+            {hochlader.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {(suche || ablage || wer) && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setSuche('');
+                setAblage('');
+                setWer('');
+              }}
+            >
+              Zurücksetzen
+            </button>
+          )}
+          <span className="filter-anzahl">
+            {dateien.length} von {detail.files.length}
+          </span>
+        </div>
+      )}
+
+      {dateien.length ? (
         <div className="files-grid">
-          {detail.files.map((f) => {
+          {dateien.map((f) => {
             const linkedTodo = f.todo_id
               ? detail.todos.find((t) => t.id === f.todo_id)
               : null;
@@ -241,7 +310,11 @@ export default function FilesTab({
         </div>
       ) : (
         <div className="empty-state" style={{ padding: '20px 10px' }}>
-          <p>Noch keine Dateien hochgeladen.</p>
+          <p>
+            {detail.files.length
+              ? 'Keine Datei passt zu diesem Filter.'
+              : 'Noch keine Dateien hochgeladen.'}
+          </p>
         </div>
       )}
     </div>
