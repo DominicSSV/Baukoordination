@@ -163,6 +163,9 @@ export const OFFERTEN_STAENDE: Array<{ wert: OffertenStand; name: string }> = [
 export type PapierkorbEintrag = {
   art: 'todo' | 'datei';
   id: string;
+  /** Aus welchem Projekt der Eintrag stammt – dorthin geht auch die Aktion. */
+  projectId: string;
+  projektName: string;
   text: string;
   zusatz: string | null;
   deletedAt: string;

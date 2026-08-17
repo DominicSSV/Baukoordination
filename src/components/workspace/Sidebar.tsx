@@ -17,6 +17,7 @@ export default function Sidebar({
   onCreate,
   onReordered,
   onSpeicher,
+  onPapierkorb,
 }: {
   projects: Project[];
   activeId: string | null;
@@ -29,6 +30,8 @@ export default function Sidebar({
   onReordered: (projects: Project[]) => void;
   /** Öffnet die Speicherübersicht – nur für uns sichtbar. */
   onSpeicher: () => void;
+  /** Öffnet den Papierkorb über alle Projekte – nur für uns sichtbar. */
+  onPapierkorb: () => void;
 }) {
   const { reportError } = useFeedback();
   const [showForm, setShowForm] = useState(false);
@@ -278,9 +281,16 @@ export default function Sidebar({
       {/* Bewusst klein und ganz unten: interessiert selten, soll aber auffindbar
           sein, ohne dafür ins Supabase-Dashboard zu müssen. */}
       {isAdmin && (
-        <button type="button" className="speicher-link" onClick={onSpeicher}>
-          Speicherplatz
-        </button>
+        <>
+          <button type="button" className="speicher-link" onClick={onSpeicher}>
+            Speicherplatz
+          </button>
+          {/* Ein Korb für alle Projekte – vorher hing er am einzelnen Projekt,
+              und man musste raten, wo etwas gelandet war. */}
+          <button type="button" className="speicher-link" onClick={onPapierkorb}>
+            🗑️ Papierkorb
+          </button>
+        </>
       )}
     </div>
   );

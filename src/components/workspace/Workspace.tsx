@@ -355,6 +355,7 @@ function WorkspaceInner({
           onCreate={createProject}
           onReordered={setProjects}
           onSpeicher={() => setZeigeSpeicher(true)}
+          onPapierkorb={() => setZeigePapierkorb(true)}
         />
 
         <div className="content">
@@ -402,7 +403,6 @@ function WorkspaceInner({
                 onRefresh={refresh}
                 onRenamed={renameProject}
                 onDuplicated={addProject}
-                onTrash={() => setZeigePapierkorb(true)}
               />
 
               <div className="tabs">
@@ -514,12 +514,8 @@ function WorkspaceInner({
         />
       )}
 
-      {zeigePapierkorb && activeId && (
-        <TrashModal
-          projectId={activeId}
-          onClose={() => setZeigePapierkorb(false)}
-          onChanged={reload}
-        />
+      {zeigePapierkorb && (
+        <TrashModal onClose={() => setZeigePapierkorb(false)} onChanged={reload} />
       )}
 
       {zeigeSpeicher && <StorageModal onClose={() => setZeigeSpeicher(false)} />}

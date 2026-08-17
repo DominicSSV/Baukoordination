@@ -16,7 +16,6 @@ export default function ProjectHeader({
   onRefresh,
   onRenamed,
   onDuplicated,
-  onTrash,
 }: {
   project: Project;
   isAdmin: boolean;
@@ -24,8 +23,6 @@ export default function ProjectHeader({
   onRefresh: () => void;
   onRenamed: (project: Project) => void;
   onDuplicated: (project: Project) => void;
-  /** Öffnet den Papierkorb des Projekts. */
-  onTrash: () => void;
 }) {
   const { toast, reportError } = useFeedback();
 
@@ -236,17 +233,6 @@ export default function ProjectHeader({
                           }}
                         >
                           ⧉ Duplizieren
-                        </button>
-                        <button
-                          type="button"
-                          className="menu-item"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuOffen(false);
-                            onTrash();
-                          }}
-                        >
-                          🗑️ Papierkorb
                         </button>
                         <div className="menu-trenner" />
                       </>

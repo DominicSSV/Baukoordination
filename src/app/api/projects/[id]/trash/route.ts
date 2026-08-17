@@ -3,81 +3,20 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { logActivity } from '@/lib/activity';
 import { serviceClient } from '@/lib/supabase/service';
-import type { PapierkorbEintrag } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Der Papierkorb eines Projekts – Aufgaben und Dateien, die weggeworfen wurden.
+ * Zurückholen oder endgültig entfernen.
  *
- * Nur für die Swiss Solar Ventures AG: Wiederherstellen greift in Dinge ein, die
- * jemand anders entfernt hat, und das soll bei uns bleiben.
+ * Angezeigt wird der Papierkorb projektübergreifend (/api/trash); ausgeführt
+ * wird hier, wo die Projektkennung im Pfad steht und damit mitgeprüft wird.
+ *
+ * Nur für die Swiss Solar Ventures AG: Zurückholen greift in etwas ein, das
+ * jemand anders weggeworfen hat.
  */
-export const GET = handler(async (_request: Request, { params }: Params) => {
-  const { id: projectId } = await params;
-  const ctx = await requireAdmin();
-
-  const [aufgaben, dateien] = await Promise.all([
-    ctx.db
-      .from('todos')
-      .select('id, text, deleted_at, deleted_by')
-      .eq('project_id', projectId)
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false }),
-    ctx.db
-      .from('files')
-      .select('id, name, offer_folder, size_bytes, deleted_at, deleted_by')
-      .eq('project_id', projectId)
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false }),
-  ]);
-
-  // Ohne Migration 0017 gibt es die Spalten noch nicht – dann ist der Korb leer.
-  if (aufgaben.error || dateien.error) {
-    return ok({
-      eintraege: [] as PapierkorbEintrag[],
-      hinweis:
-        'Der Papierkorb steht erst nach Migration 0017 zur Verfügung. Bis dahin ' +
-        'wird wie bisher endgültig gelöscht.',
-    });
-  }
-
-  const eintraege: PapierkorbEintrag[] = [
-    ...((aufgaben.data ?? []) as Array<{
-      id: string;
-      text: string;
-      deleted_at: string;
-      deleted_by: string | null;
-    }>).map((t) => ({
-      art: 'todo' as const,
-      id: t.id,
-      text: t.text,
-      zusatz: 'Aufgabe',
-      deletedAt: t.deleted_at,
-      deletedBy: t.deleted_by,
-    })),
-    ...((dateien.data ?? []) as Array<{
-      id: string;
-      name: string;
-      offer_folder: string | null;
-      deleted_at: string;
-      deleted_by: string | null;
-    }>).map((f) => ({
-      art: 'datei' as const,
-      id: f.id,
-      text: f.name,
-      zusatz: f.offer_folder ? 'Offerte' : 'Datei',
-      deletedAt: f.deleted_at,
-      deletedBy: f.deleted_by,
-    })),
-  ].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
-
-  return ok({ eintraege });
-});
-
-/** Zurückholen oder endgültig entfernen. */
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: projectId } = await params;
   const ctx = await requireAdmin();

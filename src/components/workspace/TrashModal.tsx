@@ -8,15 +8,16 @@ import Spinner from '@/components/Spinner';
 import type { PapierkorbEintrag } from '@/types';
 
 /**
- * Papierkorb eines Projekts: weggeworfene Aufgaben und Dateien zurückholen oder
- * endgültig entfernen. Nur für die Swiss Solar Ventures AG.
+ * Papierkorb über alle Projekte: weggeworfene Aufgaben und Dateien zurückholen
+ * oder endgültig entfernen.
+ *
+ * Nur für die Swiss Solar Ventures AG – ein Lieferant sähe hier sonst, was die
+ * anderen Firmen eingereicht und wieder entfernt haben.
  */
 export default function TrashModal({
-  projectId,
   onClose,
   onChanged,
 }: {
-  projectId: string;
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
@@ -28,7 +29,7 @@ export default function TrashModal({
   const laden = useCallback(async () => {
     try {
       const res = await api<{ eintraege: PapierkorbEintrag[]; hinweis?: string }>(
-        `/api/projects/${projectId}/trash`,
+        '/api/trash',
       );
       setEintraege(res.eintraege);
       setHinweis(res.hinweis ?? null);
@@ -36,7 +37,7 @@ export default function TrashModal({
       reportError(error, 'Der Papierkorb konnte nicht geladen werden.');
       onClose();
     }
-  }, [projectId, reportError, onClose]);
+  }, [reportError, onClose]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void laden(), 0);
@@ -46,7 +47,7 @@ export default function TrashModal({
   async function wiederherstellen(e: PapierkorbEintrag) {
     setBusy(e.id);
     try {
-      await post(`/api/projects/${projectId}/trash`, {
+      await post(`/api/projects/${e.projectId}/trash`, {
         art: e.art,
         id: e.id,
         aktion: 'wiederherstellen',
@@ -65,7 +66,7 @@ export default function TrashModal({
     confirm(
       `„${e.text}“ endgültig entfernen? Das lässt sich nicht rückgängig machen.`,
       async () => {
-        await post(`/api/projects/${projectId}/trash`, {
+        await post(`/api/projects/${e.projectId}/trash`, {
           art: e.art,
           id: e.id,
           aktion: 'entfernen',
@@ -99,8 +100,8 @@ export default function TrashModal({
         </div>
 
         <p style={{ fontSize: 12.5 }}>
-          Weggeworfene Aufgaben und Dateien. Zurückholen stellt sie an ihrem alten
-          Ort wieder her.
+          Weggeworfene Aufgaben und Dateien aus allen Projekten. Zurückholen stellt
+          sie an ihrem alten Ort wieder her.
         </p>
 
         {hinweis && <p className="auth-scherz">{hinweis}</p>}
@@ -116,7 +117,7 @@ export default function TrashModal({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="korb-text">{e.text}</div>
                 <div className="korb-meta">
-                  {e.zusatz} · gelöscht {fmtDate(e.deletedAt)}
+                  {e.projektName} · {e.zusatz} · gelöscht {fmtDate(e.deletedAt)}
                   {e.deletedBy ? ` von ${e.deletedBy}` : ''}
                 </div>
               </div>
