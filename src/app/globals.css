@@ -2740,6 +2740,80 @@ button:disabled {
   color: var(--ink);
 }
 
+/* --- Suche --------------------------------------------------------------- */
+.suche-modal {
+  max-width: 620px;
+  max-height: 82vh;
+  overflow-y: auto;
+}
+
+.suche-feld {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 14.5px;
+}
+
+.suche-gruppe {
+  margin-top: 14px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+}
+
+.suche-treffer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 6px;
+  border: none;
+  background: none;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.suche-treffer:hover {
+  background: var(--bg);
+}
+
+.suche-symbol {
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.suche-text {
+  min-width: 0;
+}
+
+.suche-titel {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suche-meta {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.suche-hinweis {
+  font-size: 13px;
+  color: var(--ink-faint);
+  padding: 16px 4px;
+  margin: 0;
+}
+
 /* --- Kontakte ------------------------------------------------------------- */
 .kontakt-modal {
   max-width: 760px;

@@ -21,6 +21,7 @@ import MyWeek from '@/components/workspace/MyWeek';
 import TrashModal from '@/components/workspace/TrashModal';
 import StorageModal from '@/components/workspace/StorageModal';
 import ContactsModal from '@/components/workspace/ContactsModal';
+import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -103,6 +104,7 @@ function WorkspaceInner({
   const [zeigePapierkorb, setZeigePapierkorb] = useState(false);
   const [zeigeSpeicher, setZeigeSpeicher] = useState(false);
   const [zeigeKontakte, setZeigeKontakte] = useState(false);
+  const [zeigeSuche, setZeigeSuche] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
@@ -298,6 +300,29 @@ function WorkspaceInner({
         <div className="me-badge">
           {/* Auf dem Handy gibt es kein Menü mit "Seite neu laden", wenn gerade
               kein Projekt offen ist – deshalb steht der Knopf immer hier. */}
+          <button
+            type="button"
+            className="topbar-icon"
+            onClick={() => setZeigeSuche(true)}
+            title="Suchen"
+            aria-label="Suchen"
+          >
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </button>
+
           <button
             type="button"
             className="topbar-icon"
@@ -542,6 +567,16 @@ function WorkspaceInner({
       )}
 
       {zeigeSpeicher && <StorageModal onClose={() => setZeigeSpeicher(false)} />}
+
+      {zeigeSuche && (
+        <SearchModal
+          onClose={() => setZeigeSuche(false)}
+          onOeffnen={(id, ziel) => {
+            if (id) openFromNotification(id, ziel);
+            else if (activeId) openFromNotification(activeId, ziel);
+          }}
+        />
+      )}
 
       {zeigeKontakte && (
         <ContactsModal onClose={() => setZeigeKontakte(false)} onChanged={reload} />
