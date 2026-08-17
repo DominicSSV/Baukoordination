@@ -147,6 +147,19 @@ drop policy if exists document_folders_delete on public.document_folders;
 create policy document_folders_delete on public.document_folders
   for delete using (public.is_admin() and public.has_project_access(project_id));
 
+-- Die drei Funktionen oben laufen mit den Rechten ihres Besitzers und gehen
+-- damit an den Policies vorbei. Von aussen aufrufbar dürfen sie deshalb nicht
+-- sein: Sonst könnte ein angemeldeter Lieferant standard_dokumentordner() mit
+-- einer fremden Projektkennung aufrufen und dort Ordner anlegen. Auslöser
+-- bleiben von der Sperre unberührt – Postgres prüft das Ausführungsrecht beim
+-- Anlegen des Triggers, nicht bei jedem Auslösen.
+revoke all on function public.standard_dokumentordner(uuid)
+  from public, anon, authenticated;
+revoke all on function public.projekt_dokumentordner()
+  from public, anon, authenticated;
+revoke all on function public.dokumentordner_nur_leer_loeschen()
+  from public, anon, authenticated;
+
 grant execute on function public.standard_dokumentordner(uuid) to service_role;
 
 comment on table public.document_folders is
