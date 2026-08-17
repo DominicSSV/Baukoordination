@@ -3387,6 +3387,13 @@ button:disabled {
   margin-bottom: 0;
 }
 
+.upload-zu-gross {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--danger);
+}
+
 .upload-name-endung {
   font-size: 12.5px;
   color: var(--ink-faint);

@@ -2,6 +2,7 @@
 
 import { post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
+import { MAX_UPLOAD_BYTES, zuGrossText } from '@/lib/uploadLimit';
 
 type PrepareResponse = {
   fileId: string;
@@ -177,6 +178,14 @@ export async function uploadFiles(params: {
       const klein = await verkleinern(file);
       const inhalt: Blob = klein?.blob ?? file;
       const mimeType = klein?.type ?? file.type;
+
+      // Erst nach dem Verkleinern prüfen: Ein 60-MB-Foto kommt als gut 1 MB an
+      // und wäre sonst grundlos abgewiesen worden. Der Speicher weist zu grosse
+      // Dateien ohnehin ab – hier kommt die Absage nur verständlicher.
+      if (inhalt.size > MAX_UPLOAD_BYTES) {
+        errors.push(`"${anzeigename}": ${zuGrossText(inhalt.size)}`);
+        continue;
+      }
 
       let thumbBlob: Blob | null = null;
       try {

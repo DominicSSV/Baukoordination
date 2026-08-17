@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { fmtSize } from '@/lib/format';
+import { vorabZuGross, zuGrossText } from '@/lib/uploadLimit';
 
 /** Dateiendung, damit sie beim Umbenennen nicht verloren geht. */
 function endung(dateiname: string): string {
@@ -43,6 +44,10 @@ export default function UploadNamesModal({
 
   const vollstaendig = namen.every((n) => n.trim().length > 0);
 
+  // Bilder werden vor dem Hochladen verkleinert – bei ihnen sagt die rohe
+  // Grösse nichts aus. Gemeldet wird deshalb nur, was sicher zu gross bleibt.
+  const zuGross = files.filter(vorabZuGross);
+
   /** "12'400.50", "12400,50" und "12400" ergeben alle dieselbe Zahl. */
   function alsZahl(roh: string): number | null {
     const wert = roh.replace(/['\s]/g, '').replace(',', '.').trim();
@@ -79,6 +84,9 @@ export default function UploadNamesModal({
             <div className="upload-name-datei" title={f.name}>
               📎 {f.name} · {fmtSize(f.size)}
             </div>
+            {vorabZuGross(f) && (
+              <div className="upload-zu-gross">⚠️ {zuGrossText(f.size)}</div>
+            )}
             <div className="upload-name-eingabe">
               <input
                 type="text"
@@ -129,9 +137,11 @@ export default function UploadNamesModal({
             type="button"
             className="btn btn-accent"
             onClick={absenden}
-            disabled={!vollstaendig}
+            disabled={!vollstaendig || zuGross.length === files.length}
           >
-            Hochladen
+            {zuGross.length && zuGross.length < files.length
+              ? `Übrige ${files.length - zuGross.length} hochladen`
+              : 'Hochladen'}
           </button>
         </div>
       </div>
