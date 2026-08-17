@@ -9,15 +9,23 @@ import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
-import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
+import type {
+  DokumentOrdner,
+  ProjectDetail,
+  ProjectFile,
+  SessionInfo,
+} from '@/types';
 
 /**
  * Register "Dokumente": Pläne, Schemas und Datenblätter, gegliedert nach Gewerk.
  *
+ * Zwei Ebenen – ein Hauptordner darf Unterordner haben, mehr nicht. Tiefer
+ * verschachtelt findet auf der Baustelle niemand mehr etwas.
+ *
  * Anders als bei den Offerten sieht hier jeder alles, der Zugriff auf das
  * Projekt hat – der Elektriker muss das DC-Schema lesen können. Die Gliederung
  * verwaltet allein die Swiss Solar Ventures AG; die Sperre dafür steht in der
- * Datenbank (Migration 0019) und nicht erst in dieser Ansicht.
+ * Datenbank (Migrationen 0019 und 0021) und nicht erst in dieser Ansicht.
  */
 export default function DocumentsTab({
   detail,
@@ -37,24 +45,49 @@ export default function DocumentsTab({
   const [ziehtUeber, setZiehtUeber] = useState<string | null>(null);
   const [zu, setZu] = useState<Set<string>>(new Set());
   const [wartend, setWartend] = useState<{ ordner: string; files: File[] } | null>(null);
-  const [neuerOrdner, setNeuerOrdner] = useState<string | null>(null);
+  /** Entwurf für einen neuen Ordner: null = zu, sonst der Name samt Elternteil. */
+  const [neu, setNeu] = useState<{ parentId: string | null; name: string } | null>(null);
   const [umbenennen, setUmbenennen] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const ordner = detail.documentFolders;
+  const haupt = useMemo(
+    () => detail.documentFolders.filter((o) => !o.parent_id),
+    [detail.documentFolders],
+  );
 
-  /** Dokumente je Ordner, neueste zuoberst (so kommen sie schon aus der Abfrage). */
+  const kinder = useMemo(() => {
+    const map = new Map<string, DokumentOrdner[]>();
+    for (const o of detail.documentFolders) {
+      if (!o.parent_id) continue;
+      const liste = map.get(o.parent_id) ?? [];
+      liste.push(o);
+      map.set(o.parent_id, liste);
+    }
+    return map;
+  }, [detail.documentFolders]);
+
+  /** Dokumente je Ordner, neueste zuoberst (so kommen sie aus der Abfrage). */
   const nachOrdner = useMemo(() => {
     const map = new Map<string, ProjectFile[]>();
-    for (const o of ordner) map.set(o.id, []);
+    for (const o of detail.documentFolders) map.set(o.id, []);
     for (const f of detail.files) {
       if (f.document_folder && map.has(f.document_folder)) {
         map.get(f.document_folder)!.push(f);
       }
     }
     return map;
-  }, [detail.files, ordner]);
+  }, [detail.files, detail.documentFolders]);
+
+  /** Ein zugeklappter Hauptordner verdeckt auch seine Unterordner – mitzählen. */
+  function anzahlMitKindern(id: string): number {
+    const eigene = nachOrdner.get(id)?.length ?? 0;
+    const unten = (kinder.get(id) ?? []).reduce(
+      (summe, k) => summe + (nachOrdner.get(k.id)?.length ?? 0),
+      0,
+    );
+    return eigene + unten;
+  }
 
   function auswaehlen(ordnerId: string, files: FileList | File[] | null) {
     if (!files || !('length' in files) || !files.length) return;
@@ -97,13 +130,19 @@ export default function DocumentsTab({
   }
 
   async function anlegen() {
-    const name = (neuerOrdner ?? '').trim();
-    if (!name || busy) return;
+    const entwurf = neu;
+    if (!entwurf || busy) return;
+
+    const name = entwurf.name.trim();
+    if (!name) return;
 
     setBusy(true);
     try {
-      await post(`/api/projects/${detail.project.id}/document-folders`, { name });
-      setNeuerOrdner(null);
+      await post(`/api/projects/${detail.project.id}/document-folders`, {
+        name,
+        parentId: entwurf.parentId,
+      });
+      setNeu(null);
       await reload();
       toast(`✓ Ordner „${name}“ angelegt.`);
     } catch (error) {
@@ -135,26 +174,282 @@ export default function DocumentsTab({
     }
   }
 
-  function ordnerLoeschen(id: string, name: string, anzahl: number) {
-    // Der Server prüft das ebenfalls – hier steht es, damit gar nicht erst
-    // jemand mit einer Fehlermeldung dasteht.
-    if (anzahl > 0) {
+  function ordnerLoeschen(o: DokumentOrdner) {
+    // Der Server prüft dasselbe – hier steht es, damit gar nicht erst jemand
+    // mit einer Fehlermeldung dasteht.
+    const dokumente = nachOrdner.get(o.id)?.length ?? 0;
+    const unterordner = kinder.get(o.id)?.length ?? 0;
+
+    if (dokumente || unterordner) {
+      const was = [
+        dokumente ? `${dokumente} Dokument(e)` : null,
+        unterordner ? `${unterordner} Unterordner` : null,
+      ]
+        .filter(Boolean)
+        .join(' und ');
       reportError(
-        new Error(
-          `„${name}“ enthält noch ${anzahl} Dokument(e). Bitte zuerst wegräumen.`,
-        ),
+        new Error(`„${o.name}“ enthält noch ${was}. Bitte zuerst wegräumen.`),
         'Ordner nicht gelöscht.',
       );
       return;
     }
 
-    confirm(`Ordner „${name}“ löschen?`, async () => {
+    confirm(`Ordner „${o.name}“ löschen?`, async () => {
       await del(`/api/projects/${detail.project.id}/document-folders`, {
-        ordnerId: id,
+        ordnerId: o.id,
       });
       await reload();
       toast('🗑️ Ordner gelöscht.');
     });
+  }
+
+  /** Eingabezeile für einen neuen Ordner oder eine Umbenennung. */
+  function formular(
+    wert: string,
+    aendern: (text: string) => void,
+    speichern: () => void,
+    abbrechen: () => void,
+    platzhalter: string,
+    knopf: string,
+  ) {
+    return (
+      <div className="ordner-form">
+        <input
+          type="text"
+          value={wert}
+          autoFocus
+          maxLength={60}
+          placeholder={platzhalter}
+          onChange={(e) => aendern(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') speichern();
+            if (e.key === 'Escape') abbrechen();
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn-accent btn-sm"
+          onClick={speichern}
+          disabled={busy || !wert.trim()}
+        >
+          {knopf}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={abbrechen}>
+          Abbrechen
+        </button>
+      </div>
+    );
+  }
+
+  /** Die Dokumente eines Ordners samt Ablagefläche. */
+  function inhalt(o: DokumentOrdner) {
+    const dateien = nachOrdner.get(o.id) ?? [];
+    const laedt = uploadIn === o.id;
+
+    return (
+      <>
+        <div
+          className={`offer-dropzone ${ziehtUeber === o.id ? 'drag' : ''}`}
+          onDragOver={(e: DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            setZiehtUeber(o.id);
+          }}
+          onDragLeave={() => setZiehtUeber(null)}
+          onDrop={(e: DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            setZiehtUeber(null);
+            auswaehlen(o.id, e.dataTransfer.files);
+          }}
+        >
+          {laedt ? (
+            <>
+              <Spinner size={22} />
+              <span>Wird hochgeladen…</span>
+            </>
+          ) : (
+            <>
+              <span>
+                Datei hierher ziehen für <strong>{o.name}</strong>
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => inputs.current[o.id]?.click()}
+                disabled={Boolean(uploadIn)}
+              >
+                📁 Datei wählen
+              </button>
+            </>
+          )}
+          <input
+            ref={(el) => {
+              inputs.current[o.id] = el;
+            }}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              auswaehlen(o.id, e.target.files);
+              e.target.value = '';
+            }}
+          />
+        </div>
+
+        {dateien.length ? (
+          <div className="offer-liste">
+            {dateien.map((f) => {
+              const person = findPerson(detail, {
+                name: f.uploaded_by,
+                supplierId: f.uploaded_by_supplier_id,
+              });
+              const eigen =
+                session.kind === 'supplier' &&
+                f.uploaded_by_supplier_id === session.supplierId;
+
+              return (
+                <div className="offer-zeile" key={f.id}>
+                  <button
+                    type="button"
+                    className="offer-name"
+                    onClick={() => onOpenFile(f.id)}
+                    title="Öffnen"
+                  >
+                    📎 {f.name}
+                  </button>
+                  <div className="offer-meta">
+                    <Avatar url={person.avatarUrl} name={f.uploaded_by} size={20} />
+                    <span>
+                      {eigen ? 'von dir' : personLabel(person)} ·{' '}
+                      {fmtSize(f.size_bytes)} · {fmtDate(f.uploaded_at)}
+                    </span>
+                  </div>
+                  {f.can_delete && (
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Entfernen"
+                      onClick={() =>
+                        confirm(`„${f.name}“ wirklich entfernen?`, async () => {
+                          await del(`/api/files/${f.id}`);
+                          await reload();
+                          toast('🗑️ Dokument entfernt.');
+                        })
+                      }
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="offer-leer">Noch nichts abgelegt.</p>
+        )}
+      </>
+    );
+  }
+
+  /** Ein Ordner mit Kopfzeile – für beide Ebenen dasselbe, nur eingerückt. */
+  function ordnerBlock(o: DokumentOrdner, unten: boolean) {
+    const eingeklappt = zu.has(o.id);
+    const unterordner = kinder.get(o.id) ?? [];
+    const anzahl = unten ? (nachOrdner.get(o.id)?.length ?? 0) : anzahlMitKindern(o.id);
+
+    if (umbenennen?.id === o.id) {
+      return (
+        <div className={unten ? 'ordner-unter' : ''} key={o.id}>
+          {formular(
+            umbenennen.name,
+            (name) => setUmbenennen({ id: o.id, name }),
+            umbenennenSpeichern,
+            () => setUmbenennen(null),
+            'Neuer Name',
+            'Speichern',
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className={`offer-ordner ${unten ? 'ordner-unter' : ''}`} key={o.id}>
+        <div className="ordner-kopf-zeile">
+          <button
+            type="button"
+            className="offer-kopf"
+            onClick={() => klappen(o.id)}
+            aria-expanded={!eingeklappt}
+          >
+            <span className={`gruppe-pfeil ${eingeklappt ? 'zu' : ''}`}>▾</span>
+            <span className="offer-icon" aria-hidden="true">
+              {unten ? '📁' : '🗂️'}
+            </span>
+            <span className="offer-titel">{o.name}</span>
+            <span className="gruppe-anzahl">{anzahl}</span>
+          </button>
+
+          {isAdmin && (
+            <>
+              {!unten && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  title="Unterordner anlegen"
+                  onClick={() => {
+                    setNeu({ parentId: o.id, name: '' });
+                    setZu((current) => {
+                      const next = new Set(current);
+                      next.delete(o.id);
+                      return next;
+                    });
+                  }}
+                >
+                  ＋
+                </button>
+              )}
+              <button
+                type="button"
+                className="icon-btn"
+                title="Umbenennen"
+                onClick={() => setUmbenennen({ id: o.id, name: o.name })}
+              >
+                ✏️
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                title={
+                  anzahl || unterordner.length
+                    ? 'Erst leeren – der Ordner ist nicht leer'
+                    : 'Ordner löschen'
+                }
+                onClick={() => ordnerLoeschen(o)}
+              >
+                ✕
+              </button>
+            </>
+          )}
+        </div>
+
+        {!eingeklappt && (
+          <div className="offer-inhalt">
+            {inhalt(o)}
+
+            {neu?.parentId === o.id &&
+              formular(
+                neu.name,
+                (name) => setNeu({ parentId: o.id, name }),
+                anlegen,
+                () => setNeu(null),
+                `Unterordner in „${o.name}“`,
+                'Anlegen',
+              )}
+
+            {unterordner.map((k) => ordnerBlock(k, true))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -163,7 +458,8 @@ export default function DocumentsTab({
         <UploadNamesModal
           files={wartend.files}
           titel={`Ablegen unter „${
-            ordner.find((o) => o.id === wartend.ordner)?.name ?? 'Dokumente'
+            detail.documentFolders.find((o) => o.id === wartend.ordner)?.name ??
+            'Dokumente'
           }“`}
           onAbbrechen={() => setWartend(null)}
           onBestaetigen={hochladen}
@@ -172,11 +468,11 @@ export default function DocumentsTab({
 
       <div className="section-head">
         <h2>Dokumente</h2>
-        {isAdmin && neuerOrdner === null && (
+        {isAdmin && neu === null && (
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => setNeuerOrdner('')}
+            onClick={() => setNeu({ parentId: null, name: '' })}
           >
             + Ordner
           </button>
@@ -189,237 +485,25 @@ export default function DocumentsTab({
         {isAdmin && ' Die Ordner verwaltest nur du.'}
       </p>
 
-      {isAdmin && neuerOrdner !== null && (
-        <div className="ordner-form">
-          <input
-            type="text"
-            value={neuerOrdner}
-            autoFocus
-            maxLength={60}
-            placeholder="Name des Ordners, z.B. Wärmepumpe"
-            onChange={(e) => setNeuerOrdner(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void anlegen();
-              if (e.key === 'Escape') setNeuerOrdner(null);
-            }}
-          />
-          <button
-            type="button"
-            className="btn btn-accent btn-sm"
-            onClick={anlegen}
-            disabled={busy || !neuerOrdner.trim()}
-          >
-            Anlegen
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => setNeuerOrdner(null)}
-          >
-            Abbrechen
-          </button>
-        </div>
-      )}
+      {isAdmin &&
+        neu?.parentId === null &&
+        formular(
+          neu.name,
+          (name) => setNeu({ parentId: null, name }),
+          anlegen,
+          () => setNeu(null),
+          'Name des Ordners, z.B. Wärmepumpe',
+          'Anlegen',
+        )}
 
-      {!ordner.length && (
+      {!haupt.length && (
         <p className="offer-hinweis">
-          Es sind noch keine Ordner da. Sie kommen mit der Datenbank-Aktualisierung
-          0019 – oder du legst dir eigene an.
+          Es sind noch keine Ordner da. Sie kommen mit den Datenbank-Aktualisierungen
+          0019 und 0021 – oder du legst dir eigene an.
         </p>
       )}
 
-      {ordner.map((o) => {
-        const dateien = nachOrdner.get(o.id) ?? [];
-        const eingeklappt = zu.has(o.id);
-        const laedt = uploadIn === o.id;
-
-        if (umbenennen?.id === o.id) {
-          return (
-            <div className="ordner-form" key={o.id}>
-              <input
-                type="text"
-                value={umbenennen.name}
-                autoFocus
-                maxLength={60}
-                onChange={(e) =>
-                  setUmbenennen({ id: o.id, name: e.target.value })
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void umbenennenSpeichern();
-                  if (e.key === 'Escape') setUmbenennen(null);
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn-accent btn-sm"
-                onClick={umbenennenSpeichern}
-                disabled={busy || !umbenennen.name.trim()}
-              >
-                Speichern
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setUmbenennen(null)}
-              >
-                Abbrechen
-              </button>
-            </div>
-          );
-        }
-
-        return (
-          <div className="offer-ordner" key={o.id}>
-            <div className="ordner-kopf-zeile">
-              <button
-                type="button"
-                className="offer-kopf"
-                onClick={() => klappen(o.id)}
-                aria-expanded={!eingeklappt}
-              >
-                <span className={`gruppe-pfeil ${eingeklappt ? 'zu' : ''}`}>▾</span>
-                <span className="offer-icon" aria-hidden="true">
-                  🗂️
-                </span>
-                <span className="offer-titel">{o.name}</span>
-                <span className="gruppe-anzahl">{dateien.length}</span>
-              </button>
-
-              {isAdmin && (
-                <>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title="Umbenennen"
-                    onClick={() => setUmbenennen({ id: o.id, name: o.name })}
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title={
-                      dateien.length
-                        ? 'Erst leeren – der Ordner enthält noch Dokumente'
-                        : 'Ordner löschen'
-                    }
-                    onClick={() => ordnerLoeschen(o.id, o.name, dateien.length)}
-                  >
-                    ✕
-                  </button>
-                </>
-              )}
-            </div>
-
-            {!eingeklappt && (
-              <div className="offer-inhalt">
-                <div
-                  className={`offer-dropzone ${ziehtUeber === o.id ? 'drag' : ''}`}
-                  onDragOver={(e: DragEvent<HTMLDivElement>) => {
-                    e.preventDefault();
-                    setZiehtUeber(o.id);
-                  }}
-                  onDragLeave={() => setZiehtUeber(null)}
-                  onDrop={(e: DragEvent<HTMLDivElement>) => {
-                    e.preventDefault();
-                    setZiehtUeber(null);
-                    auswaehlen(o.id, e.dataTransfer.files);
-                  }}
-                >
-                  {laedt ? (
-                    <>
-                      <Spinner size={22} />
-                      <span>Wird hochgeladen…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>
-                        Datei hierher ziehen für <strong>{o.name}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => inputs.current[o.id]?.click()}
-                        disabled={Boolean(uploadIn)}
-                      >
-                        📁 Datei wählen
-                      </button>
-                    </>
-                  )}
-                  <input
-                    ref={(el) => {
-                      inputs.current[o.id] = el;
-                    }}
-                    type="file"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      auswaehlen(o.id, e.target.files);
-                      e.target.value = '';
-                    }}
-                  />
-                </div>
-
-                {dateien.length ? (
-                  <div className="offer-liste">
-                    {dateien.map((f) => {
-                      const person = findPerson(detail, {
-                        name: f.uploaded_by,
-                        supplierId: f.uploaded_by_supplier_id,
-                      });
-                      const eigen =
-                        session.kind === 'supplier' &&
-                        f.uploaded_by_supplier_id === session.supplierId;
-
-                      return (
-                        <div className="offer-zeile" key={f.id}>
-                          <button
-                            type="button"
-                            className="offer-name"
-                            onClick={() => onOpenFile(f.id)}
-                            title="Öffnen"
-                          >
-                            📎 {f.name}
-                          </button>
-                          <div className="offer-meta">
-                            <Avatar
-                              url={person.avatarUrl}
-                              name={f.uploaded_by}
-                              size={20}
-                            />
-                            <span>
-                              {eigen ? 'von dir' : personLabel(person)} ·{' '}
-                              {fmtSize(f.size_bytes)} · {fmtDate(f.uploaded_at)}
-                            </span>
-                          </div>
-                          {f.can_delete && (
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              title="Entfernen"
-                              onClick={() =>
-                                confirm(`„${f.name}“ wirklich entfernen?`, async () => {
-                                  await del(`/api/files/${f.id}`);
-                                  await reload();
-                                  toast('🗑️ Dokument entfernt.');
-                                })
-                              }
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="offer-leer">Noch nichts abgelegt.</p>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {haupt.map((o) => ordnerBlock(o, false))}
     </div>
   );
 }

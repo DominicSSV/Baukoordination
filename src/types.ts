@@ -208,11 +208,15 @@ export type SessionInfo =
       avatarUrl: string | null;
     };
 
-/** Ein Ordner im Register "Dokumente". */
+/**
+ * Ein Ordner im Register "Dokumente". Zwei Ebenen: Ein Hauptordner hat
+ * parent_id = null, ein Unterordner zeigt auf seinen Hauptordner.
+ */
 export type DokumentOrdner = {
   id: string;
   name: string;
   position: number;
+  parent_id: string | null;
 };
 
 export type ProjectDetail = {

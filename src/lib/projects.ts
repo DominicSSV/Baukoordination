@@ -438,16 +438,30 @@ export async function loadProjectDetail(
 
   // Ohne Migration 0019 gibt es die Ordner noch nicht – dann bleibt das
   // Register "Dokumente" leer und weist selbst darauf hin.
-  const ordnerRes = await db
+  const ordnerMitEbene = await db
     .from('document_folders')
-    .select('id, name, position')
+    .select('id, name, position, parent_id')
     .eq('project_id', projectId)
     .order('position', { ascending: true })
     .order('name', { ascending: true });
 
+  // Ohne Migration 0021 gibt es noch keine Unterordner – dann sind alle oben.
+  const ordnerRes = ordnerMitEbene.error
+    ? await db
+        .from('document_folders')
+        .select('id, name, position')
+        .eq('project_id', projectId)
+        .order('position', { ascending: true })
+        .order('name', { ascending: true })
+    : ordnerMitEbene;
+
   const documentFolders: DokumentOrdner[] = ordnerRes.error
     ? []
-    : ((ordnerRes.data ?? []) as DokumentOrdner[]);
+    : ((ordnerRes.data ?? []) as Array<Omit<DokumentOrdner, 'parent_id'> &
+        { parent_id?: string | null }>).map((o) => ({
+        ...o,
+        parent_id: o.parent_id ?? null,
+      }));
 
   return {
     project,

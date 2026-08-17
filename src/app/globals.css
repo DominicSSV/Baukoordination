@@ -2679,6 +2679,18 @@ button:disabled {
   margin-bottom: 10px;
 }
 
+/* Unterordner: eingerückt und etwas ruhiger, damit die Ebene auf einen Blick
+   erkennbar ist, ohne dass sie wie ein eigener Bereich wirkt. */
+.ordner-unter {
+  margin-top: 10px;
+  margin-left: 18px;
+}
+
+.ordner-unter .offer-kopf {
+  padding: 9px 12px;
+  font-size: 13.5px;
+}
+
 .ordner-form input {
   flex: 1;
   min-width: 180px;

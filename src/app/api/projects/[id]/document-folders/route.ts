@@ -1,4 +1,11 @@
-import { ApiError, handler, ok, readJson, requireString } from '@/lib/api';
+import {
+  ApiError,
+  handler,
+  ok,
+  optionalString,
+  readJson,
+  requireString,
+} from '@/lib/api';
 import { requireAdmin, requireProjectAccess } from '@/lib/auth/guards';
 import type { DokumentOrdner } from '@/types';
 
@@ -22,17 +29,41 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const ctx = await requireAdmin();
   await requireProjectAccess(ctx, projectId);
 
-  const body = await readJson<{ name?: string }>(request);
+  const body = await readJson<{ name?: string; parentId?: string | null }>(request);
   const name = requireString(body.name, 'Ordnername', 60);
+  const parentId = optionalString(body.parentId, 64);
 
-  // Die höchste vergebene Nummer suchen, damit der neue Ordner hinten anhängt.
-  const letzte = await ctx.db
+  // Der übergeordnete Ordner muss zu diesem Projekt gehören und selbst ganz
+  // oben stehen – mehr als zwei Ebenen gibt es nicht. Die Datenbank prüft
+  // dasselbe noch einmal (Migration 0021).
+  if (parentId) {
+    const eltern = await ctx.db
+      .from('document_folders')
+      .select('id, parent_id')
+      .eq('id', parentId)
+      .eq('project_id', projectId)
+      .maybeSingle();
+
+    if (eltern.error) throw new ApiError(FEHLT, 400);
+    if (!eltern.data) throw new ApiError('Der übergeordnete Ordner gehört nicht zu diesem Projekt.');
+    if (eltern.data.parent_id) {
+      throw new ApiError('In einem Unterordner lässt sich kein weiterer Ordner anlegen.');
+    }
+  }
+
+  // Die höchste vergebene Nummer auf derselben Ebene, damit der neue Ordner
+  // hinten anhängt statt zwischen die bestehenden zu rutschen.
+  const geschwister = ctx.db
     .from('document_folders')
     .select('position')
     .eq('project_id', projectId)
     .order('position', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  const letzte = await (parentId
+    ? geschwister.eq('parent_id', parentId)
+    : geschwister.is('parent_id', null)
+  ).maybeSingle();
 
   if (letzte.error) throw new ApiError(FEHLT, 400);
 
@@ -40,10 +71,11 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     .from('document_folders')
     .insert({
       project_id: projectId,
+      parent_id: parentId,
       name,
       position: (letzte.data?.position ?? 0) + 1,
     })
-    .select('id, name, position')
+    .select('id, name, position, parent_id')
     .single();
 
   if (error) {
@@ -72,7 +104,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     .update({ name })
     .eq('id', ordnerId)
     .eq('project_id', projectId)
-    .select('id, name, position')
+    .select('id, name, position, parent_id')
     .maybeSingle();
 
   if (error) {
@@ -107,6 +139,18 @@ export const DELETE = handler(async (request: Request, { params }: Params) => {
   if (belegt.data?.length) {
     throw new ApiError(
       'Der Ordner enthält noch Dokumente. Bitte zuerst wegräumen oder löschen.',
+    );
+  }
+
+  const unterordner = await ctx.db
+    .from('document_folders')
+    .select('id')
+    .eq('parent_id', ordnerId)
+    .limit(1);
+
+  if (!unterordner.error && unterordner.data?.length) {
+    throw new ApiError(
+      'Der Ordner enthält noch Unterordner. Bitte zuerst wegräumen oder löschen.',
     );
   }
 
