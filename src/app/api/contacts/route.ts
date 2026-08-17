@@ -85,8 +85,7 @@ export const GET = handler(async () => {
     project_id: string;
   }>) {
     const liste = zugriffe.get(z.supplier_id) ?? [];
-    const name = projektNamen.get(z.project_id);
-    if (name) liste.push(name);
+    if (projektNamen.has(z.project_id)) liste.push(z.project_id);
     zugriffe.set(z.supplier_id, liste);
   }
 
@@ -113,11 +112,15 @@ export const GET = handler(async () => {
       email: l.email,
       code: l.access_code,
       avatarUrl: l.avatar_path ? (bilder.get(l.avatar_path) ?? null) : null,
-      projekte: (zugriffe.get(l.id) ?? []).sort((a, b) => a.localeCompare(b)),
+      projekte: zugriffe.get(l.id) ?? [],
     })),
   ];
 
-  return ok({ kontakte, ohneTelefonspalte: Boolean(adminRes.error) });
+  const projekte = [...projektNamen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return ok({ kontakte, projekte, ohneTelefonspalte: Boolean(adminRes.error) });
 });
 
 /**

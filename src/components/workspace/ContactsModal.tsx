@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { api, patch } from '@/lib/client/api';
+import { api, patch, post } from '@/lib/client/api';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import Avatar from '@/components/Avatar';
 import Spinner from '@/components/Spinner';
@@ -37,6 +37,7 @@ export default function ContactsModal({
 }) {
   const { toast, reportError } = useFeedback();
   const [kontakte, setKontakte] = useState<Kontakt[] | null>(null);
+  const [projekte, setProjekte] = useState<Array<{ id: string; name: string }>>([]);
   const [ohneTelefonspalte, setOhneTelefonspalte] = useState(false);
   const [bearbeitet, setBearbeitet] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<Entwurf | null>(null);
@@ -46,10 +47,13 @@ export default function ContactsModal({
 
   const laden = useCallback(async () => {
     try {
-      const res = await api<{ kontakte: Kontakt[]; ohneTelefonspalte?: boolean }>(
-        '/api/contacts',
-      );
+      const res = await api<{
+        kontakte: Kontakt[];
+        projekte: Array<{ id: string; name: string }>;
+        ohneTelefonspalte?: boolean;
+      }>('/api/contacts');
       setKontakte(res.kontakte);
+      setProjekte(res.projekte ?? []);
       setOhneTelefonspalte(Boolean(res.ohneTelefonspalte));
     } catch (error) {
       reportError(error, 'Die Kontakte konnten nicht geladen werden.');
@@ -114,6 +118,29 @@ export default function ContactsModal({
     }
   }
 
+  /**
+   * Zugriff auf ein Projekt erteilen oder entziehen.
+   *
+   * Geht über dieselbe Route wie im Projekt selbst – dort hängt am Entzug auch
+   * das Beenden noch offener Sitzungen, das darf hier nicht fehlen.
+   */
+  async function zugriffUmschalten(k: Kontakt, projektId: string) {
+    const hat = k.projekte.includes(projektId);
+    setBusy(true);
+    try {
+      await post(`/api/projects/${projektId}/access`, {
+        supplierId: k.id,
+        grant: !hat,
+      });
+      await laden();
+      await onChanged();
+    } catch (error) {
+      reportError(error, 'Zugriff konnte nicht geändert werden.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function bildSetzen(k: Kontakt, datei: File | null) {
     if (!datei) return;
     setBusy(true);
@@ -149,10 +176,13 @@ export default function ContactsModal({
     }
   }
 
+  const projektName = (id: string) =>
+    projekte.find((p) => p.id === id)?.name ?? '';
+
   const begriff = suche.trim().toLowerCase();
   const gefiltert = (kontakte ?? []).filter((k) =>
     begriff
-      ? [k.name, k.firma, k.rolle, k.kontakt, k.email, ...k.projekte]
+      ? [k.name, k.firma, k.rolle, k.kontakt, k.email, ...k.projekte.map(projektName)]
           .filter(Boolean)
           .some((t) => String(t).toLowerCase().includes(begriff))
       : true,
@@ -262,14 +292,36 @@ export default function ContactsModal({
             {[k.rolle, k.kontakt, k.email].filter(Boolean).join(' · ') || '—'}
           </div>
           {k.art === 'lieferant' && (
-            <div className="kontakt-meta">
-              Code: <strong>{k.code ?? '—'}</strong> ·{' '}
-              {k.projekte.length ? (
-                <>Zugriff: {k.projekte.join(', ')}</>
-              ) : (
-                <span className="kontakt-ohne">kein Projekt freigegeben</span>
-              )}
-            </div>
+            <>
+              <div className="kontakt-meta">
+                Code: <strong>{k.code ?? '—'}</strong>
+                {!k.projekte.length && (
+                  <span className="kontakt-ohne"> · kein Projekt freigegeben</span>
+                )}
+              </div>
+              {/* Zugriff direkt hier umschalten – vorher musste man dafür in
+                  jedes Projekt einzeln. */}
+              <div className="kontakt-projekte">
+                {projekte.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`kontakt-projekt ${
+                      k.projekte.includes(p.id) ? 'frei' : ''
+                    }`}
+                    title={
+                      k.projekte.includes(p.id)
+                        ? `Zugriff auf ${p.name} entziehen`
+                        : `Zugriff auf ${p.name} erteilen`
+                    }
+                    onClick={() => void zugriffUmschalten(k, p.id)}
+                    disabled={busy}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
 

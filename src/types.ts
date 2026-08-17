@@ -187,7 +187,7 @@ export type Kontakt = {
   /** Zugangscode – nur bei Lieferanten. */
   code: string | null;
   avatarUrl: string | null;
-  /** Projekte, für die der Lieferant freigegeben ist. */
+  /** Kennungen der Projekte, für die der Lieferant freigegeben ist. */
   projekte: string[];
 };
 
