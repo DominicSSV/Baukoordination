@@ -51,8 +51,8 @@ function wrapHtml(title: string, bodyHtml: string): string {
           Swiss Solar Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination
           versendet.<br />
           <strong>Bitte antworte nicht auf diese E-Mail</strong> – dieses Postfach wird nicht
-          gelesen. Schreib deine Rückmeldung direkt in der App als Kommentar oder melde dich
-          bei deiner Ansprechperson.
+          laufend gelesen. Schreib deine Rückmeldung direkt in der App als Kommentar oder
+          melde dich bei deiner Ansprechperson.
         </p>
       </td>
     </tr>
@@ -61,14 +61,26 @@ function wrapHtml(title: string, bodyHtml: string): string {
 }
 
 /**
- * Hinweis am Fuss jeder verschickten Nachricht. Als Absender dient eine Adresse
- * ohne Postfach – Antworten kämen also nirgends an. Der Hinweis steht nur in dem,
- * was die App selbst verschickt; Texte zum Selbstverschicken bleiben sauber.
+ * Hinweis am Fuss jeder verschickten Nachricht.
+ *
+ * Bewusst "nicht laufend gelesen" und nicht "nicht gelesen": Auf der
+ * Absenderadresse liegt ein geteiltes Postfach, Antworten kommen also sehr wohl
+ * an – nur schaut dort niemand ständig hinein. Eine Rückmeldung gehört in die
+ * App, wo sie beim richtigen Vorgang steht.
+ *
+ * Der Hinweis steht nur in dem, was die App selbst verschickt; Texte zum
+ * Selbstverschicken bleiben sauber.
  */
 const KEINE_ANTWORT =
-  'Bitte antworte nicht auf diese E-Mail – dieses Postfach wird nicht gelesen. ' +
-  'Schreib deine Rückmeldung direkt in der App als Kommentar oder melde dich bei ' +
-  'deiner Ansprechperson bei der Swiss Solar Ventures AG.';
+  'Bitte antworte nicht auf diese E-Mail – dieses Postfach wird nicht laufend ' +
+  'gelesen. Schreib deine Rückmeldung direkt in der App als Kommentar oder melde ' +
+  'dich bei deiner Ansprechperson bei der Swiss Solar Ventures AG.';
+
+/** Die blosse Adresse aus MAIL_FROM, ohne den Anzeigenamen davor. */
+function absenderAdresse(): string {
+  const treffer = mailFrom().match(/<([^>]+)>/);
+  return treffer ? treffer[1] : mailFrom();
+}
 
 async function send(params: {
   to: string[];
@@ -119,7 +131,7 @@ export async function sendTestMail(an: string, name: string): Promise<void> {
     </p>
     <p style="font-size:13px;line-height:1.6;color:#6B6B69;margin:0 0 16px;">
       Absender: ${escapeHtml(mailFrom())}<br />
-      ${mailReplyTo() ? `Antworten gehen an: ${escapeHtml(mailReplyTo()!)}` : 'Antworten sind nicht vorgesehen – so ist es gewollt.'}
+      Antworten gehen an: ${escapeHtml(mailReplyTo() ?? absenderAdresse())}
     </p>
     <p style="margin:0;">
       <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Baukoordination öffnen</a>
@@ -132,7 +144,7 @@ export async function sendTestMail(an: string, name: string): Promise<void> {
     text:
       'Wenn du das liest, funktioniert der automatische Mailversand.\n\n' +
       `Absender: ${mailFrom()}\n` +
-      (mailReplyTo() ? `Antworten gehen an: ${mailReplyTo()}\n` : '') +
+      `Antworten gehen an: ${mailReplyTo() ?? absenderAdresse()}\n` +
       `\n${appBaseUrl()}`,
     html,
   });
