@@ -86,6 +86,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
+    actorSupplierId:
+      ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
     text:
       `hat To-Do "${text}" für ${empfaenger} angelegt` +
       (dueDate ? ` (zu erledigen bis ${fmtDueDate(dueDate)})` : ''),

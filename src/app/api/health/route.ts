@@ -64,7 +64,9 @@ export async function GET() {
       absender: process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev> (Standard)',
       antwort_an: process.env.MAIL_REPLY_TO || '(keine)',
       an_lieferanten: process.env.MAIL_AN_LIEFERANTEN === 'true',
-      meldet_bei: 'neue Aufgabe, Dokument/Offerte hochgeladen, Terminplan geändert',
+      meldet_bei:
+        'neue Aufgabe, Kommentar zu einer Aufgabe, Dokument/Offerte hochgeladen, ' +
+        'Terminplan geändert',
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
       hinweis: process.env.RESEND_API_KEY
         ? undefined

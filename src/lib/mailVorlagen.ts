@@ -65,7 +65,8 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
     schluessel: 'benachrichtigung',
     name: 'Benachrichtigung bei einem Ereignis',
     beschreibung:
-      'Neue Aufgabe, hochgeladenes Dokument oder Offerte, Änderung am Terminplan.',
+      'Neue Aufgabe, Kommentar zu einer Aufgabe, hochgeladenes Dokument oder ' +
+      'Offerte, Änderung am Terminplan.',
     betreff: '{projekt}: {wer} {was}',
     text: ['{wer} {was}', '', 'Projekt: {projekt}', '{link}'].join('\n'),
     platzhalter: [

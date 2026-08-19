@@ -367,6 +367,23 @@ export async function projectRecipients(projectId: string): Promise<string[]> {
 }
 
 /**
+ * Die Mailadresse eines Lieferanten – zum Ausschliessen des Auslösers.
+ *
+ * Bei uns steht die Adresse in der Sitzung, bei Lieferanten nicht: Sie melden
+ * sich mit einem Zugangscode an. Ohne diesen Umweg bekäme ein Lieferant Post
+ * über seinen eigenen Kommentar.
+ */
+async function lieferantenMail(supplierId: string): Promise<string | null> {
+  const { data } = await serviceClient()
+    .from('suppliers')
+    .select('email')
+    .eq('id', supplierId)
+    .maybeSingle();
+
+  return (data as { email: string | null } | null)?.email?.trim() || null;
+}
+
+/**
  * Alle am Projekt Beteiligten: die freigegebenen Lieferanten und sämtliche
  * Bauherrenvertreter. Wer die Aktion selbst ausgelöst hat, bekommt keine Mail –
  * eine Benachrichtigung über das eigene Tun ist nur Lärm.
@@ -396,9 +413,24 @@ async function adminsUndFirmen(
   projectId?: string,
 ): Promise<string[]> {
   const db = serviceClient();
-  const kollegen = (
+  let kollegen = (
     await Promise.all(supplierIds.map((id) => firmenKollegen(id)))
   ).flat();
+
+  // Nur wer für dieses Projekt freigegeben ist. Eine Firma kann auf dem einen
+  // Projekt mitarbeiten und auf dem anderen nicht; ohne diese Prüfung bekäme
+  // ein Kollege Post über ein Projekt, das er in der App gar nicht öffnen kann.
+  if (projectId && kollegen.length) {
+    const { data } = await db
+      .from('project_access')
+      .select('supplier_id')
+      .eq('project_id', projectId);
+
+    const erlaubt = new Set(
+      ((data ?? []) as Array<{ supplier_id: string }>).map((z) => z.supplier_id),
+    );
+    kollegen = kollegen.filter((id) => erlaubt.has(id));
+  }
 
   const [admins, { data: supplier }] = await Promise.all([
     unsereEmpfaenger(projectId),
@@ -520,6 +552,8 @@ export async function sendActivityNotification(params: {
   projectId: string;
   actorName: string;
   actorEmail?: string | null;
+  /** Gesetzt, wenn ein Lieferant die Sache ausgelöst hat – siehe lieferantenMail. */
+  actorSupplierId?: string | null;
   text: string;
   /**
    * Gesetzt bei eingeschränkten Einträgen: nur wir und die Firmen dieser
@@ -539,13 +573,19 @@ export async function sendActivityNotification(params: {
     .maybeSingle();
   if (!project) return;
 
+  // Der Auslöser fällt raus. Bei uns steht die Adresse in der Sitzung, bei
+  // Lieferanten muss sie erst nachgeschlagen werden.
+  const eigeneAdresse =
+    params.actorEmail ??
+    (params.actorSupplierId ? await lieferantenMail(params.actorSupplierId) : null);
+
   const to = params.nurFuerSupplierIds
     ? await adminsUndFirmen(
         params.nurFuerSupplierIds,
-        params.actorEmail,
+        eigeneAdresse,
         params.projectId,
       )
-    : await allProjectParties(params.projectId, params.actorEmail);
+    : await allProjectParties(params.projectId, eigeneAdresse);
   if (!to.length) return;
 
   const vorlage = await ladeVorlage('benachrichtigung');

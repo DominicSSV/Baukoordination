@@ -50,10 +50,22 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
+    actorSupplierId:
+      ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
     text: `hat zu To-Do "${t.text ?? ''}" kommentiert: "${text}"`,
     icon: '💬',
-    // Zu einer vertraulichen Aufgabe bleibt auch der Kommentar unter den Beteiligten.
-    ...(t.vertraulich ? { nurFuerSupplierIds: beteiligteLieferanten(t) } : {}),
+    // Ein Kommentar ist der häufigste Weg, wie auf der Baustelle eine Rückfrage
+    // ankommt. Bleibt er still, merkt ihn erst, wer zufällig die Aufgabe öffnet.
+    notify: true,
+    // Zu einer vertraulichen Aufgabe bleibt auch der Kommentar unter den
+    // Beteiligten – sichtbar schon, aber ohne Mail nach draussen: Was
+    // vertraulich ist, soll das Haus nicht per Post verlassen.
+    ...(t.vertraulich
+      ? {
+          nurFuerSupplierIds: beteiligteLieferanten(t),
+          nurUnsBenachrichtigen: true,
+        }
+      : {}),
   });
 
   return ok({ comment: data, warning }, { status: 201 });

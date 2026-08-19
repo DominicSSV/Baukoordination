@@ -17,16 +17,21 @@ export async function logActivity(
     actorName: string;
     /** Wird von der Benachrichtigung ausgenommen – niemand braucht Post über sich selbst. */
     actorEmail?: string | null;
+    /**
+     * Dasselbe für Lieferanten: Die melden sich mit einem Zugangscode an, ihre
+     * Mailadresse steht nicht in der Sitzung und muss nachgeschlagen werden.
+     */
+    actorSupplierId?: string | null;
     text: string;
     icon: string;
     /**
      * Post verschicken? Standard ist nein.
      *
      * Die Glocke zeigt jede Kleinigkeit, das kostet niemanden etwas. Eine Mail
-     * dagegen unterbricht – die gibt es nur für die vier Ereignisse, die den
-     * Arbeitstag wirklich verändern: neue Aufgabe, hochgeladenes Dokument oder
-     * Offerte, Änderung am Terminplan. Wird hier einmal etwas vergessen, bleibt
-     * es still, statt ungefragt Post zu erzeugen.
+     * dagegen unterbricht – die gibt es nur für die Ereignisse, die den
+     * Arbeitstag wirklich verändern: neue Aufgabe, Kommentar zu einer Aufgabe,
+     * hochgeladenes Dokument oder Offerte, Änderung am Terminplan. Wird hier
+     * einmal etwas vergessen, bleibt es still, statt ungefragt Post zu erzeugen.
      */
     notify?: boolean;
     /**
@@ -35,6 +40,16 @@ export async function logActivity(
      * leere Liste heisst: nur wir.
      */
     nurFuerSupplierIds?: string[];
+    /**
+     * Post nur an uns – unabhängig davon, wer den Eintrag sehen darf.
+     *
+     * Sichtbarkeit und Postverteiler sind nicht dasselbe: Zu einer vertraulichen
+     * Aufgabe dürfen die beteiligten Lieferanten den Kommentar sehr wohl sehen,
+     * sie sollen darüber aber keine Mail nach draussen bekommen. Ohne diesen
+     * Schalter müsste man dafür die Sichtbarkeit beschneiden – und den
+     * Lieferanten damit etwas wegnehmen, das sie brauchen.
+     */
+    nurUnsBenachrichtigen?: boolean;
   },
 ): Promise<string | null> {
   const zeile: Record<string, unknown> = {
@@ -83,8 +98,13 @@ export async function logActivity(
         projectId: params.projectId,
         actorName: params.actorName,
         actorEmail: params.actorEmail,
+        actorSupplierId: params.actorSupplierId,
         text: params.text,
-        nurFuerSupplierIds: params.nurFuerSupplierIds,
+        // Leere Liste = nur wir. Der geschriebene Eintrag oben behält davon
+        // unberührt seine eigene Sichtbarkeit.
+        nurFuerSupplierIds: params.nurUnsBenachrichtigen
+          ? []
+          : params.nurFuerSupplierIds,
       });
     } catch (e) {
       console.error('[activity] Benachrichtigung fehlgeschlagen', e);
