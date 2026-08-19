@@ -1,7 +1,7 @@
 import { handler, ok } from '@/lib/api';
 import { getSession } from '@/lib/auth/session';
 import { isRlsEnforcedForSuppliers } from '@/lib/supabase/supplier';
-import { mailEnabled } from '@/lib/email';
+import { mailEnabled, mailTestbetrieb } from '@/lib/email';
 import { signAvatar } from '@/lib/avatars';
 import type { SessionInfo } from '@/types';
 
@@ -24,6 +24,7 @@ export const GET = handler(async () => {
           email: session.email,
           rlsEnforced: isRlsEnforcedForSuppliers(),
           mailEnabled: mailEnabled(),
+          mailTestbetrieb: mailTestbetrieb(),
           avatarUrl,
         }
       : {

@@ -3683,7 +3683,8 @@ button:disabled {
 }
 
 .mail-an,
-.mail-aus {
+.mail-aus,
+.mail-test-an {
   padding: 2px 8px;
   border-radius: 20px;
   font-size: 11px;
@@ -3693,6 +3694,13 @@ button:disabled {
 .mail-an {
   background: var(--success-soft);
   color: #0a7a44;
+}
+
+/* Testbetrieb: auffällig, aber nicht alarmierend – es ist ja ein gewollter
+   Zustand, den man nur nicht vergessen darf. */
+.mail-test-an {
+  background: #fff4d6;
+  color: #7a5b12;
 }
 
 .mail-aus {

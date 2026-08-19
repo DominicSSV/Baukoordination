@@ -126,14 +126,28 @@ export default function ProfileModal({
           <div className="mail-status">
             <div className="mail-status-kopf">
               <strong>Automatischer Mailversand</strong>
-              <span className={session.mailEnabled ? 'mail-an' : 'mail-aus'}>
-                {session.mailEnabled ? 'eingerichtet' : 'nicht eingerichtet'}
+              <span
+                className={
+                  session.mailTestbetrieb
+                    ? 'mail-test-an'
+                    : session.mailEnabled
+                      ? 'mail-an'
+                      : 'mail-aus'
+                }
+              >
+                {session.mailTestbetrieb
+                  ? 'Testbetrieb'
+                  : session.mailEnabled
+                    ? 'eingerichtet'
+                    : 'nicht eingerichtet'}
               </span>
             </div>
             <p>
-              {session.mailEnabled
-                ? 'Bei jeder Aktivität geht eine Nachricht an die Beteiligten. Prüfe die Zustellung mit einer Testmail an dich selbst.'
-                : 'In Vercel fehlt die Umgebungsvariable RESEND_API_KEY. Solange sie fehlt, wird nichts verschickt – die App funktioniert sonst normal.'}
+              {session.mailTestbetrieb
+                ? 'Lieferanten erhalten zurzeit keine Post. Alles, was nach aussen ginge, wird an uns umgeleitet und trägt „[Test → …]“ im Betreff. Zum Scharfschalten in Vercel MAIL_TESTBETRIEB entfernen und neu ausrollen.'
+                : session.mailEnabled
+                  ? 'Bei jeder Aktivität geht eine Nachricht an die Beteiligten. Prüfe die Zustellung mit einer Testmail an dich selbst.'
+                  : 'In Vercel fehlt die Umgebungsvariable RESEND_API_KEY. Solange sie fehlt, wird nichts verschickt – die App funktioniert sonst normal.'}
             </p>
             <div className="mail-test">
               <input

@@ -15,6 +15,41 @@ export function mailEnabled(): boolean {
 }
 
 /**
+ * Testbetrieb: Solange MAIL_TESTBETRIEB=true gesetzt ist, bekommt kein
+ * Lieferant Post. Nachrichten, die nach aussen gingen, werden stattdessen an
+ * die Swiss Solar Ventures AG umgeleitet – so sieht man im Test genau das, was
+ * ein Lieferant später erhalten würde, ohne ihn damit zu behelligen.
+ *
+ * Bewusst als Umleitung und nicht als stilles Verwerfen: Wer testet, will
+ * sehen, was verschickt worden wäre.
+ */
+export function mailTestbetrieb(): boolean {
+  return process.env.MAIL_TESTBETRIEB === 'true';
+}
+
+/** Was als "wir" gilt. Alles unter dieser Domain zählt als intern. */
+function interneDomain(): string {
+  return (process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch').trim().toLowerCase();
+}
+
+function istIntern(adresse: string): boolean {
+  return adresse.trim().toLowerCase().endsWith(`@${interneDomain()}`);
+}
+
+/** Adressen der Swiss Solar Ventures AG – Ziel der Umleitung im Testbetrieb. */
+async function interneEmpfaenger(): Promise<string[]> {
+  const db = serviceClient();
+
+  const mitAktiv = await db.from('admins').select('email, aktiv');
+  const res = mitAktiv.error ? await db.from('admins').select('email') : mitAktiv;
+  if (res.error) return [];
+
+  return ((res.data ?? []) as Array<{ email: string | null; aktiv?: boolean | null }>)
+    .filter((a) => a.email && a.aktiv !== false)
+    .map((a) => a.email!.trim());
+}
+
+/**
  * Sofort-Benachrichtigung bei jeder Aktivität. Standardmässig an – so verlangt vom
  * Auftraggeber. Mit NOTIFY_ON_EVERY_ACTIVITY=false lässt sie sich abschalten, falls
  * die Menge an Post im Betrieb doch zu viel wird.
@@ -96,13 +131,41 @@ async function send(params: {
 
   const antwortAn = mailReplyTo();
 
+  let empfaenger = params.to;
+  let betreff = params.subject;
+  let text = params.text;
+  let html = params.html;
+
+  if (mailTestbetrieb()) {
+    const extern = empfaenger.filter((a) => !istIntern(a));
+
+    if (extern.length) {
+      const intern = empfaenger.filter(istIntern);
+      const ziel = intern.length ? intern : await interneEmpfaenger();
+
+      if (!ziel.length) {
+        console.warn('[mail] Testbetrieb: keine interne Adresse, nichts verschickt.');
+        return;
+      }
+
+      empfaenger = Array.from(new Set(ziel));
+      const wohin = extern.join(', ');
+      betreff = `[Test → ${wohin}] ${betreff}`;
+      text = `TESTBETRIEB – diese Nachricht wäre an ${wohin} gegangen.\n\n${text}`;
+      html = html.replace(
+        /(<body[^>]*>)/i,
+        `$1<div style="max-width:560px;margin:0 auto 12px;padding:10px 14px;background:#FFF4D6;border:1px solid #E8A33D;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;color:#7A5B12;"><strong>Testbetrieb.</strong> Diese Nachricht wäre an ${escapeHtml(wohin)} gegangen und wurde stattdessen an euch umgeleitet.</div>`,
+      );
+    }
+  }
+
   const { error } = await resend.emails.send({
     from: mailFrom(),
-    to: params.to,
+    to: empfaenger,
     ...(antwortAn ? { replyTo: antwortAn } : {}),
-    subject: params.subject,
-    text: `${params.text}\n\n—\n${KEINE_ANTWORT}`,
-    html: params.html,
+    subject: betreff,
+    text: `${text}\n\n—\n${KEINE_ANTWORT}`,
+    html,
     headers: params.dringend
       ? {
           'X-Priority': '1',

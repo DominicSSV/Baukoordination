@@ -5,7 +5,7 @@ import { getSessionWithDb } from '@/lib/auth/session';
 import { listProjects } from '@/lib/projects';
 import { missingCoreEnv } from '@/lib/env';
 import { isRlsEnforcedForSuppliers } from '@/lib/supabase/supplier';
-import { mailEnabled } from '@/lib/email';
+import { mailEnabled, mailTestbetrieb } from '@/lib/email';
 import { signAvatar } from '@/lib/avatars';
 import type { SessionInfo } from '@/types';
 
@@ -60,6 +60,7 @@ export default async function AppPage({
           email: ctx.session.email,
           rlsEnforced: isRlsEnforcedForSuppliers(),
           mailEnabled: mailEnabled(),
+          mailTestbetrieb: mailTestbetrieb(),
           avatarUrl,
         }
       : {
