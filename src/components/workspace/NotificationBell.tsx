@@ -19,6 +19,32 @@ function schluessel(id: string) {
   return `bk-gesehen-${id}`;
 }
 
+/**
+ * Bis hierhin wurde die Glocke geleert – alles Ältere bleibt in der Liste
+ * verborgen, bis man ausdrücklich alles anzeigen lässt.
+ */
+function leerSchluessel(id: string) {
+  return `bk-geleert-${id}`;
+}
+
+/** Einzeln weggeklickte Einträge, als Liste ihrer Kennungen. */
+function versteckSchluessel(id: string) {
+  return `bk-versteckt-${id}`;
+}
+
+function ladeVersteckte(id: string): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const roh = window.localStorage.getItem(versteckSchluessel(id));
+    const liste: unknown = roh ? JSON.parse(roh) : [];
+    return new Set(Array.isArray(liste) ? liste.filter((x) => typeof x === 'string') : []);
+  } catch {
+    // Kaputter Eintrag im Speicher des Browsers ist kein Grund, die Glocke
+    // lahmzulegen – dann ist eben nichts versteckt.
+    return new Set();
+  }
+}
+
 function vorZeit(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const minuten = Math.round(diff / 60_000);
@@ -50,12 +76,22 @@ export default function NotificationBell({
       ? ''
       : (window.localStorage.getItem(schluessel(werBinIch)) ?? ''),
   );
+  const [geleertBis, setGeleertBis] = useState<string>(() =>
+    typeof window === 'undefined'
+      ? ''
+      : (window.localStorage.getItem(leerSchluessel(werBinIch)) ?? ''),
+  );
+  const [versteckt, setVersteckt] = useState<Set<string>>(() =>
+    ladeVersteckte(werBinIch),
+  );
+  /** true = auch zeigen, was weggeräumt wurde. */
+  const [alleZeigen, setAlleZeigen] = useState(false);
   const feldRef = useRef<HTMLDivElement>(null);
 
-  const laden = useCallback(async () => {
+  const laden = useCallback(async (alle = false) => {
     try {
       const { eintraege: neu } = await api<{ eintraege: Benachrichtigung[] }>(
-        '/api/notifications',
+        alle ? '/api/notifications?alle=1' : '/api/notifications',
       );
       setEintraege(neu);
     } catch {
@@ -67,13 +103,13 @@ export default function NotificationBell({
   useEffect(() => {
     // Der erste Abruf läuft bewusst erst nach dem Zeichnen: die Glocke soll das
     // Aufbauen der Seite nicht aufhalten.
-    const sofort = window.setTimeout(() => void laden(), 0);
-    const timer = window.setInterval(() => void laden(), INTERVALL);
+    const sofort = window.setTimeout(() => void laden(alleZeigen), 0);
+    const timer = window.setInterval(() => void laden(alleZeigen), INTERVALL);
     return () => {
       window.clearTimeout(sofort);
       window.clearInterval(timer);
     };
-  }, [laden]);
+  }, [laden, alleZeigen]);
 
   // Schliessen bei Klick daneben und mit Escape.
   useEffect(() => {
@@ -94,9 +130,26 @@ export default function NotificationBell({
     };
   }, [offen]);
 
+  /** Was weggeräumt wurde: zu alt für die Glocke oder einzeln weggeklickt. */
+  const istWeggeraeumt = useCallback(
+    (e: Benachrichtigung) =>
+      (!!geleertBis && e.createdAt <= geleertBis) || versteckt.has(e.id),
+    [geleertBis, versteckt],
+  );
+
+  const sichtbar = useMemo(
+    () => (alleZeigen ? eintraege : eintraege.filter((e) => !istWeggeraeumt(e))),
+    [eintraege, alleZeigen, istWeggeraeumt],
+  );
+
+  // Weggeräumtes zählt nicht mehr – sonst stünde an der Glocke eine Zahl, zu
+  // der die Liste darunter nichts zeigt.
   const ungelesen = useMemo(
-    () => eintraege.filter((e) => !gesehen || e.createdAt > gesehen).length,
-    [eintraege, gesehen],
+    () =>
+      eintraege.filter(
+        (e) => !istWeggeraeumt(e) && (!gesehen || e.createdAt > gesehen),
+      ).length,
+    [eintraege, gesehen, istWeggeraeumt],
   );
 
   function umschalten() {
@@ -106,7 +159,7 @@ export default function NotificationBell({
     }
 
     setOffen(true);
-    void laden();
+    void laden(alleZeigen);
 
     // Beim Öffnen gilt alles als gesehen – der neuste Eintrag ist die Marke.
     const neuster = eintraege[0]?.createdAt;
@@ -115,6 +168,54 @@ export default function NotificationBell({
       setGesehen(neuster);
     }
   }
+
+  /**
+   * Leeren heisst ausblenden, nicht löschen: Gemerkt wird nur der Zeitpunkt des
+   * neusten Eintrags. Das Protokoll selbst bleibt unangetastet – dort hängen
+   * Fotos, Offerten und Terminänderungen dran, die niemand versehentlich mit
+   * einem Klick auf die Glocke verlieren soll.
+   */
+  function leeren() {
+    const neuster = eintraege[0]?.createdAt;
+    if (!neuster) return;
+
+    window.localStorage.setItem(leerSchluessel(werBinIch), neuster);
+    setGeleertBis(neuster);
+    setAlleZeigen(false);
+  }
+
+  /**
+   * Einen einzelnen Eintrag wegklicken – ebenfalls nur ausblenden.
+   *
+   * Die neue Liste wird hier gebildet und erst dann gespeichert. In die
+   * Zustandsfunktion gehört das Schreiben nicht: React darf sie mehrfach
+   * aufrufen, und Nebenwirkungen liefen dann doppelt.
+   */
+  function verstecken(id: string) {
+    const neu = new Set(versteckt);
+    neu.add(id);
+    window.localStorage.setItem(
+      versteckSchluessel(werBinIch),
+      JSON.stringify([...neu]),
+    );
+    setVersteckt(neu);
+  }
+
+  /** Alles Weggeräumte wieder in die Glocke holen. */
+  function wiederherstellen() {
+    window.localStorage.removeItem(leerSchluessel(werBinIch));
+    window.localStorage.removeItem(versteckSchluessel(werBinIch));
+    setGeleertBis('');
+    setVersteckt(new Set());
+  }
+
+  function alleUmschalten() {
+    const neu = !alleZeigen;
+    setAlleZeigen(neu);
+    void laden(neu);
+  }
+
+  const weggeraeumt = eintraege.filter(istWeggeraeumt).length;
 
   return (
     <div className="glocke" ref={feldRef}>
@@ -152,41 +253,84 @@ export default function NotificationBell({
       {offen && (
         <div className="glocke-liste" role="menu">
           <div className="glocke-kopf">
-            <strong>Benachrichtigungen</strong>
-            {ungelesen > 0 && (
-              <span className="glocke-laedt">{ungelesen} neu</span>
-            )}
+            <strong>{alleZeigen ? 'Alle Benachrichtigungen' : 'Benachrichtigungen'}</strong>
+            <span className="glocke-kopf-rechts">
+              {ungelesen > 0 && <span className="glocke-laedt">{ungelesen} neu</span>}
+              {!alleZeigen && sichtbar.length > 0 && (
+                <button type="button" className="glocke-aktion" onClick={leeren}>
+                  Leeren
+                </button>
+              )}
+              {alleZeigen && weggeraeumt > 0 && (
+                <button
+                  type="button"
+                  className="glocke-aktion"
+                  onClick={wiederherstellen}
+                >
+                  Alle zurückholen
+                </button>
+              )}
+            </span>
           </div>
 
-          {eintraege.length ? (
-            eintraege.map((e) => {
+          {sichtbar.length ? (
+            sichtbar.map((e) => {
               const neu = !gesehen || e.createdAt > gesehen;
+              const weg = istWeggeraeumt(e);
 
               return (
-                <button
+                <div
                   key={e.id}
-                  type="button"
-                  className={`glocke-eintrag ${neu ? 'neu' : ''}`}
-                  onClick={() => {
-                    onOpenProject(e.projectId, e.ziel);
-                    setOffen(false);
-                  }}
+                  className={`glocke-zeile ${weg ? 'weggeraeumt' : ''} ${
+                    neu && !weg ? 'neu' : ''
+                  }`}
                 >
-                  <Avatar url={e.actorAvatarUrl} name={e.actorName} size={30} />
-                  <span className="glocke-text">
-                    <span className="glocke-satz">
-                      <strong>{mitFirma(e.actorName, e.actorFirma)}</strong> {e.text}
+                  <button
+                    type="button"
+                    className="glocke-eintrag"
+                    onClick={() => {
+                      onOpenProject(e.projectId, e.ziel);
+                      setOffen(false);
+                    }}
+                  >
+                    <Avatar url={e.actorAvatarUrl} name={e.actorName} size={30} />
+                    <span className="glocke-text">
+                      <span className="glocke-satz">
+                        <strong>{mitFirma(e.actorName, e.actorFirma)}</strong> {e.text}
+                      </span>
+                      <span className="glocke-meta">
+                        {e.projectName} · {vorZeit(e.createdAt)}
+                        {weg && ' · weggeräumt'}
+                      </span>
                     </span>
-                    <span className="glocke-meta">
-                      {e.projectName} · {vorZeit(e.createdAt)}
-                    </span>
-                  </span>
-                </button>
+                  </button>
+
+                  {!weg && (
+                    <button
+                      type="button"
+                      className="glocke-weg"
+                      onClick={() => verstecken(e.id)}
+                      title="Wegräumen – bleibt unter „Alle anzeigen“ auffindbar"
+                      aria-label="Wegräumen"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               );
             })
           ) : (
-            <p className="glocke-leer">Nichts Neues.</p>
+            <p className="glocke-leer">
+              {alleZeigen ? 'Es gibt noch nichts.' : 'Nichts Neues.'}
+            </p>
           )}
+
+          {/* Weggeräumtes ist nie weg – hier kommt es zurück ans Licht. */}
+          <button type="button" className="glocke-fuss" onClick={alleUmschalten}>
+            {alleZeigen
+              ? '← Nur Neues zeigen'
+              : `Alle anzeigen${weggeraeumt ? ` (${weggeraeumt} weggeräumt)` : ''}`}
+          </button>
         </div>
       )}
     </div>

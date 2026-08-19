@@ -11,6 +11,16 @@ export type Ziel = 'todos' | 'terminplan' | 'offerten' | 'dateien' | 'aktivitaet
 /** So viele Einträge zeigt das Glockenmenü höchstens. */
 const ANZAHL = 40;
 
+/**
+ * So viele werden geliefert, wenn jemand ausdrücklich alles sehen will.
+ *
+ * Deutlich mehr, aber nicht unbegrenzt: Das Protokoll wächst mit jedem
+ * Handgriff auf der Baustelle, und eine Liste ohne Ende würde beim Öffnen der
+ * Glocke spürbar hängen. Wer weiter zurück muss, findet den Vorgang im
+ * Register Aktivität des Projekts.
+ */
+const ANZAHL_ALLE = 250;
+
 export type Benachrichtigung = {
   id: string;
   projectId: string;
@@ -105,14 +115,19 @@ async function personenNachName(): Promise<
  * Firmen) von selbst aus. Was man selbst ausgelöst hat, ist keine Nachricht –
  * das fliegt hier heraus.
  */
-export const GET = handler(async () => {
+export const GET = handler(async (request: Request) => {
   const ctx = await requireSession();
+
+  // ?alle=1 liefert auch, was in der Glocke weggeräumt wurde. Weggeräumt heisst
+  // hier nur ausgeblendet: gelöscht wird nichts, das Protokoll bleibt vollständig.
+  const alle = new URL(request.url).searchParams.get('alle') === '1';
+  const anzahl = alle ? ANZAHL_ALLE : ANZAHL;
 
   const { data, error } = await ctx.db
     .from('activity')
     .select('id, project_id, actor_name, text, icon, created_at')
     .order('created_at', { ascending: false })
-    .limit(ANZAHL * 2);
+    .limit(anzahl * 2);
 
   if (error) {
     throw new ApiError(`Benachrichtigungen: ${error.message}`, 500);
@@ -148,7 +163,7 @@ export const GET = handler(async () => {
     personenNachName(),
   ]);
 
-  const eintraege: Benachrichtigung[] = fremde.slice(0, ANZAHL).map((r) => {
+  const eintraege: Benachrichtigung[] = fremde.slice(0, anzahl).map((r) => {
     const person = personen.get(r.actor_name.trim().toLowerCase());
 
     return {
