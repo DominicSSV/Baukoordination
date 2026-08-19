@@ -28,6 +28,10 @@ export const GET = handler(async () => {
     db.from('project_access').select('supplier_id, project_id'),
   ]);
 
+  // Ohne Migration 0024 gibt es die Zuteilung noch nicht – dann ist sie leer
+  // und die Benachrichtigungen gehen wie bisher an alle.
+  const internRes = await db.from('project_admins').select('user_id, project_id');
+
   // Ohne Migration 0023 gibt es die Telefonnummer bei uns noch nicht.
   const adminsRoh = adminRes.error
     ? await db.from('admins').select('user_id, name, firma, funktion, email, avatar_path')
@@ -89,6 +93,18 @@ export const GET = handler(async () => {
     zugriffe.set(z.supplier_id, liste);
   }
 
+  const intern = new Map<string, string[]>();
+  if (!internRes.error) {
+    for (const z of (internRes.data ?? []) as Array<{
+      user_id: string;
+      project_id: string;
+    }>) {
+      const liste = intern.get(z.user_id) ?? [];
+      if (projektNamen.has(z.project_id)) liste.push(z.project_id);
+      intern.set(z.user_id, liste);
+    }
+  }
+
   const kontakte: Kontakt[] = [
     ...adminZeilen.map((a) => ({
       art: 'admin' as const,
@@ -100,7 +116,7 @@ export const GET = handler(async () => {
       email: a.email,
       code: null,
       avatarUrl: a.avatar_path ? (bilder.get(a.avatar_path) ?? null) : null,
-      projekte: [] as string[],
+      projekte: intern.get(a.user_id) ?? [],
     })),
     ...lieferantZeilen.map((l) => ({
       art: 'lieferant' as const,
@@ -120,7 +136,12 @@ export const GET = handler(async () => {
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return ok({ kontakte, projekte, ohneTelefonspalte: Boolean(adminRes.error) });
+  return ok({
+    kontakte,
+    projekte,
+    ohneTelefonspalte: Boolean(adminRes.error),
+    ohneZuteilung: Boolean(internRes.error),
+  });
 });
 
 /**

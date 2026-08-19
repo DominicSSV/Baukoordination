@@ -224,8 +224,8 @@ export type SessionInfo =
       /** false = SUPABASE_JWT_SECRET fehlt, RLS greift für Lieferanten nicht. */
       rlsEnforced: boolean;
       mailEnabled: boolean;
-      /** true = Lieferanten bekommen keine Post, alles wird zu uns umgeleitet. */
-      mailTestbetrieb: boolean;
+      /** false = Lieferanten bekommen keine automatischen Mails (Standard). */
+      mailAnLieferanten: boolean;
       avatarUrl: string | null;
     }
   | {

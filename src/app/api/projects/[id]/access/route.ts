@@ -6,14 +6,49 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Zugriff auf ein Projekt erteilen oder entziehen – ausschliesslich für den Admin. */
+/**
+ * Zugriff auf ein Projekt erteilen oder entziehen – ausschliesslich für den Admin.
+ *
+ * Mit userId statt supplierId wird stattdessen jemand von uns dem Projekt
+ * zugeteilt. Das ist kein Zugriffsrecht, sondern nur der Filter für die Post:
+ * Gesehen wird bei uns überall alles.
+ */
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: projectId } = await params;
   const ctx = await requireAdmin();
 
-  const body = await readJson<{ supplierId?: string; grant?: boolean }>(request);
-  const supplierId = requireString(body.supplierId, 'Lieferant', 64);
+  const body = await readJson<{
+    supplierId?: string;
+    userId?: string;
+    grant?: boolean;
+  }>(request);
   const grant = body.grant !== false;
+
+  if (body.userId !== undefined) {
+    const userId = requireString(body.userId, 'Person', 64);
+
+    const result = grant
+      ? await ctx.db
+          .from('project_admins')
+          .upsert({ project_id: projectId, user_id: userId })
+      : await ctx.db
+          .from('project_admins')
+          .delete()
+          .eq('project_id', projectId)
+          .eq('user_id', userId);
+
+    if (result.error) {
+      throw new ApiError(
+        'Die Zuteilung steht erst nach der Datenbank-Aktualisierung 0024 zur ' +
+          `Verfügung: ${result.error.message}`,
+        400,
+      );
+    }
+
+    return ok({ ok: true });
+  }
+
+  const supplierId = requireString(body.supplierId, 'Lieferant', 64);
 
   if (grant) {
     const result = await ctx.db

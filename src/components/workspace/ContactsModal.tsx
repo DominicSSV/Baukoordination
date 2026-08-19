@@ -39,6 +39,7 @@ export default function ContactsModal({
   const [kontakte, setKontakte] = useState<Kontakt[] | null>(null);
   const [projekte, setProjekte] = useState<Array<{ id: string; name: string }>>([]);
   const [ohneTelefonspalte, setOhneTelefonspalte] = useState(false);
+  const [ohneZuteilung, setOhneZuteilung] = useState(false);
   const [bearbeitet, setBearbeitet] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<Entwurf | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,10 +52,12 @@ export default function ContactsModal({
         kontakte: Kontakt[];
         projekte: Array<{ id: string; name: string }>;
         ohneTelefonspalte?: boolean;
+        ohneZuteilung?: boolean;
       }>('/api/contacts');
       setKontakte(res.kontakte);
       setProjekte(res.projekte ?? []);
       setOhneTelefonspalte(Boolean(res.ohneTelefonspalte));
+      setOhneZuteilung(Boolean(res.ohneZuteilung));
     } catch (error) {
       reportError(error, 'Die Kontakte konnten nicht geladen werden.');
       onClose();
@@ -129,7 +132,7 @@ export default function ContactsModal({
     setBusy(true);
     try {
       await post(`/api/projects/${projektId}/access`, {
-        supplierId: k.id,
+        ...(k.art === 'admin' ? { userId: k.id } : { supplierId: k.id }),
         grant: !hat,
       });
       await laden();
@@ -292,15 +295,28 @@ export default function ContactsModal({
             {[k.rolle, k.kontakt, k.email].filter(Boolean).join(' · ') || '—'}
           </div>
           {k.art === 'lieferant' && (
+            <div className="kontakt-meta">
+              Code: <strong>{k.code ?? '—'}</strong>
+              {!k.projekte.length && (
+                <span className="kontakt-ohne"> · kein Projekt freigegeben</span>
+              )}
+            </div>
+          )}
+
+          {/* Beim Lieferanten steuern die Merkzeichen den Zugriff, bei uns nur,
+              wer Post bekommt – gesehen wird intern überall alles. */}
+          {(k.art === 'lieferant' || !ohneZuteilung) && (
             <>
-              <div className="kontakt-meta">
-                Code: <strong>{k.code ?? '—'}</strong>
-                {!k.projekte.length && (
-                  <span className="kontakt-ohne"> · kein Projekt freigegeben</span>
-                )}
-              </div>
-              {/* Zugriff direkt hier umschalten – vorher musste man dafür in
-                  jedes Projekt einzeln. */}
+              {k.art === 'admin' && (
+                <div className="kontakt-meta">
+                  Benachrichtigungen:{' '}
+                  {k.projekte.length ? (
+                    `${k.projekte.length} Projekt${k.projekte.length === 1 ? '' : 'e'}`
+                  ) : (
+                    <span className="kontakt-alle">alle Projekte</span>
+                  )}
+                </div>
+              )}
               <div className="kontakt-projekte">
                 {projekte.map((p) => (
                   <button
@@ -310,9 +326,13 @@ export default function ContactsModal({
                       k.projekte.includes(p.id) ? 'frei' : ''
                     }`}
                     title={
-                      k.projekte.includes(p.id)
-                        ? `Zugriff auf ${p.name} entziehen`
-                        : `Zugriff auf ${p.name} erteilen`
+                      k.art === 'admin'
+                        ? k.projekte.includes(p.id)
+                          ? `Keine Benachrichtigungen mehr für ${p.name}`
+                          : `Benachrichtigungen für ${p.name} erhalten`
+                        : k.projekte.includes(p.id)
+                          ? `Zugriff auf ${p.name} entziehen`
+                          : `Zugriff auf ${p.name} erteilen`
                     }
                     onClick={() => void zugriffUmschalten(k, p.id)}
                     disabled={busy}
@@ -394,6 +414,11 @@ export default function ContactsModal({
             )}
 
             <div className="kontakt-gruppe-titel">Swiss Solar Ventures AG</div>
+            <p className="kontakt-erklaerung">
+              Die Merkzeichen steuern nur, wer für welches Projekt Post bekommt.
+              Sehen tun wir überall alles. Ist niemand zugeteilt, gehen die
+              Nachrichten an alle.
+            </p>
             {unsere.length ? (
               unsere.map(zeile)
             ) : (

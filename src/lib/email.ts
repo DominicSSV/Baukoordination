@@ -15,16 +15,18 @@ export function mailEnabled(): boolean {
 }
 
 /**
- * Testbetrieb: Solange MAIL_TESTBETRIEB=true gesetzt ist, bekommt kein
- * Lieferant Post. Nachrichten, die nach aussen gingen, werden stattdessen an
- * die Swiss Solar Ventures AG umgeleitet – so sieht man im Test genau das, was
- * ein Lieferant später erhalten würde, ohne ihn damit zu behelligen.
+ * Bekommen Lieferanten automatische Benachrichtigungen?
  *
- * Bewusst als Umleitung und nicht als stilles Verwerfen: Wer testet, will
- * sehen, was verschickt worden wäre.
+ * Standardmässig nein: Post geht nur an die Swiss Solar Ventures AG. Die
+ * Lieferanten arbeiten in der App, dort sehen sie alles – ungefragte Mails zu
+ * jedem Kommentar wären für sie bloss Lärm.
+ *
+ * Die ausdrücklich ausgelöste Einladung mit dem Zugangscode ist davon
+ * ausgenommen; ohne sie käme niemand herein. Mit MAIL_AN_LIEFERANTEN=true
+ * lässt sich der Versand nach aussen später aufdrehen.
  */
-export function mailTestbetrieb(): boolean {
-  return process.env.MAIL_TESTBETRIEB === 'true';
+export function mailAnLieferanten(): boolean {
+  return process.env.MAIL_AN_LIEFERANTEN === 'true';
 }
 
 /** Was als "wir" gilt. Alles unter dieser Domain zählt als intern. */
@@ -36,17 +38,42 @@ function istIntern(adresse: string): boolean {
   return adresse.trim().toLowerCase().endsWith(`@${interneDomain()}`);
 }
 
-/** Adressen der Swiss Solar Ventures AG – Ziel der Umleitung im Testbetrieb. */
-async function interneEmpfaenger(): Promise<string[]> {
+/**
+ * Adressen von uns, die für dieses Projekt Post bekommen sollen.
+ *
+ * Ist niemand zugeteilt, gehen die Nachrichten an alle – sonst würde ein neu
+ * angelegtes Projekt still verstummen und niemand merkte es. Die Zuteilung ist
+ * ein Filter für die Post, kein Zugriffsrecht: Gesehen wird überall alles.
+ *
+ * Ohne Migration 0024 gibt es die Tabelle noch nicht; dann bleibt es beim
+ * bisherigen Verhalten.
+ */
+async function unsereEmpfaenger(projectId?: string): Promise<string[]> {
   const db = serviceClient();
 
-  const mitAktiv = await db.from('admins').select('email, aktiv');
-  const res = mitAktiv.error ? await db.from('admins').select('email') : mitAktiv;
-  if (res.error) return [];
+  const alle = await db.from('admins').select('user_id, email');
+  if (alle.error) return [];
 
-  return ((res.data ?? []) as Array<{ email: string | null; aktiv?: boolean | null }>)
-    .filter((a) => a.email && a.aktiv !== false)
-    .map((a) => a.email!.trim());
+  const zeilen = (alle.data ?? []) as Array<{ user_id: string; email: string | null }>;
+
+  if (projectId) {
+    const zugeteilt = await db
+      .from('project_admins')
+      .select('user_id')
+      .eq('project_id', projectId);
+
+    const ids = zugeteilt.error
+      ? []
+      : ((zugeteilt.data ?? []) as Array<{ user_id: string }>).map((z) => z.user_id);
+
+    if (ids.length) {
+      return zeilen
+        .filter((a) => ids.includes(a.user_id) && a.email)
+        .map((a) => a.email!.trim());
+    }
+  }
+
+  return zeilen.filter((a) => a.email).map((a) => a.email!.trim());
 }
 
 /**
@@ -124,6 +151,11 @@ async function send(params: {
   html: string;
   /** Setzt die Dringlichkeits-Kopfzeilen, die Outlook als rotes Ausrufezeichen zeigt. */
   dringend?: boolean;
+  /**
+   * Darf ausnahmsweise auch nach aussen gehen – gesetzt allein von der
+   * Einladung, die von Hand ausgelöst wird und den Zugangscode enthält.
+   */
+  anLieferanten?: boolean;
 }): Promise<void> {
   const resend = client();
   if (!resend) throw new Error('Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).');
@@ -131,41 +163,23 @@ async function send(params: {
 
   const antwortAn = mailReplyTo();
 
+  // Die eine Stelle, an der entschieden wird, wer Post bekommt. Jede Nachricht
+  // läuft hier durch – Einladung, Benachrichtigung, Update, Mahnung. Eine
+  // Prüfung je Versandart hätte früher oder später eine vergessen.
   let empfaenger = params.to;
-  let betreff = params.subject;
-  let text = params.text;
-  let html = params.html;
 
-  if (mailTestbetrieb()) {
-    const extern = empfaenger.filter((a) => !istIntern(a));
-
-    if (extern.length) {
-      const intern = empfaenger.filter(istIntern);
-      const ziel = intern.length ? intern : await interneEmpfaenger();
-
-      if (!ziel.length) {
-        console.warn('[mail] Testbetrieb: keine interne Adresse, nichts verschickt.');
-        return;
-      }
-
-      empfaenger = Array.from(new Set(ziel));
-      const wohin = extern.join(', ');
-      betreff = `[Test → ${wohin}] ${betreff}`;
-      text = `TESTBETRIEB – diese Nachricht wäre an ${wohin} gegangen.\n\n${text}`;
-      html = html.replace(
-        /(<body[^>]*>)/i,
-        `$1<div style="max-width:560px;margin:0 auto 12px;padding:10px 14px;background:#FFF4D6;border:1px solid #E8A33D;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;color:#7A5B12;"><strong>Testbetrieb.</strong> Diese Nachricht wäre an ${escapeHtml(wohin)} gegangen und wurde stattdessen an euch umgeleitet.</div>`,
-      );
-    }
+  if (!mailAnLieferanten() && !params.anLieferanten) {
+    empfaenger = empfaenger.filter(istIntern);
+    if (!empfaenger.length) return;
   }
 
   const { error } = await resend.emails.send({
     from: mailFrom(),
     to: empfaenger,
     ...(antwortAn ? { replyTo: antwortAn } : {}),
-    subject: betreff,
-    text: `${text}\n\n—\n${KEINE_ANTWORT}`,
-    html,
+    subject: params.subject,
+    text: `${params.text}\n\n—\n${KEINE_ANTWORT}`,
+    html: params.html,
     headers: params.dringend
       ? {
           'X-Priority': '1',
@@ -279,7 +293,9 @@ export async function sendInvite(supplier: Supplier): Promise<void> {
     throw new Error('Für diesen Lieferanten ist keine E-Mail-Adresse hinterlegt.');
   }
   const { subject, body, html } = buildInvite(supplier);
-  await send({ to: [supplier.email], subject, text: body, html });
+  // Ausnahme von der Regel oben: Ohne Einladung käme kein Lieferant herein.
+  // Sie wird von Hand ausgelöst, ist also nie ungefragte Post.
+  await send({ to: [supplier.email], subject, text: body, html, anLieferanten: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -370,11 +386,7 @@ export async function allProjectParties(
   exceptEmail?: string | null,
 ): Promise<string[]> {
   const suppliers = await projectRecipients(projectId);
-
-  const { data: admins } = await serviceClient().from('admins').select('email');
-  const adminMails = (admins ?? [])
-    .map((a: { email: string | null }) => a.email?.trim())
-    .filter((e): e is string => Boolean(e));
+  const adminMails = await unsereEmpfaenger(projectId);
 
   const ausgeschlossen = exceptEmail?.trim().toLowerCase();
 
@@ -391,21 +403,22 @@ export async function allProjectParties(
 async function adminsUndFirmen(
   supplierIds: string[],
   exceptEmail?: string | null,
+  projectId?: string,
 ): Promise<string[]> {
   const db = serviceClient();
   const kollegen = (
     await Promise.all(supplierIds.map((id) => firmenKollegen(id)))
   ).flat();
 
-  const [{ data: admins }, { data: supplier }] = await Promise.all([
-    db.from('admins').select('email'),
+  const [admins, { data: supplier }] = await Promise.all([
+    unsereEmpfaenger(projectId),
     kollegen.length
       ? db.from('suppliers').select('email').in('id', kollegen)
       : Promise.resolve({ data: [] as Array<{ email: string | null }> }),
   ]);
 
   const mails = [
-    ...(admins ?? []).map((a: { email: string | null }) => a.email?.trim()),
+    ...admins,
     ...((supplier ?? []) as Array<{ email: string | null }>).map((s) =>
       s.email?.trim(),
     ),
@@ -548,7 +561,11 @@ export async function sendActivityNotification(params: {
   if (!project) return;
 
   const to = params.nurFuerSupplierIds
-    ? await adminsUndFirmen(params.nurFuerSupplierIds, params.actorEmail)
+    ? await adminsUndFirmen(
+        params.nurFuerSupplierIds,
+        params.actorEmail,
+        params.projectId,
+      )
     : await allProjectParties(params.projectId, params.actorEmail);
   if (!to.length) return;
 

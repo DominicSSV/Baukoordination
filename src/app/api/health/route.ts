@@ -64,7 +64,7 @@ export async function GET() {
       absender: process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev> (Standard)',
       antwort_an: process.env.MAIL_REPLY_TO || '(keine)',
       bei_jeder_aktivitaet: process.env.NOTIFY_ON_EVERY_ACTIVITY !== 'false',
-      testbetrieb: process.env.MAIL_TESTBETRIEB === 'true',
+      an_lieferanten: process.env.MAIL_AN_LIEFERANTEN === 'true',
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
       hinweis: process.env.RESEND_API_KEY
         ? undefined
