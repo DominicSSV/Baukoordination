@@ -2949,6 +2949,57 @@ button:disabled {
   font-size: 12.5px;
 }
 
+/* Sagt an, was man hier sieht: den Bauplan, nicht die fertige Mail. Ohne diese
+   Zeile hielt man den nackten Text für das, was beim Empfänger ankommt. */
+.vorlage-marke-klein {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+
+.vorlage-mail {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.vorlage-mail-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vorlage-mail-betreff {
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Eigener Rahmen, damit die Gestaltung der Mail und die der App sich nicht in
+   die Quere kommen – die Mail bringt ihre eigenen Farben und Schriften mit. */
+.vorlage-mail-rahmen {
+  display: block;
+  width: 100%;
+  height: 420px;
+  border: none;
+  background: #f2f2f1;
+}
+
 .vorlage-vorschau pre {
   margin: 6px 0 0;
   white-space: pre-wrap;

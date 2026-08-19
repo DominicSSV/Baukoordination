@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { api, del, patch } from '@/lib/client/api';
+import { api, del, patch, post } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
 
 type Vorlage = {
@@ -34,6 +34,10 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
   const [offen, setOffen] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<{ betreff: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Die gerenderte Mail zum aktuellen Entwurf – null, solange sie fehlt. */
+  const [vorschau, setVorschau] = useState<{ betreff: string; html: string } | null>(
+    null,
+  );
 
   const laden = useCallback(async () => {
     try {
@@ -56,7 +60,46 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
   function oeffnen(v: Vorlage) {
     setOffen(v.schluessel);
     setEntwurf({ betreff: v.betreff, text: v.text });
+    setVorschau(null);
   }
+
+  function schliessen() {
+    setOffen(null);
+    setEntwurf(null);
+    setVorschau(null);
+  }
+
+  /**
+   * Die Vorschau wird auf dem Server gebaut – mit demselben Rahmen, in den auch
+   * die echte Post gelegt wird. Nachgezogen wird erst, wenn eine halbe Sekunde
+   * nichts mehr getippt wurde: Bei jedem Buchstaben eine Anfrage zu stellen
+   * wäre Verschwendung, und das Bild würde flackern.
+   */
+  useEffect(() => {
+    if (!offen) return;
+
+    const t = window.setTimeout(() => {
+      // Ohne Betreff oder Text gibt es nichts zu zeigen; die alte Vorschau
+      // stehen zu lassen wäre irreführend.
+      if (!entwurf?.betreff.trim() || !entwurf.text.trim()) {
+        setVorschau(null);
+        return;
+      }
+
+      void post<{ betreff: string; html: string }>('/api/mail-templates/vorschau', {
+        schluessel: offen,
+        betreff: entwurf.betreff,
+        text: entwurf.text,
+      })
+        .then(setVorschau)
+        .catch(() => {
+          // Eine fehlende Vorschau ist kein Grund für eine Fehlermeldung – der
+          // Text lässt sich weiterhin bearbeiten und speichern.
+        });
+    }, 500);
+
+    return () => window.clearTimeout(t);
+  }, [offen, entwurf]);
 
   async function speichern(v: Vorlage) {
     if (!entwurf || busy) return;
@@ -75,8 +118,7 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
         betreff: entwurf.betreff.trim(),
         text: entwurf.text.trim(),
       });
-      setOffen(null);
-      setEntwurf(null);
+      schliessen();
       await laden();
       toast('✓ Text gespeichert.');
     } catch (error) {
@@ -89,8 +131,7 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
   function zuruecksetzen(v: Vorlage) {
     confirm(`„${v.name}“ auf den ursprünglichen Text zurücksetzen?`, async () => {
       await del('/api/mail-templates', { schluessel: v.schluessel });
-      setOffen(null);
-      setEntwurf(null);
+      schliessen();
       await laden();
       toast('↩️ Ursprünglicher Text wiederhergestellt.');
     });
@@ -158,7 +199,7 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      onClick={() => (bearbeitet ? setOffen(null) : oeffnen(v))}
+                      onClick={() => (bearbeitet ? schliessen() : oeffnen(v))}
                     >
                       {bearbeitet ? 'Schliessen' : '✏️ Bearbeiten'}
                     </button>
@@ -167,6 +208,7 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
 
                 {!bearbeitet ? (
                   <div className="vorlage-vorschau">
+                    <div className="vorlage-marke-klein">Vorlage mit Platzhaltern</div>
                     <strong>{v.betreff}</strong>
                     <pre>{v.text}</pre>
                   </div>
@@ -207,14 +249,41 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
                         ))}
                       </div>
 
+                      {/* Der Grund für diese Vorschau: Im Feld darüber steht
+                          nackter Text mit Platzhaltern, angekommen ist bisher
+                          etwas ganz anderes. Hier steht die fertige Mail. */}
+                      <div className="vorlage-mail">
+                        <div className="vorlage-mail-kopf">
+                          So kommt die Mail an
+                          {vorschau && (
+                            <span className="vorlage-mail-betreff">
+                              Betreff: {vorschau.betreff}
+                            </span>
+                          )}
+                        </div>
+                        {vorschau ? (
+                          <iframe
+                            className="vorlage-mail-rahmen"
+                            srcDoc={vorschau.html}
+                            sandbox=""
+                            title="Vorschau der Mail"
+                          />
+                        ) : (
+                          <p className="vorlage-zweck" style={{ padding: 12 }}>
+                            Vorschau wird erstellt…
+                          </p>
+                        )}
+                        <p className="vorlage-zweck" style={{ padding: '0 12px 10px' }}>
+                          Mit Beispielangaben gefüllt. Beim Versand stehen dort die
+                          echten Namen, Projekte und Termine.
+                        </p>
+                      </div>
+
                       <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          onClick={() => {
-                            setOffen(null);
-                            setEntwurf(null);
-                          }}
+                          onClick={schliessen}
                         >
                           Abbrechen
                         </button>

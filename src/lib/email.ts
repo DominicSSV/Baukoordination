@@ -3,7 +3,11 @@ import { Resend } from 'resend';
 import { appBaseUrl, mailFrom, mailReplyTo, resendApiKey } from '@/lib/env';
 import { firmenKollegen } from '@/lib/auth/offerAccess';
 import { serviceClient } from '@/lib/supabase/service';
-import { einsetzen, ladeVorlage } from '@/lib/mailVorlagen';
+import {
+  einsetzen,
+  ladeVorlage,
+  type VorlagenSchluessel,
+} from '@/lib/mailVorlagen';
 import type { ActivityEntry, Project, Supplier } from '@/types';
 
 function client(): Resend | null {
@@ -533,4 +537,89 @@ export async function sendActivityNotification(params: {
   const html = wrapHtml(`Neue Aktivität in "${project.name}"`, textZuHtml(text));
 
   await send({ to, subject, text, html });
+}
+
+// ---------------------------------------------------------------------------
+// Vorschau für die Bearbeitung in der App
+// ---------------------------------------------------------------------------
+
+/**
+ * Beispielwerte für die Vorschau.
+ *
+ * Bewusst erfundene, aber glaubwürdige Angaben: An "Reto Schmid" sieht man
+ * sofort, wo der Name landet – an "{vorname}" nicht. Der Zugangscode ist
+ * ebenfalls erfunden; ein echter hätte in einer Vorschau nichts verloren.
+ */
+const VORSCHAU_WERTE: Record<VorlagenSchluessel, Record<string, string>> = {
+  einladung: {
+    vorname: 'Reto',
+    name: 'Reto Schmid',
+    firma: 'Elektro Meier AG',
+    code: 'A7K2-9QF4',
+    link: appBaseUrl(),
+  },
+  benachrichtigung: {
+    projekt: 'Dietikon',
+    wer: 'Reto Schmid',
+    was: 'hat To-Do "Zählerplatz freigeben" erstellt',
+    link: appBaseUrl(),
+  },
+  update: {
+    projekt: 'Dietikon',
+    ort: 'Moosmattstrasse 24',
+    eintraege: [
+      '• Reto Schmid hat To-Do "Zählerplatz freigeben" erstellt',
+      '• Peter Küng hat den Terminplan geändert',
+      '• Anna Frei hat eine Offerte hochgeladen',
+    ].join('\n'),
+    link: appBaseUrl(),
+  },
+  fristablauf: {
+    projekt: 'Dietikon',
+    aufgabe: 'Zählerplatz freigeben',
+    frist: '12.08.2026',
+    ueberfaellig: 'seit 3 Tagen',
+    link: appBaseUrl(),
+  },
+};
+
+/** Überschrift im Rahmen – die setzt die App, nicht die Vorlage. */
+const VORSCHAU_TITEL: Record<VorlagenSchluessel, string> = {
+  einladung: 'Zugriff auf die Baukoordination-App',
+  benachrichtigung: 'Neue Aktivität in "Dietikon"',
+  update: 'Update zu "Dietikon"',
+  fristablauf: 'Frist überschritten',
+};
+
+/**
+ * Wie die Mail beim Empfänger aussieht – mit Rahmen, Logo und Fusszeile.
+ *
+ * In der Bearbeitung steht nur der nackte Text mit Platzhaltern; das sah anders
+ * aus als die Post, die tatsächlich ankam. Hier läuft derselbe Weg wie beim
+ * echten Versand: Platzhalter einsetzen, in HTML wandeln, in den Rahmen legen.
+ * Ändert sich der Rahmen, ändert sich die Vorschau von selbst mit.
+ */
+export function baueVorschau(
+  schluessel: VorlagenSchluessel,
+  betreff: string,
+  text: string,
+): { betreff: string; html: string } {
+  const werte = VORSCHAU_WERTE[schluessel];
+
+  // Die Mahnung trägt zusätzlich einen roten Balken, den nicht die Vorlage
+  // liefert, sondern der Versand – sonst fehlte er in der Vorschau.
+  const banner =
+    schluessel === 'fristablauf'
+      ? `<div style="background:#FAE1DD;border-radius:8px;padding:12px 14px;margin:0 0 16px;">
+      <strong style="color:#C0392B;font-size:14px;">Diese Aufgabe ist ${escapeHtml(werte.ueberfaellig)} überfällig.</strong>
+    </div>`
+      : '';
+
+  return {
+    betreff: einsetzen(betreff, werte),
+    html: wrapHtml(
+      VORSCHAU_TITEL[schluessel],
+      banner + textZuHtml(einsetzen(text, werte)),
+    ),
+  };
 }

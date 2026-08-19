@@ -103,6 +103,7 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
       { name: '{projekt}', erklaerung: 'Name des Projekts' },
       { name: '{aufgabe}', erklaerung: 'Text der Aufgabe' },
       { name: '{frist}', erklaerung: 'Fälligkeitsdatum' },
+      { name: '{ueberfaellig}', erklaerung: 'Wie lange schon, z.B. „seit 3 Tagen“' },
       { name: '{link}', erklaerung: 'Adresse der App' },
     ],
   },
