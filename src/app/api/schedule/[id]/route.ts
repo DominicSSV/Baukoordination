@@ -1,5 +1,7 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
 import { requireAdmin } from '@/lib/auth/guards';
+import { logActivity } from '@/lib/activity';
+import { fmtPlanDatum } from '@/lib/schedule';
 import { parseDueDate } from '@/lib/due';
 import { pruefeFarbe } from '@/lib/schedule';
 import { pruefeZustaendigen } from '@/lib/auth/assignTarget';
@@ -64,15 +66,56 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
-  return ok({ task: data });
+  // Nur Termine und Bezeichnung sind eine Nachricht wert. Farbe, Reihenfolge
+  // und Zuständigkeit ändern nichts daran, wann jemand auf der Baustelle sein
+  // muss – dafür würde niemand eine Mail wollen.
+  const inhaltlich =
+    body.startDate !== undefined ||
+    body.endDate !== undefined ||
+    body.label !== undefined;
+
+  const warning = inhaltlich
+    ? await logActivity(ctx.db, {
+        notify: true,
+        projectId: (data as { project_id: string }).project_id,
+        actorName: ctx.session.name,
+        actorEmail: ctx.session.email,
+        text: `hat "${(data as { label: string }).label}" im Terminplan geändert (${fmtPlanDatum(
+          (data as { start_date: string }).start_date,
+          (data as { end_date: string }).end_date,
+        )})`,
+        icon: '📅',
+      })
+    : null;
+
+  return ok({ task: data, warning });
 });
 
 export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const { id } = await params;
   const ctx = await requireAdmin();
 
+  // Vor dem Löschen lesen: danach ist nicht mehr feststellbar, was verschwand.
+  const { data: vorher } = await ctx.db
+    .from('schedule_tasks')
+    .select('project_id, label')
+    .eq('id', id)
+    .maybeSingle();
+
   const { error } = await ctx.db.from('schedule_tasks').delete().eq('id', id);
   if (error) throw new ApiError(`Löschen fehlgeschlagen: ${error.message}`, 500);
 
-  return ok({ ok: true });
+  const zeile = vorher as { project_id: string; label: string } | null;
+  const warning = zeile
+    ? await logActivity(ctx.db, {
+        notify: true,
+        projectId: zeile.project_id,
+        actorName: ctx.session.name,
+        actorEmail: ctx.session.email,
+        text: `hat "${zeile.label}" aus dem Terminplan entfernt`,
+        icon: '📅',
+      })
+    : null;
+
+  return ok({ ok: true, warning });
 });

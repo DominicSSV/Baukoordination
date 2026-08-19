@@ -82,6 +82,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   ).join(', ');
 
   const warning = await logActivity(ctx.db, {
+    notify: true,
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,

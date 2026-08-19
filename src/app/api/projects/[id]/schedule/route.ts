@@ -1,5 +1,7 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
 import { requireAdmin } from '@/lib/auth/guards';
+import { logActivity } from '@/lib/activity';
+import { fmtPlanDatum } from '@/lib/schedule';
 import { parseDueDate } from '@/lib/due';
 import { pruefeFarbe } from '@/lib/schedule';
 import { pruefeZustaendigen } from '@/lib/auth/assignTarget';
@@ -58,5 +60,16 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     throw new ApiError(`Eintrag konnte nicht angelegt werden: ${error.message}`, 500);
   }
 
-  return ok({ task: data }, { status: 201 });
+  // Eine neue Arbeit im Plan verschiebt den Arbeitstag der Beteiligten –
+  // deshalb protokollieren und melden.
+  const warning = await logActivity(ctx.db, {
+    notify: true,
+    projectId,
+    actorName: ctx.session.name,
+    actorEmail: ctx.session.email,
+    text: `hat "${label}" im Terminplan aufgenommen (${fmtPlanDatum(start, ende)})`,
+    icon: '📅',
+  });
+
+  return ok({ task: data, warning }, { status: 201 });
 });

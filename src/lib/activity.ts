@@ -19,6 +19,15 @@ export async function logActivity(
     actorEmail?: string | null;
     text: string;
     icon: string;
+    /**
+     * Post verschicken? Standard ist nein.
+     *
+     * Die Glocke zeigt jede Kleinigkeit, das kostet niemanden etwas. Eine Mail
+     * dagegen unterbricht – die gibt es nur für die vier Ereignisse, die den
+     * Arbeitstag wirklich verändern: neue Aufgabe, hochgeladenes Dokument oder
+     * Offerte, Änderung am Terminplan. Wird hier einmal etwas vergessen, bleibt
+     * es still, statt ungefragt Post zu erzeugen.
+     */
     notify?: boolean;
     /**
      * Eingeschränkter Eintrag. Weglassen = für alle mit Projektzugriff sichtbar.
@@ -66,7 +75,7 @@ export async function logActivity(
     return `Aktion gespeichert, aber der Protokolleintrag schlug fehl: ${error.message}`;
   }
 
-  if (params.notify !== false) {
+  if (params.notify === true) {
     // Bewusst nicht awaited blockierend für den Nutzer relevant – aber awaited, damit
     // die Serverless-Funktion nicht vor dem Versand beendet wird.
     try {

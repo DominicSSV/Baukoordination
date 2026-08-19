@@ -154,6 +154,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   // Offerten gehen nur uns und dem einreichenden Lieferanten etwas an – im
   // offenen Protokoll stünde sonst für alle lesbar, wer was eingereicht hat.
   const warning = await logActivity(ctx.db, {
+    notify: true,
     projectId,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,

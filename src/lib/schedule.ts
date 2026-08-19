@@ -60,3 +60,20 @@ export function tageZwischen(a: string, b: string): number {
   const ms = Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`);
   return Math.floor(ms / 86_400_000) + 1;
 }
+
+/**
+ * Zeitraum einer Arbeit in Kurzform: "14.09." oder "14.09.–18.09.2026".
+ *
+ * Steht in Protokoll und Benachrichtigung – dort zählt, wann jemand auf der
+ * Baustelle sein muss, nicht das vollständige Datum.
+ */
+export function fmtPlanDatum(start: string, ende: string): string {
+  const zeigen = (iso: string, mitJahr: boolean) =>
+    new Date(`${iso}T00:00:00`).toLocaleDateString('de-CH', {
+      day: '2-digit',
+      month: '2-digit',
+      ...(mitJahr ? { year: 'numeric' } : {}),
+    });
+
+  return start === ende ? zeigen(start, true) : `${zeigen(start, false)}–${zeigen(ende, true)}`;
+}

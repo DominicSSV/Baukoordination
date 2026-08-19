@@ -76,15 +76,6 @@ async function unsereEmpfaenger(projectId?: string): Promise<string[]> {
   return zeilen.filter((a) => a.email).map((a) => a.email!.trim());
 }
 
-/**
- * Sofort-Benachrichtigung bei jeder Aktivität. Standardmässig an – so verlangt vom
- * Auftraggeber. Mit NOTIFY_ON_EVERY_ACTIVITY=false lässt sie sich abschalten, falls
- * die Menge an Post im Betrieb doch zu viel wird.
- */
-function notifyOnEveryActivity(): boolean {
-  return process.env.NOTIFY_ON_EVERY_ACTIVITY !== 'false';
-}
-
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -551,7 +542,10 @@ export async function sendActivityNotification(params: {
    */
   nurFuerSupplierIds?: string[];
 }): Promise<void> {
-  if (!mailEnabled() || !notifyOnEveryActivity()) return;
+  // Welche Ereignisse überhaupt Post auslösen, entscheidet der Aufrufer über
+  // logActivity({ notify: true }) – es sind bewusst nur wenige. Ein zusätzlicher
+  // Schalter hier hätte diese Auswahl still ausgehebelt.
+  if (!mailEnabled()) return;
 
   const { data: project } = await serviceClient()
     .from('projects')

@@ -169,10 +169,16 @@ Der Versand läuft über [Resend](https://resend.com).
 - **Einladung:** ein Klick auf „✉️ Einladen“ verschickt die Mail mit Zugangscode und Link
   direkt an den Lieferanten.
 - **Update senden:** fasst die letzten 15 Protokolleinträge zusammen und schickt sie an
-  alle Lieferanten mit Zugriff auf das Projekt.
-- **Benachrichtigung pro Aktion:** mit `NOTIFY_ON_EVERY_ACTIVITY=true` geht bei jeder
-  einzelnen Aktivität sofort eine Mail raus. Standardmässig aus, sonst wird es bei regem
-  Betrieb sehr viel Post.
+  alle Beteiligten des Projekts.
+- **Benachrichtigung pro Ereignis:** Post gibt es für vier Dinge – neue Aufgabe,
+  hochgeladenes Dokument oder Offerte, Änderung am Terminplan (Termine oder
+  Bezeichnung). Kommentare, Statuswechsel und Erledigt-Haken erscheinen nur in der
+  Glocke. Welche Stelle Post auslöst, steht dort als `logActivity({ notify: true })`;
+  wer nichts sagt, bleibt still.
+- **Wer bekommt sie:** die dem Projekt zugeteilten Personen der Swiss Solar Ventures AG
+  (Kontakte → Merkzeichen; ohne Zuteilung alle). Lieferanten erhalten keine
+  automatischen Mails – nur die von Hand ausgelöste Einladung. Mit
+  `MAIL_AN_LIEFERANTEN=true` lässt sich das aufdrehen.
 
 Ist kein `RESEND_API_KEY` hinterlegt oder scheitert der Versand, verschwindet die Aktion
 nicht stillschweigend: Es öffnet sich derselbe Dialog wie im Prototyp mit fertigem Text
