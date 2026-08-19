@@ -101,20 +101,33 @@ textarea {
 }
 
 .brand {
+  /* Eine Zahl für beides: Das Logo ist so hoch, und genau so hoch ist der
+     Textblock daneben. Wird die Höhe fürs Handy geändert, wandert der Text
+     von selber mit. */
+  --logo-hoehe: 44px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
 }
 
 .brand-logo {
-  height: 34px;
+  height: var(--logo-hoehe);
   width: auto;
   flex-shrink: 0;
 }
 
+/* Titel und Untertitel füllen zusammen genau die Höhe des Logos, oben wie
+   unten bündig. Sonst schwimmt der Text neben dem Zeichen und die Leiste
+   wirkt schief, obwohl beides mittig sitzt. */
 .brand-titles {
   min-width: 0;
+  align-self: stretch;
+  max-height: var(--logo-hoehe);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
 }
 
 /* Der Firmenname steht immer auf einer Zeile. Wird der Platz zu eng, kürzt der
@@ -122,18 +135,20 @@ textarea {
 .brand-name {
   font-family: var(--font-anton), sans-serif;
   font-weight: 400;
-  font-size: 18px;
+  font-size: 23px;
   letter-spacing: 0.01em;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .brand-sub {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-soft);
-  margin-top: -2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .me-badge {
@@ -1480,18 +1495,15 @@ button:disabled {
     gap: 8px;
   }
 
-  .brand {
-    gap: 14px;
-    flex: 1;
-    min-width: 0;
-  }
-
   /* Logo und Titel wachsen stufenlos mit der Fensterbreite. Vorher gab es dafür
      feste Stufen bei 385 und 351 Pixeln – dazwischen, ausgerechnet bei den
      390 Pixeln der verbreiteten iPhones, war "Baukoordination" hinten
      abgeschnitten. Mit clamp() gibt es keine Lücken mehr zwischen den Stufen. */
-  .brand-logo {
-    height: clamp(21px, 11.25vw - 12px, 42px);
+  .brand {
+    --logo-hoehe: clamp(21px, 11.25vw - 12px, 42px);
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
   }
 
   .brand-name {

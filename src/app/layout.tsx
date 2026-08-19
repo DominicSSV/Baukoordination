@@ -19,15 +19,14 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Baukoordination – Swiss Solar Ventures AG',
   description: 'Projekte, Lieferanten, To-Dos und Dateien der Swiss Solar Ventures AG',
-  // Auf dem Startbildschirm des Handys erscheint das Haus-Zeichen auf dunklem
-  // Grund – iOS nimmt dafür ausschliesslich das apple-touch-icon.
-  icons: {
-    icon: [
-      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-    ],
-    apple: { url: '/apple-touch-icon.png', sizes: '180x180' },
-  },
+  // Die Symbole liegen bewusst als icon.png, icon1.png und apple-icon.png neben
+  // dieser Datei, statt hier von Hand auf /public zu zeigen.
+  //
+  // Grund: Browser merken sich das Symbol eines Tabs sehr hartnäckig. Zeigt der
+  // Verweis immer auf dieselbe Adresse, holt der Browser die Datei nie wieder –
+  // das schwarze Symbol blieb selbst nach dem Austausch stehen. Auf diesem Weg
+  // hängt Next.js an die Adresse eine Prüfsumme des Bildes; ändert sich das
+  // Bild, ändert sich die Adresse, und der Browser lädt es neu.
   // Kurzer Name unter dem Symbol, sonst schreibt iOS den ganzen Titel hin.
   // capable: false ist Absicht – siehe die Begründung in app/manifest.ts.
   appleWebApp: { capable: false, title: 'Baukoordination' },
