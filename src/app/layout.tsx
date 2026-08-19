@@ -36,7 +36,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#262624',
+  // Färbt die Browserleiste des Handys oberhalb der App. Muss der Kopfzeile
+  // folgen, sonst sitzt ein dunkler Streifen über dem weissen Balken.
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({

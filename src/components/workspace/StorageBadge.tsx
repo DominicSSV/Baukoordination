@@ -88,7 +88,9 @@ export default function StorageBadge({
         </defs>
 
         <g clipPath="url(#speicherkarte)">
-          <rect x="0" y="0" width="24" height="24" fill="rgba(255,255,255,0.16)" />
+          {/* Der noch freie Teil der Karte: ein Hauch dunkler als die weisse
+              Leiste, sonst sähe man gar nicht, wie weit sie gefüllt ist. */}
+          <rect x="0" y="0" width="24" height="24" fill="rgba(38,38,36,0.12)" />
           {anteil > 0 && (
             <rect
               x="0"

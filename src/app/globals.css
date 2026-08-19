@@ -77,14 +77,23 @@ textarea {
   flex-direction: column;
 }
 
-/* --- Topbar --------------------------------------------------------------- */
+/* --- Topbar ---------------------------------------------------------------
+   Weiss statt Anthrazit: Der Balken war der einzige dunkle Block der App und
+   zog den Blick auf sich, statt ihn auf die Arbeit zu lassen. Auf Weiss kommt
+   zudem das Logo mit seinem Farbverlauf zur Geltung.
+
+   Weil Weiss und der Seitenhintergrund fast gleich hell sind, trennt eine
+   feine Linie samt Schatten die Leiste vom Inhalt – sonst schwebt der Text
+   beim Scrollen im Nichts. */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
-  background: var(--ink);
-  color: #fff;
+  padding: 18px 24px;
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(38, 38, 36, 0.05);
   position: sticky;
   top: 0;
   z-index: 30;
@@ -123,7 +132,7 @@ textarea {
 
 .brand-sub {
   font-size: 11px;
-  color: #c7c7c4;
+  color: var(--ink-soft);
   margin-top: -2px;
 }
 
@@ -131,11 +140,11 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg);
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--line);
   flex-shrink: 0;
 }
 
@@ -143,8 +152,8 @@ textarea {
 .me-badge a {
   background: none;
   border: none;
-  color: #fff;
-  opacity: 0.82;
+  color: var(--ink);
+  opacity: 0.7;
   font-size: 12px;
   text-decoration: underline;
   padding: 0;
@@ -542,12 +551,12 @@ button:disabled {
   padding: 0;
   display: flex;
   border-radius: 50%;
-  /* Heller Ring: das Bild soll sich von der dunklen Leiste abheben. */
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+  /* Feiner Ring: das Bild soll sich vom hellen Feld daneben abheben. */
+  box-shadow: 0 0 0 1.5px var(--line);
 }
 
 .me-avatar:hover {
-  outline: 2px solid rgba(255, 255, 255, 0.35);
+  outline: 2px solid var(--ink-faint);
   outline-offset: 1px;
 }
 
@@ -1467,7 +1476,7 @@ button:disabled {
 /* --- Mobile --------------------------------------------------------------- */
 @media (max-width: 760px) {
   .topbar {
-    padding: 10px 12px;
+    padding: 14px 12px;
     gap: 8px;
   }
 
@@ -1477,12 +1486,16 @@ button:disabled {
     min-width: 0;
   }
 
+  /* Logo und Titel wachsen stufenlos mit der Fensterbreite. Vorher gab es dafür
+     feste Stufen bei 385 und 351 Pixeln – dazwischen, ausgerechnet bei den
+     390 Pixeln der verbreiteten iPhones, war "Baukoordination" hinten
+     abgeschnitten. Mit clamp() gibt es keine Lücken mehr zwischen den Stufen. */
   .brand-logo {
-    height: 42px;
+    height: clamp(21px, 11.25vw - 12px, 42px);
   }
 
   .brand-name {
-    font-size: 18px;
+    font-size: clamp(10.5px, 4.06vw - 1.5px, 18px);
   }
 
   /* Ohne Firmenname und Untertitel wird die Zeile kurz genug, dass das grössere
@@ -1516,33 +1529,16 @@ button:disabled {
     align-items: center;
   }
 
-  /* Auf ganz schmalen Geräten würde sonst "Baukoordination" hinten
-     abgeschnitten – lieber Logo und Schrift eine Spur kleiner. */
-  @media (max-width: 385px) {
+  /* Je enger es wird, desto weniger Luft zwischen Logo und Titel. */
+  @media (max-width: 430px) {
     .brand {
       gap: 10px;
     }
-
-    .brand-logo {
-      height: 36px;
-    }
-
-    .brand-name {
-      font-size: 15.5px;
-    }
   }
 
-  @media (max-width: 351px) {
+  @media (max-width: 360px) {
     .brand {
-      gap: 8px;
-    }
-
-    .brand-logo {
-      height: 28px;
-    }
-
-    .brand-name {
-      font-size: 12.5px;
+      gap: 7px;
     }
   }
 
@@ -2783,13 +2779,6 @@ button:disabled {
     border-radius: 12px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   }
-
-  /* Im aufgeklappten Feld steht das Symbol auf Weiss – dort braucht es die
-     dunkle Schrift, nicht die helle der Leiste. */
-  .topbar-werkzeuge.offen .topbar-icon {
-    background: var(--bg);
-    color: var(--ink);
-  }
 }
 
 /* --- Filterleiste in Dateien und Aktivität -------------------------------- */
@@ -3339,9 +3328,10 @@ button:disabled {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
-  /* Hell genug, um auf der dunklen Leiste klar zu stehen. */
-  color: #ffffff;
+  /* Der Kreis hebt das Symbol von der weissen Leiste ab – ohne ihn stünden
+     die feinen Striche frei im Raum und man träfe sie schlechter. */
+  background: var(--bg);
+  color: var(--ink);
   line-height: 1;
   opacity: 1;
   text-decoration: none;
@@ -3349,7 +3339,7 @@ button:disabled {
 
 .topbar-icon:hover,
 .glocke-knopf:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--line);
 }
 
 .glocke-zahl {

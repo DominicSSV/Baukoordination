@@ -224,6 +224,15 @@ export async function GET() {
           : undefined,
       };
 
+      const texte = await db.from('mail_templates').select('schluessel').limit(1);
+      report.migration_0025 = {
+        eigene_mailtexte: !texte.error,
+        hinweis: texte.error
+          ? 'Migration 0025 fehlt. Unter "Nachrichten" lassen sich die Texte ' +
+            'ansehen, aber nicht ändern – verschickt wird der Standardtext.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

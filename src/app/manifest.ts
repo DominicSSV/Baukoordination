@@ -17,8 +17,8 @@ export default function manifest(): MetadataRoute.Manifest {
       'Projekte, Lieferanten, To-Dos und Dateien der Swiss Solar Ventures AG',
     start_url: '/',
     display: 'browser',
-    background_color: '#262624',
-    theme_color: '#262624',
+    background_color: '#ffffff',
+    theme_color: '#ffffff',
     lang: 'de',
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
