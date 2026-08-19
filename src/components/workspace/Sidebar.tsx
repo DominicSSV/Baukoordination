@@ -49,6 +49,23 @@ export default function Sidebar({
   const [gezogen, setGezogen] = useState<string | null>(null);
   const [ueber, setUeber] = useState<{ id: string; status: ProjektStatus } | null>(null);
 
+  /**
+   * Auf dem Handy eingeklappt, sobald ein Projekt offen ist.
+   *
+   * Die Liste stand dort über dem Inhalt und nahm zwei Drittel des Bildschirms
+   * ein – man scrollte an allen Projekten vorbei, um zu dem einen zu kommen,
+   * das man gerade offen hatte. Am Rechner spielt das keine Rolle: Dort steht
+   * die Liste in der Spalte daneben, und die Regel greift gar nicht erst.
+   */
+  const [listeOffen, setListeOffen] = useState(!activeId);
+
+  // Bei offener To-Do-Übersicht steht kein Projekt im Inhalt – dann darf der
+  // Wähler auch keines behaupten, sonst zeigt er auf etwas anderes als das,
+  // was man gerade vor sich hat.
+  const aktivesProjekt = wocheAktiv
+    ? null
+    : (projects.find((p) => p.id === activeId) ?? null);
+
   const gruppiert = useMemo(() => {
     const map = new Map<ProjektStatus, Project[]>();
     for (const s of PROJEKT_STATUS) map.set(s.wert, []);
@@ -126,20 +143,52 @@ export default function Sidebar({
     }
   }
 
+  /** Auf dem Handy nach der Wahl zuklappen – der Inhalt soll sofort dastehen. */
+  function waehlen(id: string) {
+    setListeOffen(false);
+    onSelect(id);
+  }
+
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${listeOffen ? '' : 'liste-zu'}`}>
       {/* Steht bewusst über den Projekten: der Einstieg in den Arbeitstag. */}
       <button
         type="button"
         className={`woche-knopf ${wocheAktiv ? 'aktiv' : ''}`}
-        onClick={onWoche}
+        onClick={() => {
+          setListeOffen(false);
+          onWoche();
+        }}
       >
         <span aria-hidden="true">🗓️</span> Meine To-Do&rsquo;s
       </button>
 
       <h2>Projekte</h2>
 
-      <div className="project-list">
+      {/* Nur auf dem Handy sichtbar: zeigt, wo man ist, und klappt die Liste
+          auf. Am Rechner blendet die Gestaltung diesen Knopf aus. */}
+      <button
+        type="button"
+        className="projekt-waehler"
+        onClick={() => setListeOffen((o) => !o)}
+        aria-expanded={listeOffen}
+      >
+        <span className="waehler-text">
+          {aktivesProjekt ? (
+            <>
+              <span className="waehler-name">{aktivesProjekt.name}</span>
+              {aktivesProjekt.ort && (
+                <span className="waehler-ort">{aktivesProjekt.ort}</span>
+              )}
+            </>
+          ) : (
+            <span className="waehler-name">Projekt wählen</span>
+          )}
+        </span>
+        <span className={`gruppe-pfeil ${listeOffen ? '' : 'zu'}`}>▾</span>
+      </button>
+
+      <div className={`project-list ${listeOffen ? '' : 'zu'}`}>
         {PROJEKT_STATUS.map((s) => {
           const inGruppe = gruppiert.get(s.wert) ?? [];
           const eingeklappt = zu.has(s.wert);
@@ -187,11 +236,11 @@ export default function Sidebar({
                         e.preventDefault();
                         void ablegen(s.wert, p.id);
                       }}
-                      onClick={() => onSelect(p.id)}
+                      onClick={() => waehlen(p.id)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') onSelect(p.id);
+                        if (e.key === 'Enter' || e.key === ' ') waehlen(p.id);
                       }}
                     >
                       {isAdmin && <span className="zieh-griff" title="Verschieben">⠿</span>}

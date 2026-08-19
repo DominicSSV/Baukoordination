@@ -219,6 +219,14 @@ textarea {
   margin-bottom: 12px;
 }
 
+/* Der Knopf, der die Projektliste ein- und ausklappt, gibt es nur auf dem
+   Handy. Am Rechner steht die Liste ohnehin in der eigenen Spalte daneben und
+   nimmt dem Inhalt nichts weg. Die Handy-Regeln weiter unten schalten ihn ein –
+   sie stehen später und gewinnen bei gleicher Spezifität. */
+.projekt-waehler {
+  display: none;
+}
+
 .project-item {
   display: flex;
   align-items: center;
@@ -1572,24 +1580,65 @@ button:disabled {
     display: none;
   }
 
-  .project-list {
+  /* Die Liste lief früher waagrecht: eine Reihe Projekte zum Wischen. Mit den
+     Statusgruppen wurden daraus Spalten – nebeneinander standen die Gruppen,
+     und wer in "In Umsetzung" vier Projekte hatte, sah davon zwei; die anderen
+     lagen unsichtbar ausserhalb des Bildschirms. Jetzt wieder untereinander,
+     dafür einklappbar: zugeklappt kostet die Liste nichts, aufgeklappt ist
+     alles da. */
+  .projekt-waehler {
     display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 11px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    text-align: left;
   }
 
-  .project-item {
-    flex-shrink: 0;
-    margin-bottom: 0;
+  .waehler-text {
+    min-width: 0;
+  }
+
+  .waehler-name {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    width: auto;
   }
 
-  .new-project-btn {
-    width: auto;
-    flex-shrink: 0;
-    padding: 11px 14px;
+  .waehler-ort {
+    display: block;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-list {
+    margin-top: 8px;
+  }
+
+  /* Zugeklappt verschwindet alles, was zur Projektwahl gehört – auch die
+     Verwaltungslinks. Auf der Baustelle will man den Inhalt sehen, nicht den
+     Papierkorb. */
+  .sidebar.liste-zu .project-list,
+  .sidebar.liste-zu .new-project-btn,
+  .sidebar.liste-zu .new-project-form,
+  .sidebar.liste-zu .fuss-links {
+    display: none;
+  }
+
+  /* Ziehen gibt es auf dem Handy nicht – der Griff nimmt nur Platz weg. */
+  .zieh-griff {
+    display: none;
   }
 
   .new-project-form {
@@ -2197,21 +2246,16 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
-  /* Auf dem Handy stehen die Gruppen untereinander, nicht als Streifen. */
-  .project-list {
+  /* Gruppen untereinander – und die Projekte darin ebenfalls.
+     Vorher war der Gruppeninhalt ein Streifen zum Wischen. Bei vier Projekten
+     in "In Umsetzung" sah man davon eines ganz und eines halb; die übrigen
+     lagen unsichtbar rechts daneben, ohne dass irgendetwas darauf hindeutete.
+     Auf einer Baustelle ist ein Projekt, das man nicht findet, ein fehlendes
+     Projekt. */
+  .project-list,
+  .gruppe-inhalt {
     display: block;
     overflow-x: visible;
-  }
-
-  .gruppe-inhalt {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .gruppe-leer {
-    flex-shrink: 0;
   }
 }
 
