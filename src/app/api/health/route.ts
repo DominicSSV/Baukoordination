@@ -171,6 +171,59 @@ export async function GET() {
             : undefined,
       };
 
+      // Alles ab 0018 – ohne diese Prüfungen sah eine unvollständige
+      // Datenbank in der Übersicht gesund aus.
+      const speicherzahl = await db.rpc('speicher_pro_bucket');
+      report.migration_0018 = {
+        speicherzahlen_von_supabase: !speicherzahl.error,
+        hinweis: speicherzahl.error
+          ? 'Migration 0018 fehlt. Die Speicheranzeige zählt selbst, statt Supabase zu fragen.'
+          : undefined,
+      };
+
+      const ordner = await db.from('document_folders').select('id').limit(1);
+      const dokumentSpalte = await db.from('files').select('document_folder').limit(1);
+      report.migration_0019 = {
+        dokumente: !ordner.error && !dokumentSpalte.error,
+        hinweis:
+          ordner.error || dokumentSpalte.error
+            ? 'Migration 0019 fehlt. Das Register "Dokumente" bleibt leer.'
+            : undefined,
+      };
+
+      const unterordner = await db.from('document_folders').select('parent_id').limit(1);
+      report.migration_0021 = {
+        unterordner: !unterordner.error,
+        hinweis: unterordner.error
+          ? 'Migration 0021 fehlt. Dokumentordner haben keine zweite Ebene.'
+          : undefined,
+      };
+
+      const planZustaendige = await db.from('schedule_tasks').select('owners').limit(1);
+      report.migration_0022 = {
+        mehrere_zustaendige_im_plan: !planZustaendige.error,
+        hinweis: planZustaendige.error
+          ? 'Migration 0022 fehlt. Eine Zeile im Terminplan gehört nur einer Person.'
+          : undefined,
+      };
+
+      const telefon = await db.from('admins').select('kontakt').limit(1);
+      report.migration_0023 = {
+        telefon_bei_uns: !telefon.error,
+        hinweis: telefon.error
+          ? 'Migration 0023 fehlt. Bei uns lässt sich keine Telefonnummer erfassen.'
+          : undefined,
+      };
+
+      const zuteilung = await db.from('project_admins').select('user_id').limit(1);
+      report.migration_0024 = {
+        projektzuteilung: !zuteilung.error,
+        hinweis: zuteilung.error
+          ? 'Migration 0024 fehlt. Benachrichtigungen gehen an alle von uns, ' +
+            'unabhängig vom Projekt.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,
