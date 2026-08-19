@@ -114,6 +114,8 @@ function textZuHtml(text: string): string {
 
 /** Rahmen im SSV-Look: Gelb→Grün-Verlauf als Akzentbalken, Poppins als Schrift. */
 function wrapHtml(title: string, bodyHtml: string): string {
+  const hinweis = keineAntwort();
+
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width" /></head>
 <body style="margin:0;padding:24px;background:#F2F2F1;font-family:Poppins,Helvetica,Arial,sans-serif;color:#262624;">
@@ -128,12 +130,12 @@ function wrapHtml(title: string, bodyHtml: string): string {
         <div style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:#929291;">Baukoordination</div>
         <h1 style="font-size:20px;margin:4px 0 16px;color:#262624;">${escapeHtml(title)}</h1>
         ${bodyHtml}
+        <!-- Derselbe Hinweis wie in der Nur-Text-Fassung, damit beide Fassungen
+             der Mail nicht Unterschiedliches behaupten. -->
         <p style="margin:22px 0 0;font-size:11.5px;color:#929291;border-top:1px solid #D9D9D9;padding-top:12px;">
           Swiss Solar Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination
           versendet.<br />
-          <strong>Bitte antworte nicht auf diese E-Mail</strong> – dieses Postfach wird nicht
-          laufend gelesen. Schreib deine Rückmeldung direkt in der App als Kommentar oder
-          melde dich bei deiner Ansprechperson.
+          <strong>${escapeHtml(hinweis.warnung)}</strong> ${escapeHtml(hinweis.erklaerung)}
         </p>
       </td>
     </tr>
@@ -144,18 +146,39 @@ function wrapHtml(title: string, bodyHtml: string): string {
 /**
  * Hinweis am Fuss jeder verschickten Nachricht.
  *
- * Bewusst "nicht laufend gelesen" und nicht "nicht gelesen": Auf der
- * Absenderadresse liegt ein geteiltes Postfach, Antworten kommen also sehr wohl
- * an – nur schaut dort niemand ständig hinein. Eine Rückmeldung gehört in die
- * App, wo sie beim richtigen Vorgang steht.
+ * Hinter der Absenderadresse liegt kein Postfach – sie dient nur dem Versand.
+ * Der Hinweis muss das deutlich sagen: Eine Antwort dorthin käme nirgends an,
+ * sondern prallt als Unzustellbarkeitsmeldung zurück. Wer das nicht weiss,
+ * hält seine Rückmeldung für zugestellt und wartet auf Antwort.
+ *
+ * Ist eine Antwortadresse hinterlegt (MAIL_REPLY_TO), landen Antworten sehr
+ * wohl irgendwo – dann sagt der Hinweis genau das. So bleibt der Text richtig,
+ * egal wie der Versand eingestellt ist.
  *
  * Der Hinweis steht nur in dem, was die App selbst verschickt; Texte zum
  * Selbstverschicken bleiben sauber.
  */
-const KEINE_ANTWORT =
-  'Bitte antworte nicht auf diese E-Mail – dieses Postfach wird nicht laufend ' +
-  'gelesen. Schreib deine Rückmeldung direkt in der App als Kommentar oder melde ' +
-  'dich bei deiner Ansprechperson bei der Swiss Solar Ventures AG.';
+function keineAntwort(): { warnung: string; erklaerung: string } {
+  const antwortAn = mailReplyTo();
+
+  if (antwortAn) {
+    return {
+      warnung: 'Diese Adresse verschickt nur.',
+      erklaerung:
+        `Ein Postfach gibt es dahinter nicht; Antworten gehen an ${antwortAn}. ` +
+        'Am besten schreibst du deine Rückmeldung direkt in der App als ' +
+        'Kommentar, dann steht sie beim richtigen Vorgang.',
+    };
+  }
+
+  return {
+    warnung: 'Bitte antworte nicht auf diese E-Mail.',
+    erklaerung:
+      'Hinter dieser Adresse gibt es kein Postfach, eine Antwort kommt nicht an. ' +
+      'Schreib deine Rückmeldung direkt in der App als Kommentar oder melde dich ' +
+      'bei deiner Ansprechperson bei der Swiss Solar Ventures AG.',
+  };
+}
 
 /** Die blosse Adresse aus MAIL_FROM, ohne den Anzeigenamen davor. */
 function absenderAdresse(): string {
@@ -181,6 +204,7 @@ async function send(params: {
   if (!params.to.length) throw new Error('Keine Empfänger mit hinterlegter E-Mail-Adresse.');
 
   const antwortAn = mailReplyTo();
+  const hinweis = keineAntwort();
 
   // Die eine Stelle, an der entschieden wird, wer Post bekommt. Jede Nachricht
   // läuft hier durch – Einladung, Benachrichtigung, Update, Mahnung. Eine
@@ -197,7 +221,7 @@ async function send(params: {
     to: empfaenger,
     ...(antwortAn ? { replyTo: antwortAn } : {}),
     subject: params.subject,
-    text: `${params.text}\n\n—\n${KEINE_ANTWORT}`,
+    text: `${params.text}\n\n—\n${hinweis.warnung} ${hinweis.erklaerung}`,
     html: params.html,
     headers: params.dringend
       ? {
