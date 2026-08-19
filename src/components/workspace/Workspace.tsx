@@ -22,6 +22,7 @@ import TrashModal from '@/components/workspace/TrashModal';
 import StorageModal from '@/components/workspace/StorageModal';
 import StorageBadge from '@/components/workspace/StorageBadge';
 import ContactsModal from '@/components/workspace/ContactsModal';
+import MailTemplatesModal from '@/components/workspace/MailTemplatesModal';
 import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
@@ -106,6 +107,7 @@ function WorkspaceInner({
   const [zeigeSpeicher, setZeigeSpeicher] = useState(false);
   const [zeigeKontakte, setZeigeKontakte] = useState(false);
   const [zeigeSuche, setZeigeSuche] = useState(false);
+  const [zeigeNachrichten, setZeigeNachrichten] = useState(false);
   // Wird hochgezählt, wenn die Speicherkarte neu rechnen soll – nach dem
   // Schliessen der Übersicht, wo eventuell etwas endgültig entfernt wurde.
   const [speicherStand, setSpeicherStand] = useState(0);
@@ -422,6 +424,7 @@ function WorkspaceInner({
           onReordered={setProjects}
           onPapierkorb={() => setZeigePapierkorb(true)}
           onKontakte={() => setZeigeKontakte(true)}
+          onNachrichten={() => setZeigeNachrichten(true)}
         />
 
         <div className="content">
@@ -617,6 +620,10 @@ function WorkspaceInner({
             else if (activeId) openFromNotification(activeId, ziel);
           }}
         />
+      )}
+
+      {zeigeNachrichten && (
+        <MailTemplatesModal onClose={() => setZeigeNachrichten(false)} />
       )}
 
       {zeigeKontakte && (

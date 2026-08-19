@@ -29,7 +29,7 @@ export const POST = handler(async (_request: Request, { params }: Params) => {
   if (error) throw new ApiError(`Aktivität: ${error.message}`, 500);
 
   const list = (entries ?? []) as ActivityEntry[];
-  const digest = buildDigest(project as Project, list);
+  const digest = await buildDigest(project as Project, list);
   const recipients = await projectRecipients(id);
 
   const fallback = {

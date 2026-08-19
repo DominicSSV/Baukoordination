@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { appBaseUrl, mailFrom, mailReplyTo, resendApiKey } from '@/lib/env';
 import { firmenKollegen } from '@/lib/auth/offerAccess';
 import { serviceClient } from '@/lib/supabase/service';
+import { einsetzen, ladeVorlage } from '@/lib/mailVorlagen';
 import type { ActivityEntry, Project, Supplier } from '@/types';
 
 function client(): Resend | null {
@@ -82,6 +83,29 @@ function escapeHtml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Aus dem in der App bearbeiteten Text die HTML-Fassung bauen.
+ *
+ * Leerzeilen trennen Absätze, einfache Zeilenumbrüche bleiben Umbrüche, und
+ * Adressen werden anklickbar. Alles wird zuvor maskiert: Was jemand in die
+ * Vorlage tippt, darf die Gestaltung der Mail nicht durcheinanderbringen.
+ */
+function textZuHtml(text: string): string {
+  const linkify = (teil: string) =>
+    escapeHtml(teil).replace(
+      /(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" style="color:#00BF63;">$1</a>',
+    );
+
+  return text
+    .split(/\n\s*\n/)
+    .map(
+      (absatz) =>
+        `<p style="font-size:14px;line-height:1.6;margin:0 0 14px;">${linkify(absatz).replace(/\n/g, '<br />')}</p>`,
+    )
+    .join('');
 }
 
 /** Rahmen im SSV-Look: Gelb→Grün-Verlauf als Akzentbalken, Poppins als Schrift. */
@@ -228,51 +252,20 @@ function firstName(supplier: Pick<Supplier, 'name' | 'firma'>): string {
   return full.split(/\s+/)[0] || 'zusammen';
 }
 
-export function buildInvite(supplier: Supplier) {
-  const link = appBaseUrl();
-  const code = supplier.access_code ?? '';
-  const subject = 'Zugriff auf Baukoordination-App / Swiss Solar Ventures AG';
+export async function buildInvite(supplier: Supplier) {
+  const vorlage = await ladeVorlage('einladung');
 
-  // Wortlaut wie von der Swiss Solar Ventures AG vorgegeben. Bewusst ohne
-  // Grussformel: die Signatur hängt das Mailprogramm selbst an.
-  const body = [
-    `Ciao ${firstName(supplier)}`,
-    ``,
-    `Du hast nun Zugriff auf unsere Baukoordination-App!`,
-    ``,
-    `So meldest du dich an:`,
-    `1. Link öffnen: ${link}`,
-    `2. Im Feld, das sich direkt öffnet, diesen Zugangscode eingeben: ${code}`,
-    ``,
-    `Dann siehst du die Projekte welche dir zugeordnet sind.`,
-    `Du kannst dort To-Dos erstellen, diese abhaken, kommentieren sowie Fotos und Dokumente hinzufügen.`,
-    ``,
-    `Viel Spass beim ausprobieren ;)`,
-    ``,
-    `Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst.`,
-  ].join('\n');
+  const werte = {
+    vorname: firstName(supplier),
+    name: supplier.name?.trim() || supplier.firma?.trim() || '',
+    firma: supplier.firma?.trim() || '',
+    code: supplier.access_code ?? '',
+    link: appBaseUrl(),
+  };
 
-  const html = wrapHtml('Zugriff auf die Baukoordination-App', `
-    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">Ciao ${escapeHtml(firstName(supplier))}</p>
-    <p style="font-size:14px;line-height:1.6;margin:0 0 18px;">
-      Du hast nun Zugriff auf unsere Baukoordination-App!
-    </p>
-    <p style="font-size:14px;line-height:1.6;margin:0 0 8px;">Dein persönlicher Zugangscode:</p>
-    <div style="font-family:Helvetica,Arial,sans-serif;font-size:26px;font-weight:700;letter-spacing:0.14em;color:#00BF63;background:#DFF6E9;border-radius:8px;padding:14px 18px;text-align:center;margin:0 0 18px;">
-      ${escapeHtml(code)}
-    </div>
-    <p style="margin:0 0 18px;">
-      <a href="${escapeHtml(link)}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">App öffnen und Code eingeben</a>
-    </p>
-    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">
-      Dann siehst du die Projekte welche dir zugeordnet sind.<br />
-      Du kannst dort To-Dos erstellen, diese abhaken, kommentieren sowie Fotos und Dokumente hinzufügen.
-    </p>
-    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">Viel Spass beim ausprobieren ;)</p>
-    <p style="font-size:13px;line-height:1.6;color:#6B6B69;margin:0;">
-      Bitte gib uns Bescheid wenn du Verbesserungsvorschläge hast oder einen Fehler entdeckst.
-    </p>
-  `);
+  const subject = einsetzen(vorlage.betreff, werte);
+  const body = einsetzen(vorlage.text, werte);
+  const html = wrapHtml('Zugriff auf die Baukoordination-App', textZuHtml(body));
 
   const mailtoUrl = `mailto:${encodeURIComponent(supplier.email ?? '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
@@ -283,7 +276,7 @@ export async function sendInvite(supplier: Supplier): Promise<void> {
   if (!supplier.email) {
     throw new Error('Für diesen Lieferanten ist keine E-Mail-Adresse hinterlegt.');
   }
-  const { subject, body, html } = buildInvite(supplier);
+  const { subject, body, html } = await buildInvite(supplier);
   // Ausnahme von der Regel oben: Ohne Einladung käme kein Lieferant herein.
   // Sie wird von Hand ausgelöst, ist also nie ungefragte Post.
   await send({ to: [supplier.email], subject, text: body, html, anLieferanten: true });
@@ -302,49 +295,27 @@ function fmtDate(iso: string): string {
   });
 }
 
-export function buildDigest(project: Project, entries: ActivityEntry[]) {
-  const subject = `Update zu Bauprojekt "${project.name}" – Baukoordination Swiss Solar Ventures AG`;
-  const lines = [
-    `Hallo zusammen`,
-    ``,
-    `hier ein Update zum Projekt "${project.name}"${project.ort ? ` (${project.ort})` : ''}:`,
-    ``,
-  ];
-  if (entries.length) {
-    for (const a of entries) {
-      lines.push(`- ${a.actor_name} ${a.text} (${fmtDate(a.created_at)})`);
-    }
-  } else {
-    lines.push('(Noch keine Aktivität protokolliert.)');
-  }
-  lines.push('', 'Freundliche Grüsse', 'Swiss Solar Ventures AG');
+export async function buildDigest(project: Project, entries: ActivityEntry[]) {
+  const vorlage = await ladeVorlage('update');
 
-  const rows = entries.length
+  const eintraege = entries.length
     ? entries
-        .map(
-          (a) => `<tr>
-            <td style="padding:8px 0;border-bottom:1px solid #D9D9D9;font-size:18px;width:30px;vertical-align:top;">${escapeHtml(a.icon ?? '•')}</td>
-            <td style="padding:8px 0;border-bottom:1px solid #D9D9D9;font-size:13.5px;line-height:1.5;">
-              <strong>${escapeHtml(a.actor_name)}</strong> ${escapeHtml(a.text)}<br />
-              <span style="font-size:11.5px;color:#929291;">${escapeHtml(fmtDate(a.created_at))}</span>
-            </td>
-          </tr>`,
-        )
-        .join('')
-    : `<tr><td style="font-size:13.5px;color:#929291;padding:8px 0;">Noch keine Aktivität protokolliert.</td></tr>`;
+        .map((a) => `- ${a.actor_name} ${a.text} (${fmtDate(a.created_at)})`)
+        .join('\n')
+    : '(Noch keine Aktivität protokolliert.)';
 
-  const html = wrapHtml(`Update zu "${project.name}"`, `
-    <p style="font-size:14px;line-height:1.6;margin:0 0 14px;">
-      Hallo zusammen, hier der aktuelle Stand zum Projekt
-      <strong>${escapeHtml(project.name)}</strong>${project.ort ? ` (${escapeHtml(project.ort)})` : ''}:
-    </p>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">${rows}</table>
-    <p style="margin:18px 0 0;">
-      <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Projekt öffnen</a>
-    </p>
-  `);
+  const werte = {
+    projekt: project.name,
+    ort: project.ort ?? '',
+    eintraege,
+    link: appBaseUrl(),
+  };
 
-  return { subject, body: lines.join('\n'), html };
+  const subject = einsetzen(vorlage.betreff, werte);
+  const body = einsetzen(vorlage.text, werte);
+  const html = wrapHtml(`Update zu "${project.name}"`, textZuHtml(body));
+
+  return { subject, body, html };
 }
 
 /** Alle Lieferanten-E-Mails mit Zugriff auf ein Projekt. */
@@ -426,7 +397,7 @@ export async function sendDigest(
   entries: ActivityEntry[],
 ): Promise<number> {
   const to = await projectRecipients(project.id);
-  const { subject, body, html } = buildDigest(project, entries);
+  const { subject, body, html } = await buildDigest(project, entries);
   await send({ to, subject, text: body, html });
   return to.length;
 }
@@ -495,38 +466,24 @@ export async function sendOverdueNotice(params: {
   const tage =
     params.tageUeberfaellig === 1 ? 'seit gestern' : `seit ${params.tageUeberfaellig} Tagen`;
 
-  const subject = `Frist überschritten: "${params.todoText}" – ${params.projectName}`;
+  const vorlage = await ladeVorlage('fristablauf');
+  const werte = {
+    projekt: params.projectName,
+    aufgabe: params.todoText,
+    frist: params.dueLabel,
+    ueberfaellig: tage,
+    link: appBaseUrl(),
+  };
 
-  const text = [
-    `Diese Aufgabe ist ${tage} überfällig und noch nicht erledigt:`,
-    ``,
-    `Aufgabe: ${params.todoText}`,
-    `Projekt: ${params.projectName}`,
-    `Zu erledigen bis: ${params.dueLabel}`,
-    ``,
-    `Bitte erledige sie oder melde dich, falls etwas dagegen spricht:`,
-    appBaseUrl(),
-  ].join('\n');
+  const subject = einsetzen(vorlage.betreff, werte);
+  const text = einsetzen(vorlage.text, werte);
 
-  const html = wrapHtml(`Frist überschritten`, `
-    <div style="background:#FAE1DD;border-radius:8px;padding:12px 14px;margin:0 0 16px;">
+  const html = wrapHtml(
+    'Frist überschritten',
+    `<div style="background:#FAE1DD;border-radius:8px;padding:12px 14px;margin:0 0 16px;">
       <strong style="color:#C0392B;font-size:14px;">Diese Aufgabe ist ${escapeHtml(tage)} überfällig.</strong>
-    </div>
-    <p style="font-size:16px;line-height:1.5;margin:0 0 14px;"><strong>${escapeHtml(params.todoText)}</strong></p>
-    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:13.5px;margin:0 0 18px;">
-      <tr>
-        <td style="padding:4px 0;color:#929291;width:120px;">Projekt</td>
-        <td style="padding:4px 0;">${escapeHtml(params.projectName)}</td>
-      </tr>
-      <tr>
-        <td style="padding:4px 0;color:#929291;">Zu erledigen bis</td>
-        <td style="padding:4px 0;color:#C0392B;font-weight:600;">${escapeHtml(params.dueLabel)}</td>
-      </tr>
-    </table>
-    <p style="margin:0;">
-      <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Aufgabe öffnen</a>
-    </p>
-  `);
+    </div>` + textZuHtml(text),
+  );
 
   await send({ to: params.to, subject, text, html, dringend: true });
 }
@@ -563,16 +520,17 @@ export async function sendActivityNotification(params: {
     : await allProjectParties(params.projectId, params.actorEmail);
   if (!to.length) return;
 
-  const subject = `${project.name}: ${params.actorName} ${params.text}`.slice(0, 120);
-  const text = `${params.actorName} ${params.text}\n\nProjekt: ${project.name}\n${appBaseUrl()}`;
-  const html = wrapHtml(`Neue Aktivität in "${project.name}"`, `
-    <p style="font-size:14px;line-height:1.6;margin:0 0 16px;">
-      <strong>${escapeHtml(params.actorName)}</strong> ${escapeHtml(params.text)}
-    </p>
-    <p style="margin:0;">
-      <a href="${escapeHtml(appBaseUrl())}" style="display:inline-block;background:#00BF63;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:8px;">Projekt öffnen</a>
-    </p>
-  `);
+  const vorlage = await ladeVorlage('benachrichtigung');
+  const werte = {
+    projekt: project.name,
+    wer: params.actorName,
+    was: params.text,
+    link: appBaseUrl(),
+  };
+
+  const subject = einsetzen(vorlage.betreff, werte).slice(0, 120);
+  const text = einsetzen(vorlage.text, werte);
+  const html = wrapHtml(`Neue Aktivität in "${project.name}"`, textZuHtml(text));
 
   await send({ to, subject, text, html });
 }

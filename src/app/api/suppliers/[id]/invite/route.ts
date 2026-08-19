@@ -35,7 +35,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   // Das Projekt wird weiterhin geladen, damit die Freigabe geprüft ist – im Text
   // selbst kommt es nach der neuen Fassung nicht mehr vor.
-  const invite = buildInvite(supplier as Supplier);
+  const invite = await buildInvite(supplier as Supplier);
 
   if (!mailEnabled()) {
     return ok({

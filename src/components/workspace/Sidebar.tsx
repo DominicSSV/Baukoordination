@@ -18,6 +18,7 @@ export default function Sidebar({
   onReordered,
   onPapierkorb,
   onKontakte,
+  onNachrichten,
 }: {
   projects: Project[];
   activeId: string | null;
@@ -32,6 +33,8 @@ export default function Sidebar({
   onPapierkorb: () => void;
   /** Öffnet die Kontaktliste – nur für uns sichtbar. */
   onKontakte: () => void;
+  /** Öffnet die Texte der verschickten Mails – nur für uns sichtbar. */
+  onNachrichten: () => void;
 }) {
   const { reportError } = useFeedback();
   const [showForm, setShowForm] = useState(false);
@@ -289,6 +292,9 @@ export default function Sidebar({
           </button>
           <button type="button" className="speicher-link" onClick={onKontakte}>
             Kontakte
+          </button>
+          <button type="button" className="speicher-link" onClick={onNachrichten}>
+            Nachrichten
           </button>
         </div>
       )}
