@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '@/lib/client/api';
+import { api, post } from '@/lib/client/api';
+import { useFeedback } from '@/components/Feedback';
 import { fmtDate } from '@/lib/format';
 import Avatar from '@/components/Avatar';
 import { mitFirma } from '@/lib/people';
@@ -61,12 +62,16 @@ function vorZeit(iso: string): string {
 
 export default function NotificationBell({
   werBinIch,
+  istAdmin,
   onOpenProject,
 }: {
   /** Eigene Kennung – trennt den gelesen-Stand verschiedener Anmeldungen. */
   werBinIch: string;
+  /** Nur wir dürfen die Glocke anderer leeren. */
+  istAdmin: boolean;
   onOpenProject: (projectId: string, ziel: Ziel) => void;
 }) {
+  const { toast, reportError, confirm } = useFeedback();
   const [offen, setOffen] = useState(false);
   const [eintraege, setEintraege] = useState<Benachrichtigung[]>([]);
   // Der gelesen-Stand kommt aus dem Browser. Auf dem Server gibt es ihn nicht;
@@ -209,6 +214,34 @@ export default function NotificationBell({
     setVersteckt(new Set());
   }
 
+  /**
+   * Die Glocke aller anderen leeren – die eigene bleibt, wie sie ist.
+   *
+   * Gedacht für den Rückstand aus der Aufbauzeit: Bei allen Beteiligten liegen
+   * hunderte Einträge, die niemanden mehr betreffen. Gelöscht wird nichts, die
+   * Einträge sind für die Betroffenen weiterhin unter "Alle anzeigen" da.
+   */
+  function fuerAlleLeeren() {
+    confirm(
+      'Die Glocke aller anderen auf null setzen? Deine eigene bleibt, wie sie ' +
+        'ist. Gelöscht wird nichts – die Einträge bleiben im Protokoll und für ' +
+        'die Betroffenen unter „Alle anzeigen“ auffindbar.',
+      async () => {
+        try {
+          const res = await post<{ beiUns: number; lieferanten: number }>(
+            '/api/notifications/leeren',
+            { andere: true },
+          );
+          toast(
+            `✓ Geleert: ${res.beiUns} bei uns, ${res.lieferanten} Lieferanten.`,
+          );
+        } catch (error) {
+          reportError(error, 'Leeren fehlgeschlagen.');
+        }
+      },
+    );
+  }
+
   function alleUmschalten() {
     const neu = !alleZeigen;
     setAlleZeigen(neu);
@@ -268,6 +301,15 @@ export default function NotificationBell({
                   onClick={wiederherstellen}
                 >
                   Alle zurückholen
+                </button>
+              )}
+              {alleZeigen && istAdmin && (
+                <button
+                  type="button"
+                  className="glocke-aktion"
+                  onClick={fuerAlleLeeren}
+                >
+                  Für alle ausser mir leeren
                 </button>
               )}
             </span>

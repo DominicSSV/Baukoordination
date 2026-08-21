@@ -108,6 +108,37 @@ async function personenNachName(): Promise<
 }
 
 /**
+ * Bis wann diese Person ihre Glocke geleert hat – null, wenn nie.
+ *
+ * Gelesen mit dem Dienstschlüssel: Es geht um die eigene Zeile, und ohne
+ * Migration 0026 gibt es die Spalte noch nicht. Dann bleibt es beim bisherigen
+ * Verhalten, statt dass die Glocke mit einer Fehlermeldung stehen bleibt.
+ */
+async function geleertBis(session: {
+  kind: 'admin' | 'supplier';
+  userId?: string;
+  supplierId?: string;
+}): Promise<string | null> {
+  const db = serviceClient();
+
+  const { data, error } =
+    session.kind === 'admin'
+      ? await db
+          .from('admins')
+          .select('glocke_geleert_bis')
+          .eq('user_id', session.userId!)
+          .maybeSingle()
+      : await db
+          .from('suppliers')
+          .select('glocke_geleert_bis')
+          .eq('id', session.supplierId!)
+          .maybeSingle();
+
+  if (error || !data) return null;
+  return (data as { glocke_geleert_bis: string | null }).glocke_geleert_bis;
+}
+
+/**
  * Neues aus allen Projekten, auf die diese Person Zugriff hat – neuste zuerst.
  *
  * Gelesen wird mit der Sitzung, nicht mit dem Dienstschlüssel: die Datenbank
@@ -143,7 +174,21 @@ export const GET = handler(async (request: Request) => {
   }>;
 
   const eigen = ctx.session.name.trim().toLowerCase();
-  const fremde = rows.filter((r) => r.actor_name.trim().toLowerCase() !== eigen);
+  const marke = await geleertBis(
+    ctx.session as {
+      kind: 'admin' | 'supplier';
+      userId?: string;
+      supplierId?: string;
+    },
+  );
+
+  const fremde = rows.filter((r) => {
+    if (r.actor_name.trim().toLowerCase() === eigen) return false;
+    // Was vor dem Leeren geschah, ist abgehakt – bei "alle=1" wird es trotzdem
+    // gezeigt, damit nichts unauffindbar wird.
+    if (!alle && marke && r.created_at <= marke) return false;
+    return true;
+  });
 
   const projektIds = Array.from(new Set(fremde.map((r) => r.project_id)));
   const namen = new Map<string, string>();

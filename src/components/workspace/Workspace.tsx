@@ -384,6 +384,7 @@ function WorkspaceInner({
           </div>
 
           <NotificationBell
+            istAdmin={isAdmin}
             werBinIch={
               session.kind === 'admin' ? session.userId : session.supplierId
             }
