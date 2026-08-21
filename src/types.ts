@@ -189,6 +189,13 @@ export type Kontakt = {
   avatarUrl: string | null;
   /** Kennungen der Projekte, für die der Lieferant freigegeben ist. */
   projekte: string[];
+  /**
+   * Bekommt diese Person Benachrichtigungen per Mail?
+   *
+   * Bei uns immer, das entscheidet die Firmen-Domain. Bei Lieferanten je
+   * Person freizuschalten – standardmässig nein.
+   */
+  mailAn: boolean;
 };
 
 /** Ein weggeworfener Eintrag, wie ihn der Papierkorb zeigt. */

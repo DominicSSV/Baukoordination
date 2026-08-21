@@ -63,7 +63,9 @@ export async function GET() {
         : { vorhanden: false },
       absender: process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev> (Standard)',
       antwort_an: process.env.MAIL_REPLY_TO || '(keine)',
-      an_lieferanten: process.env.MAIL_AN_LIEFERANTEN === 'true',
+      // false heisst nicht mehr "gar keine": Einzelne Lieferanten lassen sich
+      // seit Migration 0027 in den Kontakten freischalten – siehe unten.
+      an_alle_lieferanten: process.env.MAIL_AN_LIEFERANTEN === 'true',
       meldet_bei:
         'neue Aufgabe, Kommentar zu einer Aufgabe, Dokument/Offerte hochgeladen, ' +
         'Terminplan geändert',
@@ -232,6 +234,35 @@ export async function GET() {
         hinweis: texte.error
           ? 'Migration 0025 fehlt. Unter "Nachrichten" lassen sich die Texte ' +
             'ansehen, aber nicht ändern – verschickt wird der Standardtext.'
+          : undefined,
+      };
+
+      const geleert = await db.from('admins').select('glocke_geleert_bis').limit(1);
+      report.migration_0026 = {
+        glocke_leerbar: !geleert.error,
+        hinweis: geleert.error
+          ? 'Migration 0026 fehlt. Die Glocke lässt sich nur im eigenen Browser ' +
+            'wegräumen, nicht für andere.'
+          : undefined,
+      };
+
+      // Zeigt zugleich, wer ausserhalb der Firma tatsächlich Post bekommt –
+      // die Zahl beantwortet die Frage schneller als ein Blick in die Kontakte.
+      const freigeschaltet = await db
+        .from('suppliers')
+        .select('name, firma, email')
+        .eq('mail_an', true);
+
+      report.migration_0027 = {
+        mail_freigabe_je_person: !freigeschaltet.error,
+        lieferanten_mit_mail: freigeschaltet.error
+          ? undefined
+          : ((freigeschaltet.data ?? []) as Array<{
+              name: string | null;
+              firma: string | null;
+            }>).map((z) => z.name?.trim() || z.firma?.trim() || '(ohne Namen)'),
+        hinweis: freigeschaltet.error
+          ? 'Migration 0027 fehlt. Lieferanten bekommen ausnahmslos keine Post.'
           : undefined,
       };
 

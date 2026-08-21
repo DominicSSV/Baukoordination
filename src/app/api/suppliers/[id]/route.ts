@@ -20,6 +20,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     gewerk?: string;
     kontakt?: string;
     email?: string;
+    mailAn?: boolean;
   }>(request);
 
   const name = optionalString(body.name, 200);
@@ -28,18 +29,36 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     throw new ApiError('Bitte mindestens Firma oder Ansprechperson angeben.');
   }
 
-  const { data, error } = await ctx.db
+  const felder = {
+    name,
+    firma,
+    gewerk: optionalString(body.gewerk, 120),
+    kontakt: optionalString(body.kontakt, 120),
+    email: optionalString(body.email, 200),
+  };
+
+  const spalten = 'id, name, firma, gewerk, kontakt, email, access_code, created_at';
+
+  let { data, error } = await ctx.db
     .from('suppliers')
-    .update({
-      name,
-      firma,
-      gewerk: optionalString(body.gewerk, 120),
-      kontakt: optionalString(body.kontakt, 120),
-      email: optionalString(body.email, 200),
-    })
+    .update(
+      typeof body.mailAn === 'boolean' ? { ...felder, mail_an: body.mailAn } : felder,
+    )
     .eq('id', id)
-    .select('id, name, firma, gewerk, kontakt, email, access_code, created_at')
+    .select(spalten)
     .single();
+
+  // Ohne Migration 0027 gibt es die Spalte mail_an noch nicht. Dann sollen
+  // wenigstens die übrigen Angaben gespeichert werden, statt dass das Ändern
+  // eines Namens an einer fehlenden Spalte scheitert.
+  if (error && typeof body.mailAn === 'boolean') {
+    ({ data, error } = await ctx.db
+      .from('suppliers')
+      .update(felder)
+      .eq('id', id)
+      .select(spalten)
+      .single());
+  }
 
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
   return ok({ supplier: data as Supplier });

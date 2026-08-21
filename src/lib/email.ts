@@ -20,15 +20,19 @@ export function mailEnabled(): boolean {
 }
 
 /**
- * Bekommen Lieferanten automatische Benachrichtigungen?
+ * Bekommen ausnahmslos alle Lieferanten Benachrichtigungen?
  *
- * Standardmässig nein: Post geht nur an die Swiss Solar Ventures AG. Die
- * Lieferanten arbeiten in der App, dort sehen sie alles – ungefragte Mails zu
- * jedem Kommentar wären für sie bloss Lärm.
+ * Standardmässig nein. Das ist aber nicht mehr die einzige Stelle: Einzelne
+ * Personen lassen sich in den Kontakten freischalten (Spalte mail_an, siehe
+ * freigegebeneAdressen weiter unten). Der Weg dorthin führt bewusst über die
+ * Person und nicht über einen Schalter für alle – so kommt niemand ungefragt
+ * zu Post, nur weil jemand anderes dazugenommen wurde.
  *
- * Die ausdrücklich ausgelöste Einladung mit dem Zugangscode ist davon
- * ausgenommen; ohne sie käme niemand herein. Mit MAIL_AN_LIEFERANTEN=true
- * lässt sich der Versand nach aussen später aufdrehen.
+ * Dieser Schalter bleibt für den Tag, an dem wirklich alle Post bekommen
+ * sollen; bis dahin genügt die Freigabe je Person.
+ *
+ * Die ausdrücklich ausgelöste Einladung mit dem Zugangscode ist von beidem
+ * ausgenommen; ohne sie käme niemand herein.
  */
 export function mailAnLieferanten(): boolean {
   return process.env.MAIL_AN_LIEFERANTEN === 'true';
@@ -41,6 +45,28 @@ function interneDomain(): string {
 
 function istIntern(adresse: string): boolean {
   return adresse.trim().toLowerCase().endsWith(`@${interneDomain()}`);
+}
+
+/**
+ * Adressen ausserhalb der Firma, die ausdrücklich freigegeben sind.
+ *
+ * Die Domain allein reichte nicht mehr: Einzelne Lieferanten sollen Post
+ * bekommen, andere noch nicht. Ohne Migration 0027 gibt es die Spalte nicht –
+ * dann bleibt es beim bisherigen Verhalten, also niemand von aussen.
+ */
+async function freigegebeneAdressen(): Promise<Set<string>> {
+  const { data, error } = await serviceClient()
+    .from('suppliers')
+    .select('email')
+    .eq('mail_an', true);
+
+  if (error) return new Set();
+
+  return new Set(
+    ((data ?? []) as Array<{ email: string | null }>)
+      .map((z) => z.email?.trim().toLowerCase())
+      .filter((e): e is string => Boolean(e)),
+  );
 }
 
 /**
@@ -212,7 +238,10 @@ async function send(params: {
   let empfaenger = params.to;
 
   if (!mailAnLieferanten() && !params.anLieferanten) {
-    empfaenger = empfaenger.filter(istIntern);
+    const frei = await freigegebeneAdressen();
+    empfaenger = empfaenger.filter(
+      (a) => istIntern(a) || frei.has(a.trim().toLowerCase()),
+    );
     if (!empfaenger.length) return;
   }
 

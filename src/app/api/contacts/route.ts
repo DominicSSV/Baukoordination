@@ -22,7 +22,9 @@ export const GET = handler(async () => {
     db.from('admins').select('user_id, name, firma, funktion, email, kontakt, avatar_path'),
     db
       .from('suppliers')
-      .select('id, name, firma, gewerk, kontakt, email, access_code, avatar_path')
+      .select(
+        'id, name, firma, gewerk, kontakt, email, access_code, avatar_path, mail_an',
+      )
       .order('firma', { ascending: true }),
     db.from('projects').select('id, name'),
     db.from('project_access').select('supplier_id, project_id'),
@@ -40,9 +42,17 @@ export const GET = handler(async () => {
   if (adminsRoh.error) {
     throw new ApiError(`Kontakte konnten nicht geladen werden: ${adminsRoh.error.message}`, 500);
   }
-  if (lieferantenRes.error) {
+  // Ohne Migration 0027 gibt es die Mail-Freigabe noch nicht.
+  const lieferantenRoh = lieferantenRes.error
+    ? await db
+        .from('suppliers')
+        .select('id, name, firma, gewerk, kontakt, email, access_code, avatar_path')
+        .order('firma', { ascending: true })
+    : lieferantenRes;
+
+  if (lieferantenRoh.error) {
     throw new ApiError(
-      `Lieferanten konnten nicht geladen werden: ${lieferantenRes.error.message}`,
+      `Lieferanten konnten nicht geladen werden: ${lieferantenRoh.error.message}`,
       500,
     );
   }
@@ -65,10 +75,11 @@ export const GET = handler(async () => {
     email: string | null;
     access_code: string | null;
     avatar_path: string | null;
+    mail_an?: boolean | null;
   };
 
   const adminZeilen = (adminsRoh.data ?? []) as AdminZeile[];
-  const lieferantZeilen = (lieferantenRes.data ?? []) as LieferantZeile[];
+  const lieferantZeilen = (lieferantenRoh.data ?? []) as LieferantZeile[];
 
   const bilder = await signAvatars([
     ...adminZeilen.map((a) => a.avatar_path),
@@ -117,6 +128,8 @@ export const GET = handler(async () => {
       code: null,
       avatarUrl: a.avatar_path ? (bilder.get(a.avatar_path) ?? null) : null,
       projekte: intern.get(a.user_id) ?? [],
+      // Bei uns entscheidet die Firmen-Domain, nicht eine Freigabe je Person.
+      mailAn: true,
     })),
     ...lieferantZeilen.map((l) => ({
       art: 'lieferant' as const,
@@ -129,6 +142,7 @@ export const GET = handler(async () => {
       code: l.access_code,
       avatarUrl: l.avatar_path ? (bilder.get(l.avatar_path) ?? null) : null,
       projekte: zugriffe.get(l.id) ?? [],
+      mailAn: l.mail_an === true,
     })),
   ];
 
@@ -140,6 +154,7 @@ export const GET = handler(async () => {
     kontakte,
     projekte,
     ohneTelefonspalte: Boolean(adminRes.error),
+    ohneMailFreigabe: Boolean(lieferantenRes.error),
     ohneZuteilung: Boolean(internRes.error),
   });
 });

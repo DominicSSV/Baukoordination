@@ -3183,6 +3183,33 @@ button:disabled {
   color: var(--danger);
 }
 
+/* Wer von aussen Post bekommt, soll auffallen: In der Liste sind das die
+   Ausnahmen, nicht die Regel. */
+.kontakt-mail-marke {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: var(--accent-soft);
+  color: #0a7a44;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.kontakt-mail-an {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.kontakt-mail-an input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 /* Projektfreigaben als Merkzeichen: freigegeben ist grün, alles andere blass.
    Ein Klick schaltet um. */
 .kontakt-projekte {

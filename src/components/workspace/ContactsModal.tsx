@@ -16,6 +16,7 @@ type Entwurf = {
   rolle: string;
   kontakt: string;
   email: string;
+  mailAn: boolean;
 };
 
 /**
@@ -39,6 +40,7 @@ export default function ContactsModal({
   const [kontakte, setKontakte] = useState<Kontakt[] | null>(null);
   const [projekte, setProjekte] = useState<Array<{ id: string; name: string }>>([]);
   const [ohneTelefonspalte, setOhneTelefonspalte] = useState(false);
+  const [ohneMailFreigabe, setOhneMailFreigabe] = useState(false);
   const [ohneZuteilung, setOhneZuteilung] = useState(false);
   const [bearbeitet, setBearbeitet] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<Entwurf | null>(null);
@@ -53,10 +55,12 @@ export default function ContactsModal({
         projekte: Array<{ id: string; name: string }>;
         ohneTelefonspalte?: boolean;
         ohneZuteilung?: boolean;
+        ohneMailFreigabe?: boolean;
       }>('/api/contacts');
       setKontakte(res.kontakte);
       setProjekte(res.projekte ?? []);
       setOhneTelefonspalte(Boolean(res.ohneTelefonspalte));
+      setOhneMailFreigabe(Boolean(res.ohneMailFreigabe));
       setOhneZuteilung(Boolean(res.ohneZuteilung));
     } catch (error) {
       reportError(error, 'Die Kontakte konnten nicht geladen werden.');
@@ -77,6 +81,7 @@ export default function ContactsModal({
       rolle: k.rolle ?? '',
       kontakt: k.kontakt ?? '',
       email: k.email ?? '',
+      mailAn: k.mailAn,
     });
   }
 
@@ -107,6 +112,7 @@ export default function ContactsModal({
           gewerk: entwurf.rolle.trim(),
           kontakt: entwurf.kontakt.trim(),
           email: entwurf.email.trim(),
+          mailAn: entwurf.mailAn,
         });
       }
       setBearbeitet(null);
@@ -238,6 +244,33 @@ export default function ContactsModal({
               </span>
             )}
           </div>
+
+          {/* Lieferanten bekommen nur Post, wenn es hier ausdrücklich
+              eingeschaltet ist. Bei uns entscheidet die Firmen-Domain – dort
+              gibt es nichts zu wählen. */}
+          {k.art === 'lieferant' && (
+            <label className="kontakt-mail-an">
+              <input
+                type="checkbox"
+                checked={entwurf.mailAn}
+                disabled={ohneMailFreigabe}
+                onChange={(e) => setEntwurf({ ...entwurf, mailAn: e.target.checked })}
+              />
+              <span>
+                Bekommt Benachrichtigungen per Mail
+                {!entwurf.email.trim() && (
+                  <span className="kontakt-ohne"> – dafür fehlt noch die Adresse</span>
+                )}
+                {ohneMailFreigabe && (
+                  <span className="kontakt-ohne">
+                    {' '}
+                    – möglich ab der Datenbank-Aktualisierung 0027
+                  </span>
+                )}
+              </span>
+            </label>
+          )}
+
           <div className="kontakt-knoepfe">
             <button
               type="button"
@@ -299,6 +332,13 @@ export default function ContactsModal({
               Code: <strong>{k.code ?? '—'}</strong>
               {!k.projekte.length && (
                 <span className="kontakt-ohne"> · kein Projekt freigegeben</span>
+              )}
+              {/* Auf einen Blick erkennbar, wer von aussen Post bekommt – die
+                  Liste ist lang, und Nachschauen je Person wäre mühsam. */}
+              {k.mailAn ? (
+                <span className="kontakt-mail-marke">📧 Mail an</span>
+              ) : (
+                <span className="kontakt-ohne"> · keine Mails</span>
               )}
             </div>
           )}
