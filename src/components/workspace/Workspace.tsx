@@ -99,7 +99,14 @@ function WorkspaceInner({
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<MessageDraft | null>(null);
   const [viewerFileId, setViewerFileId] = useState<string | null>(null);
-  const [showProfile, setShowProfile] = useState(false);
+  // Wer sich mit dem Zugangscode angemeldet hat und noch kein Passwort hat,
+  // landet direkt im Profil – dort steht das Feld dafür. Sonst sucht man beim
+  // nächsten Mal wieder den Code in einer alten Mail.
+  const [showProfile, setShowProfile] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('passwort') === '1',
+  );
   // Startansicht über alle Projekte. Wer sich anmeldet, will zuerst wissen,
   // was ansteht – nicht ein einzelnes Projekt sehen.
   const [zeigeWoche, setZeigeWoche] = useState(true);

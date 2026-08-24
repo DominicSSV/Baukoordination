@@ -266,6 +266,22 @@ export async function GET() {
           : undefined,
       };
 
+      const passwoerter = await db
+        .from('suppliers')
+        .select('id')
+        .not('passwort_hash', 'is', null);
+
+      report.migration_0028 = {
+        anmeldung_mit_passwort: !passwoerter.error,
+        lieferanten_mit_passwort: passwoerter.error
+          ? undefined
+          : (passwoerter.data ?? []).length,
+        hinweis: passwoerter.error
+          ? 'Migration 0028 fehlt. Lieferanten melden sich nur mit dem ' +
+            'Zugangscode an – den speichert keine Passwortverwaltung.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

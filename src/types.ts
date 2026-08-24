@@ -241,6 +241,10 @@ export type SessionInfo =
       name: string;
       firma: string | null;
       avatarUrl: string | null;
+      /** Die eigene Adresse – zugleich der Benutzername bei der Anmeldung. */
+      email: string | null;
+      /** true = Anmeldung mit E-Mail und Passwort ist eingerichtet. */
+      hatPasswort: boolean;
     };
 
 /**

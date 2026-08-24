@@ -4021,6 +4021,44 @@ button:disabled {
   margin: 0 0 10px;
 }
 
+/* Passwort setzen: zwei Felder untereinander, der Knopf darunter. Nebeneinander
+   wären die Felder auf dem Handy zu schmal, um einen Tippfehler zu bemerken. */
+.passwort-felder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.passwort-felder input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.passwort-felder .btn {
+  align-self: flex-start;
+}
+
+/* Der Wechsel zwischen Passwort und Zugangscode auf der Anmeldeseite: ein
+   Nebenweg, kein zweiter Hauptknopf. */
+.auth-wechsel {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+
+.auth-wechsel:hover {
+  color: var(--ink);
+}
+
 .mail-test {
   display: flex;
   gap: 8px;

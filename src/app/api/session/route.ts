@@ -3,10 +3,10 @@ import { getSession } from '@/lib/auth/session';
 import { isRlsEnforcedForSuppliers } from '@/lib/supabase/supplier';
 import { mailAnLieferanten, mailEnabled } from '@/lib/email';
 import { signAvatar } from '@/lib/avatars';
+import { lieferantAnmeldedaten } from '@/lib/auth/anmeldedaten';
 import type { SessionInfo } from '@/types';
 
 export const dynamic = 'force-dynamic';
-
 export const GET = handler(async () => {
   const session = await getSession();
   if (!session) return ok({ session: null });
@@ -33,6 +33,7 @@ export const GET = handler(async () => {
           name: session.name,
           firma: session.firma,
           avatarUrl,
+          ...(await lieferantAnmeldedaten(session.supplierId)),
         };
 
   return ok({ session: info });

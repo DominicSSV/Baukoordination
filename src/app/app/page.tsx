@@ -7,6 +7,7 @@ import { missingCoreEnv } from '@/lib/env';
 import { isRlsEnforcedForSuppliers } from '@/lib/supabase/supplier';
 import { mailAnLieferanten, mailEnabled } from '@/lib/email';
 import { signAvatar } from '@/lib/avatars';
+import { lieferantAnmeldedaten } from '@/lib/auth/anmeldedaten';
 import type { SessionInfo } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -69,6 +70,7 @@ export default async function AppPage({
           name: ctx.session.name,
           firma: ctx.session.firma,
           avatarUrl,
+          ...(await lieferantAnmeldedaten(ctx.session.supplierId)),
         };
 
   const projects = await listProjects(ctx);
