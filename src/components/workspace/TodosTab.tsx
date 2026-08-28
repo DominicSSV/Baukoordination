@@ -18,7 +18,7 @@ import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { appLink, todoText, waNummer } from '@/lib/whatsapp';
 import Avatar from '@/components/Avatar';
 import { assigneePerson, findPerson, personLabel } from '@/lib/people';
-import { spieleMuenze } from '@/lib/client/ton';
+import { spieleMuenze, spieleSchade } from '@/lib/client/ton';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
 
 export default function TodosTab({
@@ -151,9 +151,10 @@ export default function TodosTab({
     run(async () => {
       // Der Ton kommt sofort beim Antippen, nicht erst wenn der Server antwortet:
       // Auf der Baustelle dauert das gerne eine Sekunde, und dann käme die
-      // Belohnung gefühlt zum falschen Handgriff. Nur beim Abhaken, nicht beim
-      // Wieder-Öffnen – rückwärts wäre es Hohn.
-      if (!todo.done) spieleMuenze();
+      // Belohnung gefühlt zum falschen Handgriff. Rückwärts gibt es die
+      // traurige Posaune – wer einen Haken wegnimmt, hat sich das verdient.
+      if (todo.done) spieleSchade();
+      else spieleMuenze();
 
       const result = await patch<{ warning: string | null }>(`/api/todos/${todo.id}`, {
         done: !todo.done,

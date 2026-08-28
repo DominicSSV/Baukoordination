@@ -83,3 +83,82 @@ export function spieleMuenze(): void {
     // selbst darf davon nichts merken.
   }
 }
+
+/**
+ * Das Gegenstück: die traurige Posaune, wenn ein Haken wieder wegkommt.
+ *
+ * Vier Töne abwärts, jeder rutscht in der Tonhöhe nach unten, der letzte hängt
+ * länger und wackelt. Das Wackeln ist der eigentliche Witz – ohne es klingt
+ * dieselbe Tonfolge nur nach Fehlermeldung, mit ihm nach Schulterzucken.
+ *
+ * Sägezahn statt Rechteck: Er hat die Obertöne eines Blechblasinstruments. Ein
+ * Tiefpassfilter nimmt ihm die Schärfe, sonst quäkt es statt zu jammern.
+ */
+export function spieleSchade(): void {
+  if (!tonAn()) return;
+
+  try {
+    type MitAlt = typeof window & { webkitAudioContext?: typeof AudioContext };
+    const Klasse =
+      window.AudioContext ?? (window as MitAlt).webkitAudioContext ?? null;
+    if (!Klasse) return;
+
+    const ctx = new Klasse();
+    const t0 = ctx.currentTime;
+
+    const oszillator = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const lautstaerke = ctx.createGain();
+
+    oszillator.type = 'sawtooth';
+    filter.type = 'lowpass';
+    filter.frequency.value = 1400;
+
+    // Vier Stufen abwärts, je ein Halbton, und innerhalb jeder Stufe rutscht
+    // die Tonhöhe noch etwas weiter – das ergibt das "wuah".
+    const stufen = [
+      { start: 262, ende: 247, ab: 0, bis: 0.16 }, // C4 → H3
+      { start: 247, ende: 233, ab: 0.18, bis: 0.34 }, // H3 → B3
+      { start: 233, ende: 220, ab: 0.36, bis: 0.52 }, // B3 → A3
+      { start: 220, ende: 196, ab: 0.54, bis: 1.05 }, // A3 → G3, der lange
+    ];
+
+    for (const s of stufen) {
+      oszillator.frequency.setValueAtTime(s.start, t0 + s.ab);
+      oszillator.frequency.linearRampToValueAtTime(s.ende, t0 + s.bis);
+    }
+
+    // Jede Stufe kurz absetzen, sonst wird daraus ein einziges langes Rutschen.
+    lautstaerke.gain.setValueAtTime(0.0001, t0);
+    for (const s of stufen) {
+      lautstaerke.gain.setValueAtTime(0.0001, t0 + s.ab);
+      lautstaerke.gain.exponentialRampToValueAtTime(0.13, t0 + s.ab + 0.02);
+      lautstaerke.gain.setValueAtTime(0.13, t0 + s.bis - 0.03);
+      lautstaerke.gain.exponentialRampToValueAtTime(0.0001, t0 + s.bis);
+    }
+
+    // Das Wackeln auf dem letzten Ton: ein langsamer Zusatzschwinger, der die
+    // Tonhöhe leicht auf und ab schiebt.
+    const wackeln = ctx.createOscillator();
+    const wackelTiefe = ctx.createGain();
+    wackeln.frequency.value = 6;
+    wackelTiefe.gain.setValueAtTime(0, t0);
+    wackelTiefe.gain.setValueAtTime(0, t0 + 0.6);
+    wackelTiefe.gain.linearRampToValueAtTime(7, t0 + 0.75);
+    wackeln.connect(wackelTiefe);
+    wackelTiefe.connect(oszillator.frequency);
+
+    oszillator.connect(filter);
+    filter.connect(lautstaerke);
+    lautstaerke.connect(ctx.destination);
+
+    oszillator.start(t0);
+    wackeln.start(t0);
+    oszillator.stop(t0 + 1.1);
+    wackeln.stop(t0 + 1.1);
+
+    oszillator.onended = () => void ctx.close().catch(() => {});
+  } catch {
+    // Siehe oben: Kein Ton ist kein Fehler.
+  }
+}
