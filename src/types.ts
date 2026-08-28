@@ -198,6 +198,35 @@ export type Kontakt = {
   mailAn: boolean;
 };
 
+/**
+ * Eine Angabe zum Objekt: Zugang, Standort, Parkieren, Besonderheiten.
+ *
+ * Freie Zeile aus Titel und Text statt fester Felder – auf der nächsten
+ * Baustelle ist es die Alarmanlage, danach der Kranstellplatz.
+ */
+export type ProjektInfo = {
+  id: string;
+  titel: string;
+  text: string | null;
+  sortierung: number;
+};
+
+/**
+ * Eine Person am Bau ohne App-Zugang – Hauswart, Verwaltung, Bauherr,
+ * Ansprechperson vor Ort. Reine Adressangabe, kein Zugriffsrecht.
+ */
+export type ProjektKontakt = {
+  id: string;
+  /** Wofür die Person zuständig ist. Das Einzige, was Pflicht ist. */
+  rolle: string;
+  name: string | null;
+  firma: string | null;
+  telefon: string | null;
+  email: string | null;
+  notiz: string | null;
+  sortierung: number;
+};
+
 /** Ein weggeworfener Eintrag, wie ihn der Papierkorb zeigt. */
 export type PapierkorbEintrag = {
   art: 'todo' | 'datei';

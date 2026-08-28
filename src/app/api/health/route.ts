@@ -282,6 +282,20 @@ export async function GET() {
           : undefined,
       };
 
+      const [objektinfos, vorOrt] = await Promise.all([
+        db.from('project_infos').select('id').limit(1),
+        db.from('project_contacts').select('id').limit(1),
+      ]);
+
+      report.migration_0029 = {
+        projektinfos: !objektinfos.error && !vorOrt.error,
+        hinweis:
+          objektinfos.error || vorOrt.error
+            ? 'Migration 0029 fehlt. Das Register "Infos" bleibt leer – Zugang, ' +
+              'Standort und Kontakte vor Ort lassen sich nicht erfassen.'
+            : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

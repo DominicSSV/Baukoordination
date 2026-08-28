@@ -23,6 +23,7 @@ import StorageModal from '@/components/workspace/StorageModal';
 import StorageBadge from '@/components/workspace/StorageBadge';
 import ContactsModal from '@/components/workspace/ContactsModal';
 import MailTemplatesModal from '@/components/workspace/MailTemplatesModal';
+import ProjectInfoTab from '@/components/workspace/ProjectInfoTab';
 import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
@@ -36,6 +37,7 @@ export type TabKey =
   | 'offerten'
   | 'dokumente'
   | 'dateien'
+  | 'kontakte'
   | 'aktivitaet';
 
 const REGISTER: TabKey[] = [
@@ -45,6 +47,7 @@ const REGISTER: TabKey[] = [
   'offerten',
   'dokumente',
   'dateien',
+  'kontakte',
   'aktivitaet',
 ];
 
@@ -530,6 +533,13 @@ function WorkspaceInner({
                 </button>
                 <button
                   type="button"
+                  className={`tab-btn ${tab === 'kontakte' ? 'active' : ''}`}
+                  onClick={() => setTab('kontakte')}
+                >
+                  Infos
+                </button>
+                <button
+                  type="button"
                   className={`tab-btn ${tab === 'aktivitaet' ? 'active' : ''}`}
                   onClick={() => setTab('aktivitaet')}
                 >
@@ -580,6 +590,9 @@ function WorkspaceInner({
               )}
               {tab === 'dateien' && (
                 <FilesTab detail={detail} reload={reload} onOpenFile={setViewerFileId} />
+              )}
+              {tab === 'kontakte' && (
+                <ProjectInfoTab projectId={detail.project.id} isAdmin={isAdmin} />
               )}
               {tab === 'aktivitaet' && (
                 <ActivityTab

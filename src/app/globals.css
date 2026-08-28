@@ -3671,6 +3671,103 @@ button:disabled {
   }
 }
 
+/* --- Register "Infos": Angaben zum Objekt und Kontakte vor Ort ------------- */
+.pkontakt-erklaerung {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+
+.pkontakt-titel {
+  font-family: var(--font-anton), sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  margin: 22px 0 8px;
+}
+
+.pkontakt {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.pkontakt.bearbeitet {
+  display: block;
+}
+
+.pkontakt-text {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Die Funktion steht über dem Namen, nicht dahinter: Auf der Baustelle sucht
+   man "den Hauswart", nicht "Herrn Bühler". */
+.pkontakt-rolle {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.pkontakt-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  margin-top: 1px;
+}
+
+.pkontakt-notiz,
+.pkontakt-infotext {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin-top: 3px;
+  white-space: pre-wrap;
+}
+
+.pkontakt-wege {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pkontakt-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pkontakt-form input,
+.pkontakt-form textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+
+/* Notiz und Text laufen über die ganze Breite – dort steht mehr als ein Wort. */
+.pkontakt-form input:last-of-type,
+.pkontakt-form textarea {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .pkontakt-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Namen beim Hochladen -------------------------------------------------- */
 .upload-name-zeile {
   margin-bottom: 12px;
