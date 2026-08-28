@@ -3671,6 +3671,21 @@ button:disabled {
   }
 }
 
+/* --- Ton beim Abhaken ------------------------------------------------------ */
+.ton-schalter {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 4px 0 14px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ton-schalter input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 /* --- Register "Infos": Angaben zum Objekt und Kontakte vor Ort ------------- */
 .pkontakt-erklaerung {
   font-size: 12.5px;

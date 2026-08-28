@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import Avatar from '@/components/Avatar';
 import { useFeedback } from '@/components/Feedback';
 import { post } from '@/lib/client/api';
+import { setzeTon, spieleMuenze, tonAn } from '@/lib/client/ton';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import type { SessionInfo } from '@/types';
 
@@ -25,6 +26,8 @@ export default function ProfileModal({
   const [mailZiel, setMailZiel] = useState(
     session.kind === 'admin' ? (session.email ?? '') : '',
   );
+  // Lazy gelesen: Auf dem Server gibt es den Browserspeicher nicht.
+  const [ton, setTon] = useState(() => tonAn());
   const [passwort, setPasswort] = useState('');
   const [wiederholung, setWiederholung] = useState('');
   const [passwortBusy, setPasswortBusy] = useState(false);
@@ -142,6 +145,27 @@ export default function ProfileModal({
           Das Bild wird auf ein Quadrat zugeschnitten und verkleinert. Es erscheint
           überall dort, wo dein Name steht.
         </p>
+
+        {/* Der Ton hängt am Gerät, nicht am Konto: Im Büro will man ihn
+            vielleicht, in der Sitzung nicht. */}
+        <label className="ton-schalter">
+          <input
+            type="checkbox"
+            checked={ton}
+            onChange={(e) => {
+              const an = e.target.checked;
+              setTon(an);
+              setzeTon(an);
+              if (an) spieleMuenze();
+            }}
+          />
+          <span>
+            Ton beim Abhaken einer Aufgabe
+            <span className="vorlage-zweck">
+              Gilt nur auf diesem Gerät. Beim Einschalten hörst du ihn gleich.
+            </span>
+          </span>
+        </label>
 
         <input
           ref={input}

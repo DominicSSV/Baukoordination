@@ -7,6 +7,7 @@ import { fmtDueDate, heute } from '@/lib/due';
 import { tagPlus } from '@/lib/schedule';
 import { assigneeLabel } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
+import { spieleMuenze } from '@/lib/client/ton';
 import type { MeineAufgabe } from '@/app/api/mytasks/route';
 import type { AdminProfile, Supplier } from '@/types';
 
@@ -96,6 +97,7 @@ export default function MyWeek({
 
   async function abhaken(a: MeineAufgabe) {
     setBusy(a.id);
+    spieleMuenze();
     try {
       await patch(`/api/todos/${a.id}`, { done: true });
       // Ohne erneutes Laden bliebe die Zeile stehen, obwohl sie erledigt ist.
