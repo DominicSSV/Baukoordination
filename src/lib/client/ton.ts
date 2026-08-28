@@ -35,6 +35,33 @@ export function setzeTon(an: boolean): void {
 }
 
 /**
+ * Ein einziger Klangkanal für die ganze Sitzung.
+ *
+ * Vorher legte jeder Ton einen eigenen an. Das geht ein paar Mal gut und hört
+ * dann auf: Browser erlauben nur eine Handvoll gleichzeitig, und auf dem
+ * iPhone werden sie nur zögerlich wieder freigegeben. Wer schnell mehrere
+ * Aufgaben abhakt, hörte irgendwann gar nichts mehr – ohne Fehlermeldung.
+ *
+ * Angelegt wird er beim ersten Ton, also innerhalb eines Fingertipps. Das ist
+ * Bedingung: Ein Kanal, der ohne Zutun entsteht, bleibt stummgeschaltet.
+ */
+let kanal: AudioContext | null = null;
+
+function holeKanal(): AudioContext | null {
+  type MitAlt = typeof window & { webkitAudioContext?: typeof AudioContext };
+  const Klasse = window.AudioContext ?? (window as MitAlt).webkitAudioContext ?? null;
+  if (!Klasse) return null;
+
+  if (!kanal || kanal.state === 'closed') kanal = new Klasse();
+
+  // Nach längerem Nichtstun legt der Browser den Kanal schlafen; ohne das
+  // Aufwecken bliebe es still.
+  if (kanal.state === 'suspended') void kanal.resume().catch(() => {});
+
+  return kanal;
+}
+
+/**
  * Ein Tonpaar bauen und abspielen.
  *
  * Die Tonhöhen sind H5 und E6 – eine reine Quarte. Der Wechsel nach oben ist
@@ -45,12 +72,8 @@ export function spieleMuenze(): void {
   if (!tonAn()) return;
 
   try {
-    type MitAlt = typeof window & { webkitAudioContext?: typeof AudioContext };
-    const Klasse =
-      window.AudioContext ?? (window as MitAlt).webkitAudioContext ?? null;
-    if (!Klasse) return;
-
-    const ctx = new Klasse();
+    const ctx = holeKanal();
+    if (!ctx) return;
     const jetzt = ctx.currentTime;
 
     const oszillator = ctx.createOscillator();
@@ -74,9 +97,9 @@ export function spieleMuenze(): void {
     oszillator.start(jetzt);
     oszillator.stop(jetzt + 0.45);
 
-    // Aufräumen, sonst bleibt je Abhaken ein Tonkanal offen. Browser erlauben
-    // davon nur eine begrenzte Zahl; irgendwann käme gar kein Ton mehr.
-    oszillator.onended = () => void ctx.close().catch(() => {});
+    // Der Schwinger räumt sich nach dem Stoppen selbst weg; der gemeinsame
+    // Kanal bleibt bewusst offen und wird beim nächsten Ton wiederverwendet.
+    oszillator.onended = () => oszillator.disconnect();
   } catch {
     // Kein Ton ist kein Fehler. Auf einem stummgeschalteten Gerät oder ohne
     // vorherige Berührung verweigert der Browser das Abspielen – das Abhaken
@@ -98,12 +121,8 @@ export function spieleSchade(): void {
   if (!tonAn()) return;
 
   try {
-    type MitAlt = typeof window & { webkitAudioContext?: typeof AudioContext };
-    const Klasse =
-      window.AudioContext ?? (window as MitAlt).webkitAudioContext ?? null;
-    if (!Klasse) return;
-
-    const ctx = new Klasse();
+    const ctx = holeKanal();
+    if (!ctx) return;
     const t0 = ctx.currentTime;
 
     const oszillator = ctx.createOscillator();
@@ -157,7 +176,10 @@ export function spieleSchade(): void {
     oszillator.stop(t0 + 1.1);
     wackeln.stop(t0 + 1.1);
 
-    oszillator.onended = () => void ctx.close().catch(() => {});
+    oszillator.onended = () => {
+      oszillator.disconnect();
+      wackeln.disconnect();
+    };
   } catch {
     // Siehe oben: Kein Ton ist kein Fehler.
   }
