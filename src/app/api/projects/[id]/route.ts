@@ -131,6 +131,40 @@ export const DELETE = handler(async (request: Request, { params }: Params) => {
     if (weg.error) console.error('[storage] Projektdateien nicht entfernt', weg.error);
   }
 
+  // Dateien und Dokumentordner müssen vor dem Projekt weg, und zwar in dieser
+  // Reihenfolge.
+  //
+  // Auf den Ordnern sitzt ein Wächter, der das Löschen verweigert, solange noch
+  // ein Dokument oder ein Unterordner darin liegt – gedacht gegen das
+  // versehentliche Wegräumen eines vollen Ordners. Beim Löschen des Projekts
+  // räumt die Datenbank die Ordner selbst weg, der Wächter feuert dabei mit und
+  // bricht den ganzen Vorgang ab: "Der Ordner enthält noch 3 Unterordner."
+  //
+  // Deshalb wird hier von innen nach aussen aufgeräumt: erst die Dokumente,
+  // dann die Unterordner, dann die Hauptordner. Danach ist jeder Ordner leer
+  // und der Wächter hat nichts mehr einzuwenden.
+  const dateienWeg = await ctx.db.from('files').delete().eq('project_id', id);
+  if (dateienWeg.error) {
+    throw new ApiError(`Löschen fehlgeschlagen: ${dateienWeg.error.message}`, 500);
+  }
+
+  const unterordner = await ctx.db
+    .from('document_folders')
+    .delete()
+    .eq('project_id', id)
+    .not('parent_id', 'is', null);
+
+  // Ohne Migration 0021 gibt es keine Unterordner – dann fällt dieser Schritt
+  // weg und der nächste erledigt alles.
+  if (unterordner.error) {
+    console.warn('[projekt] Unterordner nicht gesondert entfernt', unterordner.error);
+  }
+
+  const ordner = await ctx.db.from('document_folders').delete().eq('project_id', id);
+  if (ordner.error) {
+    throw new ApiError(`Löschen fehlgeschlagen: ${ordner.error.message}`, 500);
+  }
+
   // Alles Übrige hängt per ON DELETE CASCADE am Projekt.
   const { error } = await ctx.db.from('projects').delete().eq('id', id);
   if (error) throw new ApiError(`Löschen fehlgeschlagen: ${error.message}`, 500);
