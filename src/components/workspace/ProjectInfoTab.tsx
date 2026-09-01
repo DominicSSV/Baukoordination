@@ -330,6 +330,8 @@ export default function ProjectInfoTab({
 
       <h4 className="pkontakt-titel">Angaben zum Objekt</h4>
 
+      <div className="datenblatt">
+
       {infos.map((i) =>
         infoBearbeitet === i.id ? (
           <div className="pkontakt bearbeitet" key={i.id}>
@@ -378,29 +380,31 @@ export default function ProjectInfoTab({
             </div>
           </div>
         ) : (
-          <div className="pkontakt" key={i.id}>
-            <div className="pkontakt-text">
-              <div className="pkontakt-rolle">{i.titel}</div>
-              <div className="pkontakt-infotext">{i.text?.trim() || '—'}</div>
+          <div className="datenzeile" key={i.id}>
+            <div className="datenzeile-name">{i.titel}</div>
+            <div className={`datenzeile-wert ${i.text?.trim() ? '' : 'offen'}`}>
+              {i.text?.trim() || 'noch nicht erfasst'}
             </div>
             {isAdmin && (
-              <div className="pkontakt-wege">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    setInfoBearbeitet(i.id);
-                    setNeueInfo(null);
-                    setInfoEntwurf({ titel: i.titel, text: i.text ?? '' });
-                  }}
-                >
-                  ✏️
-                </button>
-              </div>
+              <button
+                type="button"
+                className="datenzeile-stift"
+                title="Ändern"
+                aria-label={`${i.titel} ändern`}
+                onClick={() => {
+                  setInfoBearbeitet(i.id);
+                  setNeueInfo(null);
+                  setInfoEntwurf({ titel: i.titel, text: i.text ?? '' });
+                }}
+              >
+                ✏️
+              </button>
             )}
           </div>
         ),
       )}
+
+      </div>
 
       <datalist id="info-titel">
         {INFO_TITEL.map((t) => (
@@ -477,6 +481,8 @@ export default function ProjectInfoTab({
 
       <h4 className="pkontakt-titel">Kontakte vor Ort</h4>
 
+      <div className="kontakt-karten">
+
       {kontakte.map((k) => {
         if (bearbeitet === k.id) {
           return (
@@ -513,15 +519,26 @@ export default function ProjectInfoTab({
         const nummer = waNummer(k.telefon);
 
         return (
-          <div className="pkontakt" key={k.id}>
-            <div className="pkontakt-text">
-              <div className="pkontakt-rolle">{k.rolle}</div>
-              <div className="pkontakt-name">
-                {k.name?.trim() || '—'}
-                {k.firma && <span className="kontakt-firma"> ({k.firma})</span>}
-              </div>
-              {k.notiz && <div className="pkontakt-notiz">{k.notiz}</div>}
+          <div className="kontakt-karte" key={k.id}>
+            <div className="kontakt-karte-kopf">
+              <span className="pkontakt-rolle">{k.rolle}</span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="datenzeile-stift"
+                  title="Ändern"
+                  aria-label={`${k.rolle} ändern`}
+                  onClick={() => bearbeiten(k)}
+                >
+                  ✏️
+                </button>
+              )}
             </div>
+            <div className="pkontakt-name">
+              {k.name?.trim() || '—'}
+              {k.firma && <span className="kontakt-firma"> · {k.firma}</span>}
+            </div>
+            {k.notiz && <div className="pkontakt-notiz">{k.notiz}</div>}
 
             {/* Auf der Baustelle zählt der eine Griff zum Anruf – deshalb sind
                 Nummer und Adresse anklickbar und nicht nur abgedruckt. */}
@@ -543,19 +560,12 @@ export default function ProjectInfoTab({
                   ✉️ {k.email}
                 </a>
               )}
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => bearbeiten(k)}
-                >
-                  ✏️
-                </button>
-              )}
             </div>
           </div>
         );
       })}
+
+      </div>
 
       {!kontakte.length && !ohneTabelle && (
         <p className="leer-hinweis">Für dieses Projekt ist noch niemand erfasst.</p>
@@ -600,17 +610,19 @@ export default function ProjectInfoTab({
           sich aus den Freigaben im Register "Lieferanten". */}
       <h4 className="pkontakt-titel">Beteiligte Lieferanten</h4>
 
+      <div className="kontakt-karten">
+
       {beteiligte.map((l) => {
         const nummer = waNummer(l.kontakt);
 
         return (
-          <div className="pkontakt" key={l.id}>
-            <div className="pkontakt-text">
-              <div className="pkontakt-rolle">{l.gewerk?.trim() || 'Lieferant'}</div>
-              <div className="pkontakt-name">
-                {l.firma?.trim() || l.name?.trim() || '—'}
-                {l.firma && l.name && <span className="kontakt-firma"> · {l.name}</span>}
-              </div>
+          <div className="kontakt-karte" key={l.id}>
+            <div className="kontakt-karte-kopf">
+              <span className="pkontakt-rolle">{l.gewerk?.trim() || 'Lieferant'}</span>
+            </div>
+            <div className="pkontakt-name">
+              {l.firma?.trim() || l.name?.trim() || '—'}
+              {l.firma && l.name && <span className="kontakt-firma"> · {l.name}</span>}
             </div>
             <div className="pkontakt-wege">
               {l.kontakt && (
@@ -634,6 +646,8 @@ export default function ProjectInfoTab({
           </div>
         );
       })}
+
+      </div>
 
       {!beteiligte.length && (
         <p className="leer-hinweis">

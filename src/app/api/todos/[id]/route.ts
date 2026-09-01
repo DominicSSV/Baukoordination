@@ -14,6 +14,7 @@ function ohneNeueSpalten(patch: Record<string, unknown>): Record<string, unknown
   const rest = { ...patch };
   delete rest.assignees;
   delete rest.vertraulich;
+  delete rest.meilenstein;
   return rest;
 }
 
@@ -79,6 +80,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     assignedTo?: string;
     assignees?: string[];
     vertraulich?: boolean;
+    meilenstein?: boolean;
     dueDate?: string | null;
   }>(request);
 
@@ -94,6 +96,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     body.assignedTo !== undefined ||
     body.assignees !== undefined ||
     body.vertraulich !== undefined ||
+    body.meilenstein !== undefined ||
     body.dueDate !== undefined;
 
   if (wantsContentChange && isSupplier && !ownsTodo) {
@@ -119,6 +122,12 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   }
 
   if (body.vertraulich !== undefined) patch.vertraulich = Boolean(body.vertraulich);
+
+  // Nur wir bestimmen, was ein fester Schritt des Projekts ist – ein Lieferant
+  // könnte sonst seine eigene Aufgabe zum Meilenstein erklären.
+  if (body.meilenstein !== undefined && !isSupplier) {
+    patch.meilenstein = Boolean(body.meilenstein);
+  }
 
   if (body.dueDate !== undefined) {
     patch.due_date = parseDueDate(body.dueDate);

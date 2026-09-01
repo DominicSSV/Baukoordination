@@ -105,6 +105,11 @@ export type Todo = {
    * false (Standard) = alle am Projekt.
    */
   vertraulich: boolean;
+  /**
+   * true = einer der festen Schritte des Projekts, kein Tagesgeschäft.
+   * Sonst eine gewöhnliche Aufgabe – nur oben abgesetzt dargestellt.
+   */
+  meilenstein: boolean;
   done: boolean;
   done_by: string | null;
   done_at: string | null;
@@ -196,6 +201,16 @@ export type Kontakt = {
    * Person freizuschalten – standardmässig nein.
    */
   mailAn: boolean;
+};
+
+/**
+ * Eine gespeicherte Schrittfolge – die Meilensteine eines typischen Projekts.
+ * Nur der Text; Frist und Zuständige gehören zum einzelnen Bau.
+ */
+export type MeilensteinVorlage = {
+  id: string;
+  name: string;
+  schritte: string[];
 };
 
 /**

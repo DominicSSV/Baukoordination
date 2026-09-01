@@ -296,6 +296,23 @@ export async function GET() {
             : undefined,
       };
 
+      const [meilensteine, vorlagen] = await Promise.all([
+        db.from('todos').select('id').eq('meilenstein', true),
+        db.from('milestone_templates').select('id'),
+      ]);
+
+      report.migration_0030 = {
+        meilensteine: !meilensteine.error && !vorlagen.error,
+        gesetzte_meilensteine: meilensteine.error
+          ? undefined
+          : (meilensteine.data ?? []).length,
+        vorlagen: vorlagen.error ? undefined : (vorlagen.data ?? []).length,
+        hinweis:
+          meilensteine.error || vorlagen.error
+            ? 'Migration 0030 fehlt. Meilensteine und Vorlagen dafür gibt es noch nicht.'
+            : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

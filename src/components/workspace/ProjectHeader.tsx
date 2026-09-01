@@ -17,6 +17,7 @@ export default function ProjectHeader({
   onRenamed,
   onDuplicated,
   onDeleted,
+  onMeilensteine,
 }: {
   project: Project;
   isAdmin: boolean;
@@ -26,6 +27,8 @@ export default function ProjectHeader({
   onDuplicated: (project: Project) => void;
   /** Wird nach dem endgültigen Löschen aufgerufen. */
   onDeleted: (id: string) => void;
+  /** Öffnet die Meilenstein-Vorlagen. */
+  onMeilensteine: () => void;
 }) {
   const { toast, reportError } = useFeedback();
 
@@ -264,6 +267,17 @@ export default function ProjectHeader({
                           }}
                         >
                           ⧉ Duplizieren
+                        </button>
+                        <button
+                          type="button"
+                          className="menu-item"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOffen(false);
+                            onMeilensteine();
+                          }}
+                        >
+                          🏁 Meilensteine
                         </button>
                         <button
                           type="button"

@@ -46,6 +46,7 @@ export default function TodosTab({
   const [editAssignees, setEditAssignees] = useState<string[]>([]);
   const [editDue, setEditDue] = useState('');
   const [editVertraulich, setEditVertraulich] = useState(false);
+  const [editMeilenstein, setEditMeilenstein] = useState(false);
 
   // Aufgaben gehen immer an eine bestimmte Person. Nur solange noch gar kein
   // Bauherrenvertreter hinterlegt ist (Migration 0002 nicht eingespielt), bleibt
@@ -174,6 +175,7 @@ export default function TodosTab({
         text,
         assignees: editAssignees,
         vertraulich: editVertraulich,
+        meilenstein: editMeilenstein,
         dueDate: editDue || null,
       });
       setEditingId(null);
@@ -323,6 +325,16 @@ export default function TodosTab({
                     />
                     🔒 Vertraulich – nur für uns und die beteiligten Firmen
                   </label>
+                  {isAdmin && (
+                    <label className="vertraulich-feld">
+                      <input
+                        type="checkbox"
+                        checked={editMeilenstein}
+                        onChange={(e) => setEditMeilenstein(e.target.checked)}
+                      />
+                      🏁 Meilenstein – fester Schritt des Projekts
+                    </label>
+                  )}
                   <input
                     type="date"
                     value={editDue}
@@ -358,7 +370,10 @@ export default function TodosTab({
           }
 
           return (
-            <div key={todo.id} className="todo-row">
+            <div
+              key={todo.id}
+              className={`todo-row ${todo.meilenstein ? 'meilenstein' : ''}`}
+            >
               {isAdmin && (
                 <div className="reorder-buttons">
                   <button
@@ -394,6 +409,11 @@ export default function TodosTab({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className={`todo-text ${todo.done ? 'done' : ''}`}>{todo.text}</div>
                 <div className="todo-meta">
+                  {todo.meilenstein && (
+                    <span className="meilenstein-chip" title="Fester Schritt des Projekts">
+                      🏁 Meilenstein
+                    </span>
+                  )}
                   {todo.vertraulich && (
                     <span
                       className="vertraulich-chip"
@@ -643,6 +663,7 @@ export default function TodosTab({
                       todo.assignees?.length ? todo.assignees : [todo.assigned_to],
                     );
                     setEditVertraulich(todo.vertraulich);
+                    setEditMeilenstein(todo.meilenstein);
                     setEditDue(todo.due_date ?? '');
                   }}
                 >

@@ -3671,6 +3671,26 @@ button:disabled {
   }
 }
 
+/* --- Meilensteine ----------------------------------------------------------
+   Dieselbe Aufgabe, nur anders markiert: ein Farbstreifen links im
+   Firmenverlauf und ein heller Grund. Kein eigener Block, kein eigener Aufbau –
+   abhaken, kommentieren und zuweisen funktionieren unverändert. */
+.todo-row.meilenstein {
+  border-left: 3px solid transparent;
+  border-image: var(--stripe) 1;
+  background: linear-gradient(90deg, rgba(255, 189, 89, 0.09), transparent 55%);
+}
+
+.meilenstein-chip {
+  background: var(--highlight-soft);
+  color: #8a5a00;
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* --- Löschen: sichtbar anders als der Rest ---------------------------------
    Rot heisst hier "nicht rückgängig". Es kommt in der App sonst nirgends als
    Knopffarbe vor, damit es seine Warnwirkung behält. */
@@ -3733,6 +3753,91 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
+/* Angaben zum Objekt als Datenblatt: Bezeichnung links, Wert rechts.
+   Vorher stand beides untereinander – bei zehn Angaben ergab das eine lange
+   Kolonne, in der man den einen gesuchten Wert nicht fand. Nebeneinander
+   liest sich dieselbe Liste wie ein technisches Datenblatt. */
+.datenblatt {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.datenzeile {
+  display: grid;
+  grid-template-columns: 190px 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.datenzeile:last-child {
+  border-bottom: none;
+}
+
+.datenzeile:hover {
+  background: var(--bg);
+}
+
+.datenzeile-name {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.datenzeile-wert {
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  min-width: 0;
+}
+
+/* Eine leere Angabe soll auffallen, aber nicht wie ein Fehler aussehen. */
+.datenzeile-wert.offen {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+/* Der Stift zeigt sich erst beim Darüberfahren – zehn Bleistifte
+   untereinander lenken vom Inhalt ab. Auf dem Handy steht er immer da. */
+.datenzeile-stift {
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font-size: 13px;
+  opacity: 0;
+}
+
+.datenzeile:hover .datenzeile-stift,
+.kontakt-karte:hover .datenzeile-stift {
+  opacity: 1;
+}
+
+/* Kontakte als Karten nebeneinander statt als Zeilen über die ganze Breite:
+   Name, Funktion und die Wege zur Person gehören zusammen und sollen als ein
+   Block lesbar sein. */
+.kontakt-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.kontakt-karte {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+.kontakt-karte-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .pkontakt.bearbeitet {
   display: block;
 }
@@ -3774,6 +3879,10 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.kontakt-karte .pkontakt-wege {
+  margin-top: 10px;
+}
+
 .pkontakt-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3799,6 +3908,20 @@ button:disabled {
 @media (max-width: 760px) {
   .pkontakt-form {
     grid-template-columns: 1fr;
+  }
+
+  /* Ohne Maus gibt es kein Darüberfahren – sonst käme man nie an den Stift. */
+  .datenzeile-stift {
+    opacity: 1;
+  }
+
+  /* Nebeneinander wird die Bezeichnung zu schmal und bricht mitten im Wort. */
+  .datenzeile {
+    grid-template-columns: 1fr auto;
+  }
+
+  .datenzeile-name {
+    grid-column: 1 / -1;
   }
 }
 

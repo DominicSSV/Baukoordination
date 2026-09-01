@@ -155,7 +155,7 @@ export async function loadProjectDetail(
     db
       .from('todos')
       .select(
-        'id, project_id, text, assigned_to, assignees, vertraulich, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
+        'id, project_id, text, assigned_to, assignees, vertraulich, meilenstein, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
       )
       .eq('project_id', projectId)
       .is('deleted_at', null)
@@ -178,17 +178,25 @@ export async function loadProjectDetail(
     db.from('project_access').select('supplier_id').eq('project_id', projectId),
   ]);
 
-  // Ohne Migration 0014 gibt es die Spalte mit mehreren Zuständigen noch nicht.
-  const aufgaben = todosRes.error
-    ? await db
-        .from('todos')
-        .select(
-          'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
-        )
-        .eq('project_id', projectId)
-        .order('order_index', { ascending: true })
-        .order('created_at', { ascending: true })
-    : todosRes;
+  // Jede Migration bringt eine Spalte mehr. Fehlt eine, wird der Reihe nach
+  // eine kürzere Auswahl versucht – so läuft die App auch dann, wenn eine
+  // Datenbank-Aktualisierung noch aussteht.
+  const todoSpalten = [
+    'id, project_id, text, assigned_to, assignees, vertraulich, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
+    'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date',
+  ];
+
+  let aufgaben = todosRes;
+  for (const spalten of todoSpalten) {
+    if (!aufgaben.error) break;
+    aufgaben = (await db
+      .from('todos')
+      .select(spalten)
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('order_index', { ascending: true })
+      .order('created_at', { ascending: true })) as typeof todosRes;
+  }
 
   if (aufgaben.error) throw new Error(`To-Dos: ${aufgaben.error.message}`);
 
@@ -239,9 +247,10 @@ export async function loadProjectDetail(
   if (accessRes.error) throw new Error(`Zugriffsrechte: ${accessRes.error.message}`);
 
   const todoRows = (aufgaben.data ?? []) as Array<
-    Omit<Todo, 'comments' | 'assignees' | 'vertraulich'> & {
+    Omit<Todo, 'comments' | 'assignees' | 'vertraulich' | 'meilenstein'> & {
       assignees?: string[] | null;
       vertraulich?: boolean | null;
+      meilenstein?: boolean | null;
     }
   >;
 
@@ -270,6 +279,7 @@ export async function loadProjectDetail(
     // Ohne Migration 0014 zählt der eine bisherige Zuständige.
     assignees: t.assignees?.length ? t.assignees : [t.assigned_to],
     vertraulich: Boolean(t.vertraulich),
+    meilenstein: Boolean(t.meilenstein),
     comments: commentsByTodo.get(t.id) ?? [],
   }));
 

@@ -24,6 +24,7 @@ import StorageBadge from '@/components/workspace/StorageBadge';
 import ContactsModal from '@/components/workspace/ContactsModal';
 import MailTemplatesModal from '@/components/workspace/MailTemplatesModal';
 import ProjectInfoTab from '@/components/workspace/ProjectInfoTab';
+import MilestonesModal from '@/components/workspace/MilestonesModal';
 import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
@@ -32,22 +33,22 @@ import type { Project, ProjectDetail, SessionInfo } from '@/types';
 
 export type TabKey =
   | 'lieferanten'
+  | 'kontakte'
   | 'todos'
   | 'terminplan'
   | 'offerten'
   | 'dokumente'
   | 'dateien'
-  | 'kontakte'
   | 'aktivitaet';
 
 const REGISTER: TabKey[] = [
   'lieferanten',
+  'kontakte',
   'todos',
   'terminplan',
   'offerten',
   'dokumente',
   'dateien',
-  'kontakte',
   'aktivitaet',
 ];
 
@@ -105,6 +106,7 @@ function WorkspaceInner({
   // Wer sich mit dem Zugangscode angemeldet hat und noch kein Passwort hat,
   // landet direkt im Profil – dort steht das Feld dafür. Sonst sucht man beim
   // nächsten Mal wieder den Code in einer alten Mail.
+  const [zeigeMeilensteine, setZeigeMeilensteine] = useState(false);
   const [showProfile, setShowProfile] = useState(
     () =>
       typeof window !== 'undefined' &&
@@ -497,7 +499,16 @@ function WorkspaceInner({
                 onRenamed={renameProject}
                 onDuplicated={addProject}
                 onDeleted={removeProject}
+                onMeilensteine={() => setZeigeMeilensteine(true)}
               />
+
+              {zeigeMeilensteine && (
+                <MilestonesModal
+                  project={detail.project}
+                  onClose={() => setZeigeMeilensteine(false)}
+                  onUebernommen={reload}
+                />
+              )}
 
               <div className="tabs">
                 {isAdmin && (
@@ -509,6 +520,13 @@ function WorkspaceInner({
                     Lieferanten <span className="tab-count">{detail.accessIds.length}</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  className={`tab-btn ${tab === 'kontakte' ? 'active' : ''}`}
+                  onClick={() => setTab('kontakte')}
+                >
+                  Projektinfos
+                </button>
                 <button
                   type="button"
                   className={`tab-btn ${tab === 'todos' ? 'active' : ''}`}
@@ -544,13 +562,6 @@ function WorkspaceInner({
                   onClick={() => setTab('dateien')}
                 >
                   Dateien <span className="tab-count">{detail.files.length}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`tab-btn ${tab === 'kontakte' ? 'active' : ''}`}
-                  onClick={() => setTab('kontakte')}
-                >
-                  Projektinfos
                 </button>
                 <button
                   type="button"
