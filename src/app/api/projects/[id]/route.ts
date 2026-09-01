@@ -9,6 +9,8 @@ import {
 import { requireAdmin, requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import { loadProjectDetail } from '@/lib/projects';
 import { parseDueDate } from '@/lib/due';
+import { serviceClient } from '@/lib/supabase/service';
+import { STORAGE_BUCKET } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,4 +71,69 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
   return ok({ project: data });
+});
+
+/**
+ * Ein Projekt endgültig löschen.
+ *
+ * Das ist der einzige Vorgang in der App, der nicht rückgängig zu machen ist:
+ * Mit dem Projekt gehen Aufgaben, Dateien, Offerten, Terminplan, Protokoll und
+ * die Freigaben. Der Papierkorb hilft hier nicht – er hängt selbst am Projekt.
+ *
+ * Deshalb muss der Projektname mitgeschickt werden und genau stimmen. Ein
+ * blosses "Sind Sie sicher?" klickt man auf der Baustelle mit Handschuhen weg,
+ * einen abgetippten Namen nicht.
+ *
+ * Die Dateien im Speicher werden zuerst entfernt. Umgekehrt bliebe bei einem
+ * Abbruch ein Projekt ohne Inhalt zurück; so bleibt im schlechtesten Fall ein
+ * vollständiges Projekt mit ein paar fehlenden Dateien – das ist der weniger
+ * schlimme Ausgang.
+ */
+export const DELETE = handler(async (request: Request, { params }: Params) => {
+  const { id } = await params;
+  const ctx = await requireAdmin();
+
+  const { data: projekt } = await ctx.db
+    .from('projects')
+    .select('id, name')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (!projekt) throw new ApiError('Projekt nicht gefunden.', 404);
+
+  const { name } = await readJson<{ name?: string }>(request);
+  const zeile = projekt as { id: string; name: string };
+
+  if (String(name ?? '').trim() !== zeile.name.trim()) {
+    throw new ApiError(
+      `Zum Löschen bitte den Projektnamen genau eingeben: „${zeile.name}“.`,
+    );
+  }
+
+  // Auch die Dateien im Papierkorb: Die Zeile verschwindet mit dem Projekt,
+  // das Objekt im Speicher bliebe sonst für immer liegen und zählt weiter
+  // gegen das Speicherkontingent.
+  const dienst = serviceClient();
+  const { data: dateien } = await dienst
+    .from('files')
+    .select('storage_path, thumb_path')
+    .eq('project_id', id);
+
+  const pfade = ((dateien ?? []) as Array<{
+    storage_path: string | null;
+    thumb_path: string | null;
+  }>)
+    .flatMap((d) => [d.storage_path, d.thumb_path])
+    .filter((p): p is string => Boolean(p));
+
+  if (pfade.length) {
+    const weg = await dienst.storage.from(STORAGE_BUCKET).remove(pfade);
+    if (weg.error) console.error('[storage] Projektdateien nicht entfernt', weg.error);
+  }
+
+  // Alles Übrige hängt per ON DELETE CASCADE am Projekt.
+  const { error } = await ctx.db.from('projects').delete().eq('id', id);
+  if (error) throw new ApiError(`Löschen fehlgeschlagen: ${error.message}`, 500);
+
+  return ok({ ok: true, name: zeile.name, dateien: pfade.length });
 });

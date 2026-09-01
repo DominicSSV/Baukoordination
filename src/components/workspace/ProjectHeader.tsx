@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { patch, post } from '@/lib/client/api';
+import { del, patch, post } from '@/lib/client/api';
 import type { Project } from '@/types';
 
 /**
@@ -16,6 +16,7 @@ export default function ProjectHeader({
   onRefresh,
   onRenamed,
   onDuplicated,
+  onDeleted,
 }: {
   project: Project;
   isAdmin: boolean;
@@ -23,6 +24,8 @@ export default function ProjectHeader({
   onRefresh: () => void;
   onRenamed: (project: Project) => void;
   onDuplicated: (project: Project) => void;
+  /** Wird nach dem endgültigen Löschen aufgerufen. */
+  onDeleted: (id: string) => void;
 }) {
   const { toast, reportError } = useFeedback();
 
@@ -30,6 +33,9 @@ export default function ProjectHeader({
   const [name, setName] = useState(project.name);
   const [ort, setOrt] = useState(project.ort ?? '');
   const [busy, setBusy] = useState(false);
+
+  const [loeschen, setLoeschen] = useState(false);
+  const [loeschName, setLoeschName] = useState('');
 
   const [menuOffen, setMenuOffen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -116,6 +122,31 @@ export default function ProjectHeader({
       }
     } catch (error) {
       reportError(error, 'Projekt konnte nicht dupliziert werden.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Endgültig löschen. Der Name muss abgetippt werden – das ist die einzige
+   * Handlung in der App, die sich nicht rückgängig machen lässt, und ein
+   * blosses "Sind Sie sicher?" klickt man mit Handschuhen weg.
+   */
+  async function entfernen() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { dateien } = await del<{ dateien: number }>(
+        `/api/projects/${project.id}`,
+        { name: loeschName.trim() },
+      );
+      setLoeschen(false);
+      onDeleted(project.id);
+      toast(
+        `🗑️ „${project.name}“ gelöscht${dateien ? ` – samt ${dateien} Dateien` : ''}.`,
+      );
+    } catch (error) {
+      reportError(error, 'Projekt konnte nicht gelöscht werden.');
     } finally {
       setBusy(false);
     }
@@ -234,6 +265,18 @@ export default function ProjectHeader({
                         >
                           ⧉ Duplizieren
                         </button>
+                        <button
+                          type="button"
+                          className="menu-item gefaehrlich"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOffen(false);
+                            setLoeschName('');
+                            setLoeschen(true);
+                          }}
+                        >
+                          🗑️ Projekt löschen
+                        </button>
                         <div className="menu-trenner" />
                       </>
                     )}
@@ -267,6 +310,54 @@ export default function ProjectHeader({
           )}
         </div>
       </div>
+
+      {loeschen && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setLoeschen(false);
+          }}
+        >
+          <div className="modal">
+            <h3>Projekt löschen</h3>
+            <p style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+              Damit gehen <strong>alle Aufgaben, Dateien, Offerten, der Terminplan
+              und das Protokoll</strong> dieses Projekts. Das lässt sich nicht
+              rückgängig machen – der Papierkorb hilft nicht, er hängt selbst am
+              Projekt.
+            </p>
+            <p style={{ fontSize: 13.5 }}>
+              Tippe zur Bestätigung den Projektnamen ab: <strong>{project.name}</strong>
+            </p>
+            <input
+              type="text"
+              value={loeschName}
+              onChange={(e) => setLoeschName(e.target.value)}
+              placeholder={project.name}
+              aria-label="Projektname zur Bestätigung"
+              autoFocus
+            />
+            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setLoeschen(false)}
+                disabled={busy}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-gefaehrlich"
+                onClick={entfernen}
+                disabled={busy || loeschName.trim() !== project.name.trim()}
+              >
+                {busy ? 'Wird gelöscht…' : 'Endgültig löschen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {duplicating && (
         <div

@@ -249,6 +249,19 @@ function WorkspaceInner({
   }
 
   /** Nach dem Duplizieren: neues Projekt aufnehmen und direkt öffnen. */
+  /**
+   * Nach dem Löschen: Projekt aus der Liste nehmen und zur Übersicht wechseln.
+   * Auf dem gelöschten Projekt stehen zu bleiben ergäbe eine Ansicht, deren
+   * Inhalt es nicht mehr gibt.
+   */
+  function removeProject(id: string) {
+    setProjects((current) => current.filter((p) => p.id !== id));
+    setActiveId(null);
+    setDetail(null);
+    setDetailError(null);
+    setZeigeWoche(true);
+  }
+
   function addProject(created: Project) {
     setProjects((current) => [...current, created]);
     setActiveId(created.id);
@@ -483,6 +496,7 @@ function WorkspaceInner({
                 onRefresh={refresh}
                 onRenamed={renameProject}
                 onDuplicated={addProject}
+                onDeleted={removeProject}
               />
 
               <div className="tabs">
@@ -536,7 +550,7 @@ function WorkspaceInner({
                   className={`tab-btn ${tab === 'kontakte' ? 'active' : ''}`}
                   onClick={() => setTab('kontakte')}
                 >
-                  Infos
+                  Projektinfos
                 </button>
                 <button
                   type="button"
@@ -592,7 +606,7 @@ function WorkspaceInner({
                 <FilesTab detail={detail} reload={reload} onOpenFile={setViewerFileId} />
               )}
               {tab === 'kontakte' && (
-                <ProjectInfoTab projectId={detail.project.id} isAdmin={isAdmin} />
+                <ProjectInfoTab detail={detail} isAdmin={isAdmin} />
               )}
               {tab === 'aktivitaet' && (
                 <ActivityTab

@@ -6,7 +6,7 @@ import { api, del, patch, post } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
-import type { ProjektInfo, ProjektKontakt } from '@/types';
+import type { ProjectDetail, ProjektInfo, ProjektKontakt } from '@/types';
 
 type Entwurf = {
   rolle: string;
@@ -42,14 +42,30 @@ const ROLLEN = [
  * Funktionen: nur Vorschläge, keine feste Auswahl.
  */
 const INFO_TITEL = [
+  'Standort',
+  'Leistung kWp',
+  'Wechselrichter-Modell',
+  'Module',
   'Zugang',
-  'Standort / Anfahrt',
+  'Abrechnungsmodell',
   'Parkieren',
-  'Schlüssel',
-  'Strom und Wasser',
-  'Alarmanlage',
-  'Arbeitszeiten',
+  'Netzbetreiber',
   'Besonderes',
+];
+
+/**
+ * Womit ein leeres Projekt anfängt.
+ *
+ * Diese fünf braucht ihr bei jeder Anlage. Sie leer anzulegen ist besser, als
+ * sie zu vergessen: Eine sichtbare Zeile "kWp: —" fragt danach, eine fehlende
+ * Zeile nicht.
+ */
+const STANDARD_ANGABEN = [
+  'Standort',
+  'Leistung kWp',
+  'Wechselrichter-Modell',
+  'Zugang',
+  'Abrechnungsmodell',
 ];
 
 /**
@@ -62,12 +78,21 @@ const INFO_TITEL = [
  * Rückfrage. Pflegen darf sie nur die Swiss Solar Ventures AG.
  */
 export default function ProjectInfoTab({
-  projectId,
+  detail,
   isAdmin,
 }: {
-  projectId: string;
+  detail: ProjectDetail;
   isAdmin: boolean;
 }) {
+  const projectId = detail.project.id;
+
+  /**
+   * Wer für dieses Projekt freigegeben ist – aus dem, was die App ohnehin weiss.
+   *
+   * Bewusst keine eigene Liste in der Datenbank: Das wären zwei Wahrheiten, und
+   * die zweite wäre nach der ersten Änderung der Freigaben falsch.
+   */
+  const beteiligte = detail.suppliers.filter((l) => detail.accessIds.includes(l.id));
   const { toast, reportError, confirm } = useFeedback();
   const [infos, setInfos] = useState<ProjektInfo[] | null>(null);
   const [kontakte, setKontakte] = useState<ProjektKontakt[] | null>(null);
@@ -99,6 +124,23 @@ export default function ProjectInfoTab({
       setKontakte([]);
     }
   }, [projectId, reportError]);
+
+  /** Die fünf Angaben auf einmal anlegen, die bei jeder Anlage gebraucht werden. */
+  async function standardAnlegen() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      for (const titel of STANDARD_ANGABEN) {
+        await post(`/api/projects/${projectId}/infos`, { titel, text: '' });
+      }
+      await laden();
+      toast('✓ Standardangaben angelegt – jetzt nur noch ausfüllen.');
+    } catch (error) {
+      reportError(error, 'Standardangaben konnten nicht angelegt werden.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function infoAnlegen() {
     if (!neueInfo || busy) return;
@@ -367,7 +409,19 @@ export default function ProjectInfoTab({
       </datalist>
 
       {!infos.length && !ohneTabelle && (
-        <p className="leer-hinweis">Noch keine Angaben erfasst.</p>
+        <>
+          <p className="leer-hinweis">Noch keine Angaben erfasst.</p>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => void standardAnlegen()}
+              disabled={busy}
+            >
+              {busy ? 'Einen Moment…' : `⚡ Standardangaben anlegen (${STANDARD_ANGABEN.join(', ')})`}
+            </button>
+          )}
+        </>
       )}
 
       {isAdmin &&
@@ -541,6 +595,52 @@ export default function ProjectInfoTab({
             + Kontakt hinzufügen
           </button>
         ))}
+
+      {/* Steht bewusst am Schluss und ohne Bearbeiten-Knopf: Die Liste ergibt
+          sich aus den Freigaben im Register "Lieferanten". */}
+      <h4 className="pkontakt-titel">Beteiligte Lieferanten</h4>
+
+      {beteiligte.map((l) => {
+        const nummer = waNummer(l.kontakt);
+
+        return (
+          <div className="pkontakt" key={l.id}>
+            <div className="pkontakt-text">
+              <div className="pkontakt-rolle">{l.gewerk?.trim() || 'Lieferant'}</div>
+              <div className="pkontakt-name">
+                {l.firma?.trim() || l.name?.trim() || '—'}
+                {l.firma && l.name && <span className="kontakt-firma"> · {l.name}</span>}
+              </div>
+            </div>
+            <div className="pkontakt-wege">
+              {l.kontakt && (
+                <a className="btn btn-ghost btn-sm" href={`tel:${l.kontakt}`}>
+                  📞 {l.kontakt}
+                </a>
+              )}
+              {nummer && (
+                <WhatsAppButton
+                  nummer={nummer}
+                  text=""
+                  titel={`${l.firma ?? l.name ?? ''} über WhatsApp anschreiben`}
+                />
+              )}
+              {l.email && (
+                <a className="btn btn-ghost btn-sm" href={`mailto:${l.email}`}>
+                  ✉️ {l.email}
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {!beteiligte.length && (
+        <p className="leer-hinweis">
+          Für dieses Projekt ist noch kein Lieferant freigegeben.
+          {isAdmin && ' Das stellst du im Register „Lieferanten" ein.'}
+        </p>
+      )}
     </div>
   );
 }

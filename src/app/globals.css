@@ -3671,6 +3671,25 @@ button:disabled {
   }
 }
 
+/* --- Löschen: sichtbar anders als der Rest ---------------------------------
+   Rot heisst hier "nicht rückgängig". Es kommt in der App sonst nirgends als
+   Knopffarbe vor, damit es seine Warnwirkung behält. */
+.menu-item.gefaehrlich {
+  color: var(--danger);
+}
+
+.btn-gefaehrlich {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn-gefaehrlich:disabled {
+  background: var(--danger-soft);
+  border-color: var(--danger-soft);
+  color: #9a5248;
+}
+
 /* --- Ton beim Abhaken ------------------------------------------------------ */
 .ton-schalter {
   display: flex;
