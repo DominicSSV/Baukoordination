@@ -155,6 +155,8 @@ export default function ProjectHeader({
     }
   }
 
+  const passt = loeschName.trim() === project.name.trim();
+
   return (
     <>
       <div className="project-sign">
@@ -341,16 +343,32 @@ export default function ProjectHeader({
               Projekt.
             </p>
             <p style={{ fontSize: 13.5 }}>
-              Tippe zur Bestätigung den Projektnamen ab: <strong>{project.name}</strong>
+              Tippe zur Bestätigung den Projektnamen ab:{' '}
+              <strong>{project.name}</strong>
             </p>
+            {/* Bewusst NICHT der Projektname als Platzhalter: Grau im Feld sieht
+                aus wie ein bereits eingetragener Wert. Man drückt dann auf
+                Löschen, der Knopf ist gesperrt, und nichts geschieht – man hält
+                das Löschen für kaputt statt für ungenügend bestätigt. */}
             <input
               type="text"
               value={loeschName}
               onChange={(e) => setLoeschName(e.target.value)}
-              placeholder={project.name}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && passt && !busy) void entfernen();
+              }}
+              placeholder="Projektname hier eintippen"
               aria-label="Projektname zur Bestätigung"
               autoFocus
             />
+            <p
+              className={`loesch-pruefung ${passt ? 'passt' : ''}`}
+              aria-live="polite"
+            >
+              {passt
+                ? '✓ Stimmt überein – der Knopf ist jetzt frei.'
+                : 'Der Knopf wird erst frei, wenn der Name genau übereinstimmt.'}
+            </p>
             <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
               <button
                 type="button"
@@ -364,7 +382,7 @@ export default function ProjectHeader({
                 type="button"
                 className="btn btn-sm btn-gefaehrlich"
                 onClick={entfernen}
-                disabled={busy || loeschName.trim() !== project.name.trim()}
+                disabled={busy || !passt}
               >
                 {busy ? 'Wird gelöscht…' : 'Endgültig löschen'}
               </button>

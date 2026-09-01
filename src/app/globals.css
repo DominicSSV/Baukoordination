@@ -3704,6 +3704,19 @@ button:disabled {
   color: #fff;
 }
 
+/* Sagt laufend, warum der Löschknopf noch gesperrt ist. Ohne diesen Satz
+   drückt man auf einen toten Knopf und hält das Löschen für kaputt. */
+.loesch-pruefung {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin: 6px 0 0;
+}
+
+.loesch-pruefung.passt {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .btn-gefaehrlich:disabled {
   background: var(--danger-soft);
   border-color: var(--danger-soft);
