@@ -46,6 +46,8 @@ export default function ContactsModal({
   const [entwurf, setEntwurf] = useState<Entwurf | null>(null);
   const [busy, setBusy] = useState(false);
   const [suche, setSuche] = useState('');
+  /** Entwurf für ein neu vergebenes Passwort, je Person. */
+  const [passwort, setPasswort] = useState<Record<string, string>>({});
   const bildWahl = useRef<Record<string, HTMLInputElement | null>>({});
 
   const laden = useCallback(async () => {
@@ -122,6 +124,40 @@ export default function ContactsModal({
       toast('✓ Gespeichert.');
     } catch (error) {
       reportError(error, 'Speichern fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Ein Passwort für einen Lieferanten setzen.
+   *
+   * Damit kommt die Person sofort mit E-Mail und Passwort hinein, ohne zuerst
+   * über den Zugangscode. Gedacht für die Einführung: Du setzt eines, teilst es
+   * mit, und die Person ändert es später selbst im Profil.
+   *
+   * Zurücklesen lässt es sich nie – auch von uns nicht. Gespeichert wird nur
+   * ein Prüfwert. Vergessen heisst also: ein neues setzen.
+   */
+  async function passwortSetzen(k: Kontakt) {
+    const wert = (passwort[k.id] ?? '').trim();
+    if (wert.length < 8 || busy) return;
+
+    setBusy(true);
+    try {
+      await patch(`/api/suppliers/${k.id}`, {
+        name: k.name,
+        firma: k.firma,
+        gewerk: k.rolle ?? '',
+        kontakt: k.kontakt ?? '',
+        email: k.email ?? '',
+        passwort: wert,
+      });
+      setPasswort((p) => ({ ...p, [k.id]: '' }));
+      await laden();
+      toast(`✓ Passwort für ${k.name || k.firma} gesetzt.`);
+    } catch (error) {
+      reportError(error, 'Passwort konnte nicht gesetzt werden.');
     } finally {
       setBusy(false);
     }
@@ -340,6 +376,40 @@ export default function ContactsModal({
               ) : (
                 <span className="kontakt-ohne"> · keine Mails</span>
               )}
+              {k.hatPasswort ? (
+                <span className="kontakt-mail-marke">🔑 Passwort</span>
+              ) : (
+                <span className="kontakt-ohne"> · nur Code</span>
+              )}
+            </div>
+          )}
+
+          {/* Passwort vergeben – ohne Öffnen des Bearbeiten-Formulars, weil es
+              bei der Einführung für jede Firma einmal gebraucht wird. */}
+          {k.art === 'lieferant' && (
+            <div className="mail-test" style={{ marginTop: 8 }}>
+              <input
+                type="text"
+                value={passwort[k.id] ?? ''}
+                onChange={(e) =>
+                  setPasswort((p) => ({ ...p, [k.id]: e.target.value }))
+                }
+                placeholder={
+                  k.email
+                    ? `Passwort für ${k.email} (mind. 8 Zeichen)`
+                    : 'Zuerst eine E-Mail-Adresse erfassen'
+                }
+                aria-label="Passwort setzen"
+                disabled={!k.email}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => void passwortSetzen(k)}
+                disabled={busy || (passwort[k.id] ?? '').trim().length < 8}
+              >
+                {k.hatPasswort ? '🔑 Neu setzen' : '🔑 Setzen'}
+              </button>
             </div>
           )}
 

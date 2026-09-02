@@ -201,6 +201,13 @@ export type Kontakt = {
    * Person freizuschalten – standardmässig nein.
    */
   mailAn: boolean;
+  /**
+   * Hat diese Person ein Passwort für die Anmeldung?
+   *
+   * Bei uns immer – dort läuft die Anmeldung über den Anmeldedienst. Bei
+   * Lieferanten heisst false: Sie kommen bisher nur über den Zugangscode herein.
+   */
+  hatPasswort: boolean;
 };
 
 /**
