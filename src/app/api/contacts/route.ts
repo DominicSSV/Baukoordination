@@ -23,7 +23,7 @@ export const GET = handler(async () => {
     db
       .from('suppliers')
       .select(
-        'id, name, firma, gewerk, kontakt, email, access_code, avatar_path, mail_an, passwort_gesetzt_am',
+        'id, name, firma, gewerk, kontakt, email, access_code, avatar_path, mail_an, passwort_gesetzt_am, start_passwort',
       )
       .order('firma', { ascending: true }),
     db.from('projects').select('id, name'),
@@ -77,6 +77,7 @@ export const GET = handler(async () => {
     avatar_path: string | null;
     mail_an?: boolean | null;
     passwort_gesetzt_am?: string | null;
+    start_passwort?: string | null;
   };
 
   const adminZeilen = (adminsRoh.data ?? []) as AdminZeile[];
@@ -134,6 +135,7 @@ export const GET = handler(async () => {
       // Bei uns läuft die Anmeldung über den Anmeldedienst, nicht über ein
       // Passwort in dieser Tabelle.
       hatPasswort: true,
+      startPasswort: null,
     })),
     ...lieferantZeilen.map((l) => ({
       art: 'lieferant' as const,
@@ -148,6 +150,7 @@ export const GET = handler(async () => {
       projekte: zugriffe.get(l.id) ?? [],
       mailAn: l.mail_an === true,
       hatPasswort: Boolean(l.passwort_gesetzt_am),
+      startPasswort: l.start_passwort ?? null,
     })),
   ];
 

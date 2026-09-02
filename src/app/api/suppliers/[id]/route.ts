@@ -34,12 +34,11 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   /**
    * Ein Passwort für diese Person setzen.
    *
-   * Damit kann sie sich sofort mit E-Mail und Passwort anmelden, ohne zuerst
-   * über den Zugangscode hereinzukommen. Gedacht für die Einführung: Ihr setzt
-   * eines, teilt es mit, und die Person ändert es später selbst im Profil.
+   * Damit meldet sie sich mit E-Mail und Passwort an. Die Vergabe liegt allein
+   * bei uns – die Lieferanten können ihres nicht ändern.
    *
-   * Gespeichert wird auch hier nur der Prüfwert. Zurücklesen kann ihn niemand –
-   * auch wir nicht. Ist ein Passwort vergessen, wird ein neues gesetzt.
+   * Für die Anmeldung zählt der Prüfwert; der Klartext daneben ist nur die
+   * Merkhilfe für die Kontaktliste.
    */
   const passwortFelder: Record<string, unknown> = {};
   if (typeof body.passwort === 'string' && body.passwort) {
@@ -47,6 +46,14 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     if (beanstandung) throw new ApiError(beanstandung);
     passwortFelder.passwort_hash = await hashPasswort(body.passwort);
     passwortFelder.passwort_gesetzt_am = new Date().toISOString();
+    // Das Passwort bleibt in den Kontakten nachlesbar – bei zwanzig Firmen
+    // weiss sonst nach drei Tagen niemand mehr, wer welches bekommen hat.
+    //
+    // Vertretbar ist das, weil die Lieferanten ihr Passwort nicht selbst
+    // wählen: Es kommt immer von uns. Damit ist es ein ausgegebener
+    // Firmenzugang und kein persönliches Passwort, das jemand womöglich auch
+    // für sein Mailkonto braucht.
+    passwortFelder.start_passwort = body.passwort;
   }
 
   const felder = {

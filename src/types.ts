@@ -208,6 +208,12 @@ export type Kontakt = {
    * Lieferanten heisst false: Sie kommen bisher nur über den Zugangscode herein.
    */
   hatPasswort: boolean;
+  /**
+   * Das von uns vergebene Startpasswort im Klartext – als Merkhilfe, wem man
+   * was mitgeteilt hat. Null, sobald die Person sich selbst eines setzt: Ab
+   * dann ist es ihres, und viele verwenden überall dasselbe.
+   */
+  startPasswort: string | null;
 };
 
 /**

@@ -28,39 +28,8 @@ export default function ProfileModal({
   );
   // Lazy gelesen: Auf dem Server gibt es den Browserspeicher nicht.
   const [ton, setTon] = useState(() => tonAn());
-  const [passwort, setPasswort] = useState('');
-  const [wiederholung, setWiederholung] = useState('');
-  const [passwortBusy, setPasswortBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
-  /**
-   * Passwort setzen – nur für Lieferanten.
-   *
-   * Bei uns läuft die Anmeldung über den Anmeldedienst, dort gibt es hier
-   * nichts einzustellen. Bei den Lieferanten ist es der Ersatz für den
-   * Zugangscode, den keine Passwortverwaltung speichert.
-   */
-  async function passwortSetzen() {
-    if (passwort !== wiederholung) {
-      reportError(
-        new Error('Die beiden Eingaben stimmen nicht überein.'),
-        'Nicht gespeichert.',
-      );
-      return;
-    }
-
-    setPasswortBusy(true);
-    try {
-      await post('/api/supplier/passwort', { passwort });
-      setPasswort('');
-      setWiederholung('');
-      toast('✓ Passwort gesetzt. Ab jetzt geht die Anmeldung mit E-Mail und Passwort.');
-    } catch (error) {
-      reportError(error, 'Passwort konnte nicht gesetzt werden.');
-    } finally {
-      setPasswortBusy(false);
-    }
-  }
 
   /** Prüft in einem Schritt Schlüssel, Absenderadresse und Zustellung. */
   async function testmail() {
@@ -181,70 +150,20 @@ export default function ProfileModal({
         {session.kind === 'supplier' && (
           <div className="mail-status">
             <div className="mail-status-kopf">
-              <strong>Passwort für die Anmeldung</strong>
+              <strong>Anmeldung</strong>
               <span className={session.hatPasswort ? 'mail-an' : 'mail-aus'}>
-                {session.hatPasswort ? 'gesetzt' : 'noch keines'}
+                {session.hatPasswort ? 'mit Passwort' : 'nur mit Zugangscode'}
               </span>
             </div>
             <p>
               {session.hatPasswort
-                ? 'Du meldest dich mit deiner E-Mail-Adresse und deinem Passwort an. '
-                  + 'Hier kannst du ein neues setzen; dein Zugangscode bleibt daneben '
-                  + 'gültig, falls du es einmal vergisst.'
-                : 'Mit einem Passwort meldest du dich künftig mit deiner '
-                  + 'E-Mail-Adresse an – dein Handy bietet dann an, die Anmeldung zu '
-                  + 'speichern. Dein Zugangscode bleibt daneben gültig, falls du das '
-                  + 'Passwort einmal vergisst.'}
+                ? `Du meldest dich mit ${session.email ?? 'deiner E-Mail-Adresse'} und dem Passwort an, das du von der Swiss Solar Ventures AG bekommen hast.`
+                : 'Für dich ist noch kein Passwort hinterlegt. Melde dich bei der Swiss Solar Ventures AG – sie vergibt es.'}
             </p>
-            {!session.email && (
-              <p className="kontakt-ohne">
-                Dafür fehlt noch deine E-Mail-Adresse – bitte melde dich bei der
-                Swiss Solar Ventures AG.
-              </p>
-            )}
-
-            {/* Versteckt, aber vorhanden: Ohne ein Feld für den Benutzernamen
-                weiss die Passwortverwaltung nicht, wozu das Passwort gehört. */}
-            <input
-              type="text"
-              name="username"
-              autoComplete="username"
-              value={session.email ?? ''}
-              readOnly
-              hidden
-            />
-
-            <div className="passwort-felder">
-              <input
-                type="password"
-                value={passwort}
-                onChange={(e) => setPasswort(e.target.value)}
-                placeholder="Neues Passwort (mind. 8 Zeichen)"
-                aria-label="Neues Passwort"
-                autoComplete="new-password"
-              />
-              <input
-                type="password"
-                value={wiederholung}
-                onChange={(e) => setWiederholung(e.target.value)}
-                placeholder="Nochmals eingeben"
-                aria-label="Passwort wiederholen"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="btn btn-accent btn-sm"
-                onClick={passwortSetzen}
-                disabled={
-                  passwortBusy ||
-                  passwort.length < 8 ||
-                  !wiederholung ||
-                  !session.email
-                }
-              >
-                {passwortBusy ? 'Einen Moment…' : 'Speichern'}
-              </button>
-            </div>
+            <p>
+              Passwörter vergibt die Swiss Solar Ventures AG. Brauchst du ein
+              neues, melde dich bei deiner Ansprechperson.
+            </p>
           </div>
         )}
 

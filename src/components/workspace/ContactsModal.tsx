@@ -132,12 +132,11 @@ export default function ContactsModal({
   /**
    * Ein Passwort für einen Lieferanten setzen.
    *
-   * Damit kommt die Person sofort mit E-Mail und Passwort hinein, ohne zuerst
-   * über den Zugangscode. Gedacht für die Einführung: Du setzt eines, teilst es
-   * mit, und die Person ändert es später selbst im Profil.
+   * Damit kommt die Person mit E-Mail und Passwort hinein. Die Vergabe liegt
+   * allein bei uns – die Lieferanten können ihres nicht ändern.
    *
-   * Zurücklesen lässt es sich nie – auch von uns nicht. Gespeichert wird nur
-   * ein Prüfwert. Vergessen heisst also: ein neues setzen.
+   * Deshalb steht es daneben auch im Klartext: Es ist ein ausgegebener
+   * Firmenzugang, kein persönliches Passwort.
    */
   async function passwortSetzen(k: Kontakt) {
     const wert = (passwort[k.id] ?? '').trim();
@@ -155,7 +154,7 @@ export default function ContactsModal({
       });
       setPasswort((p) => ({ ...p, [k.id]: '' }));
       await laden();
-      toast(`✓ Passwort für ${k.name || k.firma} gesetzt.`);
+      toast(`✓ Passwort für ${k.name || k.firma}: ${wert}`);
     } catch (error) {
       reportError(error, 'Passwort konnte nicht gesetzt werden.');
     } finally {
@@ -376,8 +375,16 @@ export default function ContactsModal({
               ) : (
                 <span className="kontakt-ohne"> · keine Mails</span>
               )}
-              {k.hatPasswort ? (
-                <span className="kontakt-mail-marke">🔑 Passwort</span>
+              {/* Das Passwort steht hier im Klartext. Das ist vertretbar, weil
+                  es immer von uns kommt – die Lieferanten wählen keines selbst.
+                  Ein persönliches Passwort, das jemand womöglich auch für sein
+                  Mailkonto nutzt, gibt es in dieser App gar nicht erst. */}
+              {k.startPasswort ? (
+                <span className="kontakt-passwort" title="Vergebenes Passwort">
+                  🔑 {k.startPasswort}
+                </span>
+              ) : k.hatPasswort ? (
+                <span className="kontakt-mail-marke">🔑 Passwort gesetzt</span>
               ) : (
                 <span className="kontakt-ohne"> · nur Code</span>
               )}
