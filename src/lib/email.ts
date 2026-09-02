@@ -15,8 +15,22 @@ function client(): Resend | null {
   return key ? new Resend(key) : null;
 }
 
+/**
+ * Notbremse: MAIL_AUS=true hält jede Mail zurück.
+ *
+ * Gedacht für den Fall, dass etwas ungewollt hinausgeht und es schnell gehen
+ * muss. Wirkt auf alles – Benachrichtigungen, Fristerinnerungen, Updates und
+ * auch die Einladung, die sonst als einzige nach aussen darf.
+ *
+ * Bewusst eine Umgebungsvariable und keine Einstellung in der Datenbank: Eine
+ * Notbremse darf nicht davon abhängen, dass die Datenbank erreichbar ist.
+ */
+export function mailAus(): boolean {
+  return process.env.MAIL_AUS === 'true';
+}
+
 export function mailEnabled(): boolean {
-  return Boolean(resendApiKey());
+  return Boolean(resendApiKey()) && !mailAus();
 }
 
 /**
@@ -225,6 +239,17 @@ async function send(params: {
    */
   anLieferanten?: boolean;
 }): Promise<void> {
+  // Vor allem anderen: Ist die Notbremse gezogen, geht gar nichts raus – auch
+  // nicht die Einladung und auch nicht das Testmail. Die Prüfung steht hier im
+  // Versandweg selbst und nicht nur bei den Aufrufern; eine Notbremse, die man
+  // an einer Stelle vergessen kann, ist keine.
+  if (mailAus()) {
+    throw new Error(
+      'Der Mailversand ist abgeschaltet (MAIL_AUS=true in Vercel). ' +
+        'Zum Wiedereinschalten die Variable entfernen und neu bereitstellen.',
+    );
+  }
+
   const resend = client();
   if (!resend) throw new Error('Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).');
   if (!params.to.length) throw new Error('Keine Empfänger mit hinterlegter E-Mail-Adresse.');

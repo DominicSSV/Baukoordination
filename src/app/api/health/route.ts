@@ -61,6 +61,8 @@ export async function GET() {
             laenge: process.env.RESEND_API_KEY.trim().length,
           }
         : { vorhanden: false },
+      // Steht zuoberst: Ist die Notbremse gezogen, ist alles andere gleichgültig.
+      notbremse_mail_aus: process.env.MAIL_AUS === 'true',
       absender: process.env.MAIL_FROM || 'Baukoordination <onboarding@resend.dev> (Standard)',
       antwort_an: process.env.MAIL_REPLY_TO || '(keine)',
       // false heisst nicht mehr "gar keine": Einzelne Lieferanten lassen sich
