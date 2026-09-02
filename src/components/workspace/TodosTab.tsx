@@ -55,6 +55,17 @@ export default function TodosTab({
 
   // Bewusst keine Vorauswahl: wer eine Aufgabe anlegt, soll sich entscheiden,
   // wer sie erledigt. Sonst landet im Alltag alles beim ersten Namen der Liste.
+  /**
+   * Mehrfachauswahl zum Aufräumen.
+   *
+   * Bewusst ein eigener Zustand statt eines zweiten Hakens an jeder Zeile: Ein
+   * Kästchen zum Abhaken und eines zum Anwählen nebeneinander verwechselt man
+   * unweigerlich – und eines davon hakt Aufgaben ab, die niemand erledigt hat.
+   * Deshalb wird die Liste ausdrücklich in den Auswahlmodus geschaltet.
+   */
+  const [auswahlModus, setAuswahlModus] = useState(false);
+  const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
+
   const [openComments, setOpenComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -183,6 +194,52 @@ export default function TodosTab({
       toast('✓ Aufgabe gespeichert.');
     }, 'Speichern fehlgeschlagen.');
 
+  /**
+   * Die angewählten Aufgaben wegwerfen.
+   *
+   * Sie landen im Papierkorb, nicht im Nichts – gerade hier: Wer zweihundert
+   * Zeilen auf einmal anwählt, klickt sich auch mal eine zu viel dazu.
+   */
+  function mehrereLoeschen() {
+    const ids = [...gewaehlt];
+    if (!ids.length) return;
+
+    confirm(
+      `${ids.length} Aufgabe${ids.length === 1 ? '' : 'n'} in den Papierkorb legen? ` +
+        'Von dort lassen sie sich 30 Tage lang zurückholen.',
+      async () => {
+        setBusy(true);
+        try {
+          const res = await post<{ anzahl: number; papierkorb: boolean }>(
+            '/api/todos/bulk-delete',
+            { ids },
+          );
+          setGewaehlt(new Set());
+          setAuswahlModus(false);
+          await reload();
+          toast(
+            res.papierkorb
+              ? `🗑️ ${res.anzahl} in den Papierkorb gelegt.`
+              : `🗑️ ${res.anzahl} gelöscht.`,
+          );
+        } catch (error) {
+          reportError(error, 'Löschen fehlgeschlagen.');
+        } finally {
+          setBusy(false);
+        }
+      },
+    );
+  }
+
+  function waehlen(id: string) {
+    setGewaehlt((bisher) => {
+      const neu = new Set(bisher);
+      if (neu.has(id)) neu.delete(id);
+      else neu.add(id);
+      return neu;
+    });
+  }
+
   function removeTodo(todo: Todo) {
     confirm(`Aufgabe „${todo.text}“ wirklich löschen?`, async () => {
       await del(`/api/todos/${todo.id}`);
@@ -265,7 +322,64 @@ export default function TodosTab({
 
       <div className="section-head">
         <h2>Aufgaben</h2>
+        {isAdmin && detail.todos.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              setAuswahlModus((a) => !a);
+              setGewaehlt(new Set());
+              setEditingId(null);
+            }}
+          >
+            {auswahlModus ? 'Auswahl beenden' : '☑ Mehrere auswählen'}
+          </button>
+        )}
       </div>
+
+      {/* Bleibt beim Scrollen stehen: Bei zweihundert Zeilen wäre der Knopf
+          sonst ganz oben und die letzte angewählte Zeile ganz unten. */}
+      {auswahlModus && (
+        <div className="auswahl-leiste">
+          <span className="auswahl-zahl">
+            {gewaehlt.size} von {detail.todos.length} ausgewählt
+          </span>
+          <div className="kontakt-knoepfe">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() =>
+                setGewaehlt(
+                  gewaehlt.size === detail.todos.length
+                    ? new Set()
+                    : new Set(detail.todos.map((t) => t.id)),
+                )
+              }
+            >
+              {gewaehlt.size === detail.todos.length ? 'Keine' : 'Alle'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() =>
+                setGewaehlt(
+                  new Set(detail.todos.filter((t) => t.meilenstein).map((t) => t.id)),
+                )
+              }
+            >
+              🏁 Nur Meilensteine
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-gefaehrlich"
+              onClick={mehrereLoeschen}
+              disabled={busy || !gewaehlt.size}
+            >
+              {busy ? 'Wird weggeräumt…' : `🗑️ ${gewaehlt.size} löschen`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {detail.todos.length ? (
         detail.todos.map((todo, index) => {
@@ -372,8 +486,19 @@ export default function TodosTab({
           return (
             <div
               key={todo.id}
-              className={`todo-row ${todo.meilenstein ? 'meilenstein' : ''}`}
+              className={`todo-row ${todo.meilenstein ? 'meilenstein' : ''} ${
+                auswahlModus && gewaehlt.has(todo.id) ? 'gewaehlt' : ''
+              }`}
             >
+              {auswahlModus && (
+                <input
+                  type="checkbox"
+                  className="auswahl-kaestchen"
+                  checked={gewaehlt.has(todo.id)}
+                  onChange={() => waehlen(todo.id)}
+                  aria-label={`„${todo.text}" auswählen`}
+                />
+              )}
               {isAdmin && (
                 <div className="reorder-buttons">
                   <button

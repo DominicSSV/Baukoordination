@@ -3671,6 +3671,44 @@ button:disabled {
   }
 }
 
+/* --- Mehrere Aufgaben auswählen -------------------------------------------
+   Die Leiste bleibt beim Scrollen stehen: Bei zweihundert Zeilen wäre der
+   Löschknopf sonst ganz oben und die letzte angewählte Zeile ganz unten. */
+.auswahl-leiste {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.auswahl-zahl {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Grösser als ein gewöhnliches Kästchen – es wird auf der Baustelle mit dem
+   Daumen getroffen, nicht mit der Maus. */
+.auswahl-kaestchen {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.todo-row.gewaehlt {
+  background: var(--accent-soft);
+}
+
 /* --- Meilensteine ----------------------------------------------------------
    Dieselbe Aufgabe, nur anders markiert: ein Farbstreifen links im
    Firmenverlauf und ein heller Grund. Kein eigener Block, kein eigener Aufbau –
