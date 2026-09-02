@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth/guards';
 import {
   STANDARD_VORLAGEN,
   standardVorlage,
+  vorlageVeraltet,
   type VorlagenSchluessel,
 } from '@/lib/mailVorlagen';
 
@@ -45,15 +46,28 @@ export const GET = handler(async () => {
 
   const vorlagen = STANDARD_VORLAGEN.map((v) => {
     const eigen = eigene.get(v.schluessel);
+
+    // Ein angepasster Text, der noch den abgeschafften Zugangscode nennt, wird
+    // beim Versenden übergangen (siehe vorlageVeraltet). Dann muss hier auch
+    // der Standard stehen: Diese Ansicht soll zeigen, was der Empfänger
+    // tatsächlich bekommt – ein Text, der nie hinausgeht, gehört nicht in die
+    // Vorschau.
+    const veraltet = vorlageVeraltet(v.schluessel, eigen?.text);
+    const gilt = eigen && !veraltet ? eigen : null;
+
     return {
       ...v,
-      betreff: eigen?.betreff ?? v.betreff,
-      text: eigen?.text ?? v.text,
+      betreff: gilt?.betreff ?? v.betreff,
+      text: gilt?.text ?? v.text,
       standardBetreff: v.betreff,
       standardText: v.text,
-      angepasst: Boolean(eigen),
-      geaendertAm: eigen?.updated_at ?? null,
-      geaendertVon: eigen?.updated_by ?? null,
+      angepasst: Boolean(gilt),
+      /** true = es liegt eine angepasste Fassung vor, die nicht mehr verwendbar ist. */
+      veraltet,
+      /** Der übergangene Text – damit sich nachlesen lässt, was dort stand. */
+      veralteterText: veraltet ? (eigen?.text ?? null) : null,
+      geaendertAm: gilt?.updated_at ?? null,
+      geaendertVon: gilt?.updated_by ?? null,
     };
   });
 

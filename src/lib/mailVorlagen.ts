@@ -48,8 +48,6 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
       '2. E-Mail: {email}',
       '3. Passwort: {passwort}',
       '',
-      'Dein Handy bietet beim ersten Mal an, die Anmeldung zu speichern – sag ja, dann musst du das Passwort nie wieder suchen.',
-      '',
       'Dann siehst du die Projekte welche dir zugeordnet sind.',
       'Du kannst dort To-Dos erstellen, diese abhaken, kommentieren sowie Fotos und Dokumente hinzufügen.',
       '',
@@ -145,8 +143,11 @@ export function einsetzen(text: string, werte: Record<string, string>): string {
  * Passwort mitschickt. Die angepasste Fassung bleibt in der Tabelle stehen –
  * wer sie behalten will, bearbeitet sie in der App und nimmt {code} heraus.
  */
-function veraltet(schluessel: VorlagenSchluessel, text: string): boolean {
-  return schluessel === 'einladung' && text.includes('{code}');
+export function vorlageVeraltet(
+  schluessel: VorlagenSchluessel,
+  text: string | null | undefined,
+): boolean {
+  return schluessel === 'einladung' && Boolean(text?.includes('{code}'));
 }
 
 /**
@@ -174,7 +175,7 @@ export async function ladeVorlage(
 
     return {
       betreff: zeile.betreff?.trim() || standard.betreff,
-      text: text && !veraltet(schluessel, text) ? text : standard.text,
+      text: text && !vorlageVeraltet(schluessel, text) ? text : standard.text,
     };
   } catch {
     return { betreff: standard.betreff, text: standard.text };

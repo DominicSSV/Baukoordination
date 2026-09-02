@@ -14,6 +14,14 @@ type Vorlage = {
   standardBetreff: string;
   standardText: string;
   angepasst: boolean;
+  /**
+   * true = es liegt eine angepasste Fassung vor, die nicht mehr verwendbar ist
+   * (sie nennt den abgeschafften Zugangscode). betreff und text zeigen dann den
+   * Standard – also das, was tatsächlich hinausgeht.
+   */
+  veraltet?: boolean;
+  /** Der übergangene Text, damit sich nachlesen lässt, was dort stand. */
+  veralteterText?: string | null;
   geaendertAm: string | null;
   geaendertVon: string | null;
   platzhalter: Array<{ name: string; erklaerung: string }>;
@@ -176,17 +184,6 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
           vorlagen.map((v) => {
             const bearbeitet = offen === v.schluessel;
 
-            /**
-             * Eine angepasste Einladung von vor der Umstellung auf Passwörter.
-             *
-             * {code} wird nicht mehr gefüllt – in der Mail stünde wörtlich
-             * "{code}". Die App schickt deshalb wieder den Standardtext. Das
-             * muss hier stehen, sonst ändert man den Text und wundert sich,
-             * warum die Mail anders aussieht.
-             */
-            const veraltet =
-              v.schluessel === 'einladung' && v.angepasst && v.text.includes('{code}');
-
             return (
               <div className="vorlage" key={v.schluessel}>
                 <div className="vorlage-kopf">
@@ -198,7 +195,9 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
                     <div className="vorlage-zweck">{v.beschreibung}</div>
                   </div>
                   <div className="kontakt-knoepfe">
-                    {v.angepasst && (
+                    {/* Auch bei einer übergangenen Fassung: Sie liegt weiterhin
+                        in der Tabelle, und weg bekommt man sie nur hier. */}
+                    {(v.angepasst || v.veraltet) && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -217,19 +216,38 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
                   </div>
                 </div>
 
-                {veraltet && (
-                  <p className="speicher-hinweis">
-                    Dieser angepasste Text nennt noch den Zugangscode ({'{code}'}) – den
-                    gibt es nicht mehr, die Anmeldung läuft über E-Mail und Passwort.
-                    Solange er hier steht, verschickt die App den Standardtext. Nimm
-                    {' {code}'} heraus und setze stattdessen {'{email}'} und{' '}
-                    {'{passwort}'} ein, oder drücke auf „Zurücksetzen“.
-                  </p>
+                {/* Unten steht immer der Text, der tatsächlich hinausgeht. Eine
+                    angepasste Fassung, die noch den abgeschafften Zugangscode
+                    nennt, wird beim Versenden übergangen – dann muss hier auch
+                    stehen, warum, sonst sucht man den Unterschied zwischen
+                    Vorschau und Postfach vergeblich. */}
+                {v.veraltet && (
+                  <div className="speicher-hinweis">
+                    <p style={{ margin: 0 }}>
+                      Deine angepasste Fassung nennt noch den Zugangscode
+                      ({'{code}'}). Den gibt es nicht mehr – die Anmeldung läuft über
+                      E-Mail und Passwort, und {'{code}'} bliebe in der Mail wörtlich
+                      stehen. Verschickt wird deshalb der Standardtext unten. Willst du
+                      wieder einen eigenen: „Bearbeiten“, {'{code}'} herausnehmen,
+                      {' {email}'} und {'{passwort}'} einsetzen. Mit „Zurücksetzen“
+                      verschwindet die alte Fassung ganz.
+                    </p>
+                    {v.veralteterText && (
+                      <details style={{ marginTop: 8 }}>
+                        <summary>Deine übergangene Fassung ansehen</summary>
+                        <pre className="vorlage-alt">{v.veralteterText}</pre>
+                      </details>
+                    )}
+                  </div>
                 )}
 
                 {!bearbeitet ? (
                   <div className="vorlage-vorschau">
-                    <div className="vorlage-marke-klein">Vorlage mit Platzhaltern</div>
+                    <div className="vorlage-marke-klein">
+                      {v.veraltet
+                        ? 'Das geht raus – Vorlage mit Platzhaltern'
+                        : 'Vorlage mit Platzhaltern'}
+                    </div>
                     <strong>{v.betreff}</strong>
                     <pre>{v.text}</pre>
                   </div>

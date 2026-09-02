@@ -3065,6 +3065,18 @@ button:disabled {
   line-height: 1.55;
 }
 
+/* Die übergangene alte Fassung – zum Nachlesen aufklappbar, deshalb bewusst
+   blasser als die Vorschau daneben. Sie geht nicht hinaus. */
+.vorlage-alt {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
 .vorlage-form {
   margin-top: 10px;
 }
