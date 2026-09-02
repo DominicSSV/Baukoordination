@@ -10,9 +10,10 @@
 -- vor Ort. Ihre Nummern standen bisher in Mails, im Telefon oder im Kopf – und
 -- wer sie nicht hatte, stand vor verschlossener Tür.
 --
--- Neu hängen sie am Projekt. Sehen darf sie jeder mit Zugriff auf das Projekt,
--- auch die Lieferanten: Genau dafür sind sie da. Ändern darf sie nur die
--- Swiss Solar Ventures AG – dieselbe Regel wie beim Terminplan.
+-- Neu hängen sie am Projekt. Sehen und ergänzen darf sie jeder mit Zugriff auf
+-- das Projekt, auch die Lieferanten: Wer vor Ort ist, kennt den Zugangscode
+-- und die Nummer des Hauswarts oft zuerst. Löschen bleibt bei uns – Ergänzen
+-- ist harmlos, Wegnehmen nicht.
 --
 -- Bewusst eine eigene Tabelle und nicht die Lieferantenliste: Diese Personen
 -- haben keinen Zugang, keinen Code und kein Projekt-Recht. Sie in suppliers zu
@@ -45,15 +46,29 @@ create index if not exists project_contacts_projekt_idx
 
 alter table public.project_contacts enable row level security;
 
--- Sehen darf sie jeder mit Zugriff auf das Projekt – auch die Lieferanten, für
--- die sie ja gedacht sind. Ändern darf sie nur die Swiss Solar Ventures AG.
+-- Sehen und ergänzen darf jeder mit Zugriff auf das Projekt – auch die
+-- Lieferanten. Wer vor Ort ist, kennt die Nummer des Hauswarts oft zuerst;
+-- ihn dafür bei uns anrufen zu lassen, hiesse die Angabe zu verlieren.
+--
+-- Löschen bleibt bei uns: Ergänzen ist harmlos, Wegnehmen nicht. Eine falsche
+-- Zeile lässt sich korrigieren, eine gelöschte ist weg.
 drop policy if exists project_contacts_select on public.project_contacts;
 create policy project_contacts_select on public.project_contacts
   for select using (public.has_project_access(project_id));
 
 drop policy if exists project_contacts_admin_write on public.project_contacts;
-create policy project_contacts_admin_write on public.project_contacts
-  for all using (public.is_admin()) with check (public.is_admin());
+drop policy if exists project_contacts_insert on public.project_contacts;
+create policy project_contacts_insert on public.project_contacts
+  for insert with check (public.has_project_access(project_id));
+
+drop policy if exists project_contacts_update on public.project_contacts;
+create policy project_contacts_update on public.project_contacts
+  for update using (public.has_project_access(project_id))
+  with check (public.has_project_access(project_id));
+
+drop policy if exists project_contacts_delete on public.project_contacts;
+create policy project_contacts_delete on public.project_contacts
+  for delete using (public.is_admin());
 
 comment on table public.project_contacts is
   'Personen am Bau ohne App-Zugang: Hauswart, Verwaltung, Bauherr, '
@@ -89,16 +104,28 @@ create index if not exists project_infos_projekt_idx
 
 alter table public.project_infos enable row level security;
 
--- Gleiche Regel wie bei den Kontakten: Alle Beteiligten sehen die Angaben –
--- ohne den Zugangscode zur Tiefgarage steht der Elektriker vor dem Tor.
--- Pflegen darf sie nur die Swiss Solar Ventures AG.
+-- Gleiche Regel wie bei den Kontakten: Alle Beteiligten sehen und ergänzen die
+-- Angaben – ohne den Zugangscode zur Tiefgarage steht der Elektriker vor dem
+-- Tor, und wer ihn erfährt, soll ihn gleich eintragen können.
+--
+-- Löschen bleibt bei uns.
 drop policy if exists project_infos_select on public.project_infos;
 create policy project_infos_select on public.project_infos
   for select using (public.has_project_access(project_id));
 
 drop policy if exists project_infos_admin_write on public.project_infos;
-create policy project_infos_admin_write on public.project_infos
-  for all using (public.is_admin()) with check (public.is_admin());
+drop policy if exists project_infos_insert on public.project_infos;
+create policy project_infos_insert on public.project_infos
+  for insert with check (public.has_project_access(project_id));
+
+drop policy if exists project_infos_update on public.project_infos;
+create policy project_infos_update on public.project_infos
+  for update using (public.has_project_access(project_id))
+  with check (public.has_project_access(project_id));
+
+drop policy if exists project_infos_delete on public.project_infos;
+create policy project_infos_delete on public.project_infos
+  for delete using (public.is_admin());
 
 comment on table public.project_infos is
   'Angaben zum Objekt: Zugang, Standort, Parkieren, Besonderheiten. '

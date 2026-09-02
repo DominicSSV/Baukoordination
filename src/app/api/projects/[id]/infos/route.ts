@@ -1,5 +1,5 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
-import { requireAdmin, requireProjectAccess, requireSession } from '@/lib/auth/guards';
+import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import type { ProjektInfo } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,11 @@ export const GET = handler(async (_request: Request, { params }: Params) => {
 
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: projectId } = await params;
-  const ctx = await requireAdmin();
+  // Anlegen darf jeder mit Zugriff auf das Projekt – auch die Lieferanten. Wer
+  // vor Ort ist, kennt den Zugangscode oft zuerst. Die Datenbank prüft dasselbe
+  // ein zweites Mal über die RLS-Regel.
+  const ctx = await requireSession();
+  await requireProjectAccess(ctx, projectId);
 
   const body = await readJson<{ titel?: string; text?: string }>(request);
   const titel = requireString(body.titel, 'Titel', 120);

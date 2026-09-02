@@ -1,15 +1,31 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
-import { requireAdmin } from '@/lib/auth/guards';
+import { requireAdmin, requireProjectAccess, requireSession } from '@/lib/auth/guards';
 import type { ProjektInfo } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Ändern. Die Projektprüfung übernimmt die Datenbank über die RLS-Regel. */
+/**
+ * Ändern darf jeder mit Zugriff auf das Projekt – auch die Lieferanten.
+ *
+ * Zu welchem Projekt der Eintrag gehört, steht nicht in der Adresse, deshalb
+ * wird er zuerst nachgeschlagen. Ohne das könnte jemand mit Zugriff auf ein
+ * Projekt Einträge eines fremden ändern; die RLS-Regel fängt das zwar auch ab,
+ * aber die Anwendung soll es gar nicht erst versuchen.
+ */
 export const PATCH = handler(async (request: Request, { params }: Params) => {
   const { id } = await params;
-  const ctx = await requireAdmin();
+  const ctx = await requireSession();
+
+  const { data: eintrag } = await ctx.db
+    .from('project_infos')
+    .select('project_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (!eintrag) throw new ApiError('Eintrag nicht gefunden.', 404);
+  await requireProjectAccess(ctx, (eintrag as { project_id: string }).project_id);
 
   const body = await readJson<{ titel?: string; text?: string }>(request);
 

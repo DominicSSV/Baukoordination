@@ -319,7 +319,8 @@ export default function ProjectInfoTab({
     <div>
       <p className="pkontakt-erklaerung">
         Alles, was man wissen muss, bevor man hinfährt. Alle Beteiligten sehen die
-        Angaben; ändern kann sie nur die Swiss Solar Ventures AG.
+        Angaben und dürfen sie ergänzen und ändern – wer vor Ort ist, kennt den
+        Zugangscode oft zuerst. Entfernen kann nur die Swiss Solar Ventures AG.
       </p>
 
       {ohneTabelle && (
@@ -370,13 +371,18 @@ export default function ProjectInfoTab({
               >
                 Abbrechen
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => infoLoeschen(i)}
-              >
-                🗑️ Entfernen
-              </button>
+              {/* Löschen bleibt bei uns: Ergänzen ist harmlos, Wegnehmen nicht.
+                  Eine falsche Zeile lässt sich korrigieren, eine gelöschte ist
+                  weg. Die Datenbank verweigert es zusätzlich. */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => infoLoeschen(i)}
+                >
+                  🗑️ Entfernen
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -385,7 +391,7 @@ export default function ProjectInfoTab({
             <div className={`datenzeile-wert ${i.text?.trim() ? '' : 'offen'}`}>
               {i.text?.trim() || 'noch nicht erfasst'}
             </div>
-            {isAdmin && (
+            {(
               <button
                 type="button"
                 className="datenzeile-stift"
@@ -428,8 +434,7 @@ export default function ProjectInfoTab({
         </>
       )}
 
-      {isAdmin &&
-        (neueInfo ? (
+      {(neueInfo ? (
           <div className="pkontakt bearbeitet">
             <div className="pkontakt-form">
               <input
@@ -504,13 +509,15 @@ export default function ProjectInfoTab({
                 >
                   Abbrechen
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => loeschen(k)}
-                >
-                  🗑️ Entfernen
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => loeschen(k)}
+                  >
+                    🗑️ Entfernen
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -522,7 +529,7 @@ export default function ProjectInfoTab({
           <div className="kontakt-karte" key={k.id}>
             <div className="kontakt-karte-kopf">
               <span className="pkontakt-rolle">{k.rolle}</span>
-              {isAdmin && (
+              {(
                 <button
                   type="button"
                   className="datenzeile-stift"
@@ -571,8 +578,7 @@ export default function ProjectInfoTab({
         <p className="leer-hinweis">Für dieses Projekt ist noch niemand erfasst.</p>
       )}
 
-      {isAdmin &&
-        (neu ? (
+      {(neu ? (
           <div className="pkontakt bearbeitet">
             {felder(neu, setNeu, 'rollen-neu')}
             <div className="kontakt-knoepfe">
