@@ -3848,6 +3848,14 @@ button:disabled {
   max-width: 400px;
 }
 
+/* Der Knopf ums Bild ist keiner, den man sehen soll – er trägt nur den Klick. */
+.liegenschaft-link {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
 .liegenschaft-bild,
 .liegenschaft-leer {
   aspect-ratio: 1 / 1;

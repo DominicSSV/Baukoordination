@@ -121,9 +121,22 @@ export default function ProjectInfoTab({
   const [entwurf, setEntwurf] = useState<Entwurf>(LEER);
   const [busy, setBusy] = useState(false);
   const [bildLaeuft, setBildLaeuft] = useState(false);
+  /** true = das Bild füllt den Bildschirm. */
+  const [vollbild, setVollbild] = useState(false);
   const bildWahl = useRef<HTMLInputElement>(null);
 
   const bildUrl = detail.project.bild_url ?? null;
+
+  // Mit Escape schliessen – im Vollbild ist das der schnellste Weg zurück.
+  useEffect(() => {
+    if (!vollbild) return;
+
+    function beiTaste(e: KeyboardEvent) {
+      if (e.key === 'Escape') setVollbild(false);
+    }
+    document.addEventListener('keydown', beiTaste);
+    return () => document.removeEventListener('keydown', beiTaste);
+  }, [vollbild]);
 
   /**
    * Bild der Liegenschaft setzen oder austauschen.
@@ -425,11 +438,10 @@ export default function ProjectInfoTab({
             {/* Anklickbar, weil auf einem Luftbild die Einzelheiten zählen –
                 wo der Kran hinkommt, wie die Module liegen. In der Kachel
                 erkennt man das nicht, im Vollbild schon. */}
-            <a
-              href={bildUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               className="liegenschaft-link"
+              onClick={() => setVollbild(true)}
               title="Gross ansehen"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -438,7 +450,7 @@ export default function ProjectInfoTab({
                 src={bildUrl}
                 alt={detail.project.name}
               />
-            </a>
+            </button>
             <div className="liegenschaft-knoepfe">
               <button
                 type="button"
@@ -849,6 +861,47 @@ export default function ProjectInfoTab({
           Für dieses Projekt ist noch kein Lieferant freigegeben.
           {isAdmin && ' Das stellst du im Register „Lieferanten" ein.'}
         </p>
+      )}
+
+      {/* Vollbild. Bewusst dieselbe Hülle wie beim Betrachter für Dateien: Es
+          ist derselbe Handgriff, also soll es auch gleich aussehen. */}
+      {vollbild && bildUrl && (
+        <div
+          className="viewer-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setVollbild(false);
+          }}
+        >
+          <div className="viewer">
+            <div className="viewer-kopf">
+              <h3>{detail.project.name}</h3>
+              <div className="viewer-aktionen">
+                <a
+                  className="btn btn-ghost btn-sm"
+                  href={bildUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: 'none' }}
+                  title="In einem eigenen Browser-Tab öffnen"
+                >
+                  ↗ Neuer Tab
+                </a>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setVollbild(false)}
+                  title="Schliessen (Esc)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="viewer-inhalt bild">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="viewer-img" src={bildUrl} alt={detail.project.name} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
