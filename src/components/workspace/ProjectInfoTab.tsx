@@ -422,8 +422,23 @@ export default function ProjectInfoTab({
       <div className="liegenschaft">
         {bildUrl ? (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="liegenschaft-bild" src={bildUrl} alt={detail.project.name} />
+            {/* Anklickbar, weil auf einem Luftbild die Einzelheiten zählen –
+                wo der Kran hinkommt, wie die Module liegen. In der Kachel
+                erkennt man das nicht, im Vollbild schon. */}
+            <a
+              href={bildUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="liegenschaft-link"
+              title="Gross ansehen"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="liegenschaft-bild"
+                src={bildUrl}
+                alt={detail.project.name}
+              />
+            </a>
             <div className="liegenschaft-knoepfe">
               <button
                 type="button"

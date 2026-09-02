@@ -3841,18 +3841,30 @@ button:disabled {
   margin-bottom: 4px;
 }
 
+.liegenschaft-link,
+.liegenschaft-leer {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+}
+
 .liegenschaft-bild,
 .liegenschaft-leer {
-  width: 100%;
-  max-width: 320px;
   aspect-ratio: 1 / 1;
 }
 
 .liegenschaft-bild {
   display: block;
+  width: 100%;
   object-fit: cover;
   border-radius: 10px;
   background: var(--bg);
+}
+
+/* Auf einem Luftbild zählen die Einzelheiten – ein Klick zeigt es gross. */
+.liegenschaft-link:hover .liegenschaft-bild {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .liegenschaft-knoepfe {
