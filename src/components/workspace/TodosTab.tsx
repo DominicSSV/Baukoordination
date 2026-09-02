@@ -1,14 +1,16 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtDate } from '@/lib/format';
 import {
   fmtDueDate,
+  fristBlock,
   istHeuteFaellig,
   istUeberfaellig,
+  nachFrist,
 } from '@/lib/due';
 import { assigneeLabel, parseAssignee } from '@/lib/assignee';
 import Spinner from '@/components/Spinner';
@@ -65,6 +67,28 @@ export default function TodosTab({
    */
   const [auswahlModus, setAuswahlModus] = useState(false);
   const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
+
+  /**
+   * Wonach die Liste geordnet ist.
+   *
+   * Standard ist die Frist: Das ist die Reihenfolge, in der man die Aufgaben
+   * abarbeitet, und sie stellt sich von selbst ein, sobald jemand ein Datum
+   * setzt. Von Hand schieben lässt sich trotzdem – nur nicht gleichzeitig, das
+   * eine würde das andere sofort wieder umsortieren.
+   */
+  const [nachFristSortieren, setNachFristSortieren] = useState(true);
+
+  /**
+   * Die Liste in der Reihenfolge, in der sie angezeigt wird.
+   *
+   * Bewusst nur hier und nicht in der Datenbank: order_index bleibt die selbst
+   * gewählte Reihenfolge. Sonst wäre sie beim ersten gesetzten Datum
+   * unwiederbringlich überschrieben.
+   */
+  const aufgaben = useMemo(
+    () => (nachFristSortieren ? nachFrist(detail.todos) : detail.todos),
+    [detail.todos, nachFristSortieren],
+  );
 
   const [openComments, setOpenComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -322,19 +346,39 @@ export default function TodosTab({
 
       <div className="section-head">
         <h2>Aufgaben</h2>
-        {isAdmin && detail.todos.length > 0 && (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              setAuswahlModus((a) => !a);
-              setGewaehlt(new Set());
-              setEditingId(null);
-            }}
-          >
-            {auswahlModus ? 'Auswahl beenden' : '☑ Mehrere auswählen'}
-          </button>
-        )}
+        <div className="kontakt-knoepfe">
+          {/* Von Hand schieben und nach Frist ordnen schliessen sich aus: Der
+              Pfeil nach oben wäre wirkungslos, sobald das Datum entscheidet.
+              Deshalb ein Umschalter statt zweier Bedienungen nebeneinander. */}
+          {detail.todos.length > 1 && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setNachFristSortieren((s) => !s)}
+              title={
+                nachFristSortieren
+                  ? 'Zur selbst gewählten Reihenfolge wechseln – dort lassen '
+                    + 'sich die Aufgaben wieder verschieben.'
+                  : 'Nach Frist ordnen: das Dringendste zuoberst.'
+              }
+            >
+              {nachFristSortieren ? '📅 Nach Frist' : '↕ Eigene Reihenfolge'}
+            </button>
+          )}
+          {isAdmin && detail.todos.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setAuswahlModus((a) => !a);
+                setGewaehlt(new Set());
+                setEditingId(null);
+              }}
+            >
+              {auswahlModus ? 'Auswahl beenden' : '☑ Mehrere auswählen'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Bleibt beim Scrollen stehen: Bei zweihundert Zeilen wäre der Knopf
@@ -381,13 +425,38 @@ export default function TodosTab({
         </div>
       )}
 
-      {detail.todos.length ? (
-        detail.todos.map((todo, index) => {
+      {aufgaben.length ? (
+        aufgaben.map((todo, index) => {
           const attachments = detail.files.filter((f) => f.todo_id === todo.id);
           const commentsOpen = openComments.has(todo.id);
 
+          /**
+           * Wo ein Block endet und der nächste beginnt.
+           *
+           * Ohne diese Zwischenzeile sieht die Liste falsch sortiert aus: Nach
+           * dem letzten Datum kommen unvermittelt Aufgaben ohne, und das wirkt
+           * wie ein Fehler statt wie eine Ordnung.
+           */
+          const trenner =
+            nachFristSortieren &&
+            index > 0 &&
+            fristBlock(todo) !== fristBlock(aufgaben[index - 1])
+              ? todo.done
+                ? 'Erledigt'
+                : 'Ohne Frist'
+              : null;
+
+          const zwischenzeile = trenner ? (
+            <div key={`${todo.id}-trenner`} className="todo-trenner">
+              {trenner}
+            </div>
+          ) : null;
+
+          // Zwischenzeile und Aufgabe als Paar: So bleibt die Zeile darunter
+          // eingerückt wie zuvor, statt in einer zusätzlichen Ebene zu sitzen.
           if (editingId === todo.id) {
-            return (
+            return [
+              zwischenzeile,
               <div key={todo.id} className="todo-row todo-row-editing">
                 <button
                   type="button"
@@ -479,11 +548,12 @@ export default function TodosTab({
                     </button>
                   </div>
                 </div>
-              </div>
-            );
+              </div>,
+            ];
           }
 
-          return (
+          return [
+            zwischenzeile,
             <div
               key={todo.id}
               className={`todo-row ${todo.meilenstein ? 'meilenstein' : ''} ${
@@ -499,7 +569,9 @@ export default function TodosTab({
                   aria-label={`„${todo.text}" auswählen`}
                 />
               )}
-              {isAdmin && (
+              {/* Nur in der eigenen Reihenfolge: Nach Frist geordnet würde die
+                  Liste nach jedem Schieben an dieselbe Stelle zurückspringen. */}
+              {isAdmin && !nachFristSortieren && (
                 <div className="reorder-buttons">
                   <button
                     type="button"
@@ -514,7 +586,7 @@ export default function TodosTab({
                     type="button"
                     className="icon-btn"
                     onClick={() => moveTodo(todo, 'down')}
-                    disabled={index === detail.todos.length - 1 || busy}
+                    disabled={index === aufgaben.length - 1 || busy}
                     title="Nach unten"
                   >
                     ▼
@@ -805,8 +877,8 @@ export default function TodosTab({
                   ✕
                 </button>
               )}
-            </div>
-          );
+            </div>,
+          ];
         })
       ) : (
         <div className="empty-state" style={{ padding: '36px 10px' }}>

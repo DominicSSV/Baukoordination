@@ -757,6 +757,18 @@ button:disabled {
   padding: 10px;
 }
 
+/* Zwischenzeile in der nach Frist geordneten Liste: "Ohne Frist", "Erledigt".
+   Leise gesetzt – sie ordnet die Liste, sie ist nicht selbst ein Eintrag. */
+.todo-trenner {
+  margin: 14px 0 2px;
+  padding: 0 4px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .reorder-buttons {
   display: flex;
   flex-direction: column;
