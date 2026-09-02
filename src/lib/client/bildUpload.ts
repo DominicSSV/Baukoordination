@@ -6,17 +6,20 @@ import { browserClient } from '@/lib/supabase/browser';
 type Vorbereitet = { bucket: string; path: string; token: string };
 
 /**
- * Verkleinert ein Bild auf eine Höchstkante, ohne zuzuschneiden.
+ * Schneidet mittig auf ein Quadrat zu und verkleinert.
  *
- * Anders als beim Profilbild bleibt das Seitenverhältnis erhalten: Ein Haus ist
- * kein Kreis, und ein quadratisch beschnittenes Gebäude verliert genau das,
- * worauf es ankommt – das Dach oder die Zufahrt.
+ * Quadratisch, damit die Kachel in jedem Projekt gleich aussieht – ob jemand
+ * hoch oder quer fotografiert hat, soll die Ansicht nicht durcheinanderbringen.
+ * Zugeschnitten wird schon hier und nicht erst beim Anzeigen: Sonst läge im
+ * Speicher ein Bild, von dem man nur einen Teil je zu sehen bekommt.
  *
- * Verkleinert wird trotzdem, und zwar im Browser: Ein Handyfoto hat gut zwölf
- * Megapixel. Auf der Baustelle über Mobilfunk hochgeladen dauert das ewig, und
- * angezeigt wird es ohnehin nur ein paar hundert Pixel breit.
+ * Mittig, weil ein Gebäude auf einem Foto in aller Regel in der Mitte steht.
+ *
+ * Verkleinert wird im Browser: Ein Handyfoto hat gut zwölf Megapixel. Auf der
+ * Baustelle über Mobilfunk hochgeladen dauert das ewig, und angezeigt wird es
+ * ohnehin nur ein paar hundert Pixel breit.
  */
-async function verkleinern(file: File, hoechstkante = 1600): Promise<Blob> {
+async function quadratischVerkleinern(file: File, kante = 1200): Promise<Blob> {
   if (!file.type.startsWith('image/')) {
     throw new Error('Bitte ein Bild auswählen (JPG oder PNG).');
   }
@@ -35,17 +38,20 @@ async function verkleinern(file: File, hoechstkante = 1600): Promise<Blob> {
     img.src = dataUrl;
   });
 
+  // Der grösste mittige Ausschnitt, der noch quadratisch ist.
+  const seite = Math.min(bild.width, bild.height);
+  const links = (bild.width - seite) / 2;
+  const oben = (bild.height - seite) / 2;
+
   // Kleine Bilder bleiben, wie sie sind – Hochrechnen macht sie nur unscharf.
-  const faktor = Math.min(1, hoechstkante / Math.max(bild.width, bild.height));
-  const breite = Math.round(bild.width * faktor);
-  const hoehe = Math.round(bild.height * faktor);
+  const zielkante = Math.min(kante, seite);
 
   const canvas = document.createElement('canvas');
-  canvas.width = breite;
-  canvas.height = hoehe;
+  canvas.width = zielkante;
+  canvas.height = zielkante;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas-Kontext nicht verfügbar');
-  ctx.drawImage(bild, 0, 0, breite, hoehe);
+  ctx.drawImage(bild, links, oben, seite, seite, 0, 0, zielkante, zielkante);
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85),
@@ -59,7 +65,7 @@ export async function uploadProjektBild(
   projectId: string,
   file: File,
 ): Promise<string | null> {
-  const blob = await verkleinern(file);
+  const blob = await quadratischVerkleinern(file);
 
   const vorbereitet = await post<Vorbereitet>(`/api/projects/${projectId}/bild`, {});
 

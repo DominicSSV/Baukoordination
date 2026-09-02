@@ -3833,17 +3833,23 @@ button:disabled {
 }
 
 /* --- Bild der Liegenschaft -------------------------------------------------
-   Steht zuoberst im Register "Infos". Breit und flach wie ein Aushang: Man
-   soll das Gebäude erkennen, ohne dass das Bild die Angaben darunter
-   verdrängt. */
+   Steht zuoberst im Register "Infos", als Quadrat. Gleiche Form in jedem
+   Projekt, egal ob jemand hoch oder quer fotografiert hat. Begrenzt in der
+   Breite, sonst füllte das Quadrat auf dem Bildschirm die halbe Seite und
+   drängte die Angaben darunter aus dem Bild. */
 .liegenschaft {
   margin-bottom: 4px;
 }
 
+.liegenschaft-bild,
+.liegenschaft-leer {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+}
+
 .liegenschaft-bild {
   display: block;
-  width: 100%;
-  max-height: 300px;
   object-fit: cover;
   border-radius: 10px;
   background: var(--bg);
@@ -3865,8 +3871,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 100%;
-  padding: 26px 16px;
+  padding: 20px 16px;
   border: 1.5px dashed var(--line);
   border-radius: 10px;
   background: var(--surface);
