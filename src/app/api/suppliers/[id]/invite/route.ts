@@ -19,11 +19,24 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const body = await readJson<{ projectId?: string }>(request);
   const projectId = requireString(body.projectId, 'Projekt', 64);
 
-  const { data: supplier } = await ctx.db
+  // Das vergebene Passwort gehört in die Einladung – sonst weiss der Empfänger
+  // zwar, wo die App steht, aber nicht, wie er hineinkommt. Ohne Migration 0031
+  // gibt es die Spalte nicht; dann geht die Einladung ohne Passwort raus und
+  // sagt das im Text auch.
+  const mitPasswort = await ctx.db
     .from('suppliers')
-    .select('id, name, firma, gewerk, kontakt, email, access_code')
+    .select('id, name, firma, gewerk, kontakt, email, start_passwort')
     .eq('id', id)
     .maybeSingle();
+
+  const { data: supplier } = mitPasswort.error
+    ? await ctx.db
+        .from('suppliers')
+        .select('id, name, firma, gewerk, kontakt, email')
+        .eq('id', id)
+        .maybeSingle()
+    : mitPasswort;
+
   if (!supplier) throw new ApiError('Lieferant nicht gefunden.', 404);
 
   const { data: project } = await ctx.db

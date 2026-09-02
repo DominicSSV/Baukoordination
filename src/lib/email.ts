@@ -341,7 +341,10 @@ export async function buildInvite(supplier: Supplier) {
     vorname: firstName(supplier),
     name: supplier.name?.trim() || supplier.firma?.trim() || '',
     firma: supplier.firma?.trim() || '',
-    code: supplier.access_code ?? '',
+    email: supplier.email?.trim() || '',
+    // Ist noch keines vergeben, steht das im Text – besser als eine Lücke, bei
+    // der sich der Empfänger fragt, ob die Mail unvollständig ist.
+    passwort: supplier.start_passwort?.trim() || '– bitte bei uns nachfragen –',
     link: appBaseUrl(),
   };
 
@@ -665,15 +668,16 @@ export async function sendActivityNotification(params: {
  * Beispielwerte für die Vorschau.
  *
  * Bewusst erfundene, aber glaubwürdige Angaben: An "Reto Schmid" sieht man
- * sofort, wo der Name landet – an "{vorname}" nicht. Der Zugangscode ist
- * ebenfalls erfunden; ein echter hätte in einer Vorschau nichts verloren.
+ * sofort, wo der Name landet – an "{vorname}" nicht. Das Passwort ist ebenfalls
+ * erfunden; ein echtes hätte in einer Vorschau nichts verloren.
  */
 const VORSCHAU_WERTE: Record<VorlagenSchluessel, Record<string, string>> = {
   einladung: {
     vorname: 'Reto',
     name: 'Reto Schmid',
     firma: 'Elektro Meier AG',
-    code: 'A7K2-9QF4',
+    email: 'reto.schmid@elektro-meier.ch',
+    passwort: 'Baustelle2026',
     link: appBaseUrl(),
   },
   benachrichtigung: {

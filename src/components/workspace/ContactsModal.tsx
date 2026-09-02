@@ -21,10 +21,10 @@ type Entwurf = {
 
 /**
  * Register "Kontakte": die ganze Projektmannschaft an einer Stelle – wir und
- * alle Lieferanten, mit Bild, Telefon, Zugangscode und der Angabe, wer auf
- * welches Projekt zugreifen darf.
+ * alle Lieferanten, mit Bild, Telefon, vergebenem Passwort und der Angabe, wer
+ * auf welches Projekt zugreifen darf.
  *
- * Nur für die Swiss Solar Ventures AG. Hier stehen die Zugangscodes und die
+ * Nur für die Swiss Solar Ventures AG. Hier stehen die Passwörter und die
  * Kontaktdaten sämtlicher Firmen beieinander; die Route verlangt deshalb
  * ebenfalls Adminrechte und verlässt sich nicht darauf, dass dieser Dialog
  * gar nicht erst geöffnet wird.
@@ -41,6 +41,8 @@ export default function ContactsModal({
   const [projekte, setProjekte] = useState<Array<{ id: string; name: string }>>([]);
   const [ohneTelefonspalte, setOhneTelefonspalte] = useState(false);
   const [ohneMailFreigabe, setOhneMailFreigabe] = useState(false);
+  /** true = Migration 0031 fehlt, das vergebene Passwort ist nicht nachlesbar. */
+  const [ohneStartpasswort, setOhneStartpasswort] = useState(false);
   const [ohneZuteilung, setOhneZuteilung] = useState(false);
   const [bearbeitet, setBearbeitet] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<Entwurf | null>(null);
@@ -58,11 +60,13 @@ export default function ContactsModal({
         ohneTelefonspalte?: boolean;
         ohneZuteilung?: boolean;
         ohneMailFreigabe?: boolean;
+        ohneStartpasswort?: boolean;
       }>('/api/contacts');
       setKontakte(res.kontakte);
       setProjekte(res.projekte ?? []);
       setOhneTelefonspalte(Boolean(res.ohneTelefonspalte));
       setOhneMailFreigabe(Boolean(res.ohneMailFreigabe));
+      setOhneStartpasswort(Boolean(res.ohneStartpasswort));
       setOhneZuteilung(Boolean(res.ohneZuteilung));
     } catch (error) {
       reportError(error, 'Die Kontakte konnten nicht geladen werden.');
@@ -364,9 +368,8 @@ export default function ContactsModal({
           </div>
           {k.art === 'lieferant' && (
             <div className="kontakt-meta">
-              Code: <strong>{k.code ?? '—'}</strong>
               {!k.projekte.length && (
-                <span className="kontakt-ohne"> · kein Projekt freigegeben</span>
+                <span className="kontakt-ohne">kein Projekt freigegeben · </span>
               )}
               {/* Auf einen Blick erkennbar, wer von aussen Post bekommt – die
                   Liste ist lang, und Nachschauen je Person wäre mühsam. */}
@@ -384,9 +387,26 @@ export default function ContactsModal({
                   🔑 {k.startPasswort}
                 </span>
               ) : k.hatPasswort ? (
-                <span className="kontakt-mail-marke">🔑 Passwort gesetzt</span>
+                <span
+                  className="kontakt-mail-marke"
+                  title={
+                    ohneStartpasswort
+                      ? 'Zum Nachlesen fehlt Migration 0031. Danach beim nächsten '
+                        + 'Setzen sichtbar.'
+                      : 'Vor der Umstellung vergeben – einfach neu setzen, dann '
+                        + 'steht es hier.'
+                  }
+                >
+                  🔑 gesetzt, nicht nachlesbar
+                </span>
               ) : (
-                <span className="kontakt-ohne"> · nur Code</span>
+                // Ohne Passwort kommt diese Person nicht mehr herein – der
+                // Zugangscode ist abgeschafft. Deshalb steht es rot da und
+                // nicht als beiläufige Bemerkung.
+                <span className="kontakt-ohne">
+                  {' '}
+                  · kein Passwort – kann sich nicht anmelden
+                </span>
               )}
             </div>
           )}
@@ -545,6 +565,27 @@ export default function ContactsModal({
             <div className="kontakt-gruppe-titel">
               Lieferanten <span className="gruppe-anzahl">{lieferanten.length}</span>
             </div>
+            {/* Der Zugangscode ist abgeschafft: Wer kein Passwort von uns hat,
+                kommt nicht mehr herein. Das muss man wissen, bevor man sich
+                wundert, warum sich niemand anmeldet. */}
+            <p className="kontakt-erklaerung">
+              Die Anmeldung läuft über E-Mail und Passwort. Das Passwort vergibst
+              du hier – die Lieferanten können es nicht selbst ändern.
+              {ohneStartpasswort && (
+                <>
+                  {' '}
+                  Damit es nachlesbar bleibt, fehlt noch die
+                  Datenbank-Aktualisierung 0031.
+                </>
+              )}
+            </p>
+            {lieferanten.some((k) => !k.hatPasswort) && (
+              <p className="speicher-hinweis">
+                {lieferanten.filter((k) => !k.hatPasswort).length} von{' '}
+                {lieferanten.length} Firmen haben noch kein Passwort und kommen
+                damit nicht in die App.
+              </p>
+            )}
             {lieferanten.length ? (
               lieferanten.map(zeile)
             ) : (

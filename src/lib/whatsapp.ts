@@ -63,12 +63,13 @@ function vorname(name: string | null | undefined): string {
 }
 
 /**
- * Einladung mit Zugangscode – derselbe Inhalt wie die E-Mail-Einladung, nur
- * kurz genug für eine Nachricht.
+ * Einladung mit den Anmeldedaten – derselbe Inhalt wie die E-Mail-Einladung,
+ * nur kurz genug für eine Nachricht.
  */
 export function einladungsText(
   name: string | null,
-  code: string | null,
+  email: string | null,
+  passwort: string | null,
   basis: string,
 ): string {
   return [
@@ -77,9 +78,12 @@ export function einladungsText(
     `Du hast Zugriff auf unsere Baukoordination-App.`,
     ``,
     `Link: ${basis}`,
-    `Zugangscode: ${code ?? '—'}`,
+    `E-Mail: ${email ?? '– noch keine hinterlegt –'}`,
+    `Passwort: ${passwort ?? '– bitte bei uns nachfragen –'}`,
     ``,
     `Dort siehst du die Projekte, die dir zugeordnet sind. Du kannst To-Dos abhaken, kommentieren und Fotos hinzufügen.`,
+    ``,
+    `Das Passwort gilt nur für diese App.`,
     ``,
     `Swiss Solar Ventures AG`,
   ].join('\n');

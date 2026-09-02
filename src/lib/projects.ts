@@ -341,30 +341,41 @@ export async function loadProjectDetail(
     (r: { supplier_id: string }) => r.supplier_id,
   );
 
-  // Der Admin sieht die volle Kartei inkl. Zugangscodes, ein Lieferant nur Namen
-  // (View supplier_public liefert weder Code noch Kontaktdaten anderer Lieferanten).
+  // Der Admin sieht die volle Kartei inkl. vergebener Passwörter, ein Lieferant
+  // nur Namen (View supplier_public liefert weder Zugang noch Kontaktdaten
+  // anderer Lieferanten).
   let suppliers: Supplier[] = [];
   let otherSuppliers: Supplier[] = [];
 
   if (isAdmin) {
-    const mitBild = await db
+    // Von der vollständigen Fassung abwärts: ohne Migration 0031 fehlt das
+    // Startpasswort, ohne Migration 0005 die Bildspalte.
+    const stufen = [
+      'id, name, firma, gewerk, kontakt, email, created_at, avatar_path, passwort_gesetzt_am, start_passwort',
+      'id, name, firma, gewerk, kontakt, email, created_at, avatar_path, passwort_gesetzt_am',
+      'id, name, firma, gewerk, kontakt, email, created_at, avatar_path',
+      'id, name, firma, gewerk, kontakt, email, created_at',
+    ];
+
+    let res = await db
       .from('suppliers')
-      .select(
-        'id, name, firma, gewerk, kontakt, email, access_code, created_at, avatar_path',
-      )
+      .select(stufen[0])
       .order('created_at', { ascending: true });
 
-    // Ohne Migration 0005 fehlt die Bildspalte – dann eben ohne Bilder weiter.
-    const res = mitBild.error
-      ? await db
-          .from('suppliers')
-          .select('id, name, firma, gewerk, kontakt, email, access_code, created_at')
-          .order('created_at', { ascending: true })
-      : mitBild;
+    for (let stufe = 1; res.error && stufe < stufen.length; stufe += 1) {
+      res = await db
+        .from('suppliers')
+        .select(stufen[stufe])
+        .order('created_at', { ascending: true });
+    }
 
     if (res.error) throw new Error(`Lieferanten: ${res.error.message}`);
 
-    const rows = (res.data ?? []) as Array<Supplier & { avatar_path?: string | null }>;
+    // Der Umweg über unknown ist nötig, weil die Spaltenliste aus einer Variable
+    // kommt: Supabase leitet den Zeilentyp nur aus einem festen Text her.
+    const rows = (res.data ?? []) as unknown as Array<
+      Supplier & { avatar_path?: string | null }
+    >;
     const urls = await signAvatars(rows.map((r) => r.avatar_path));
 
     const all: Supplier[] = rows.map((r) => ({

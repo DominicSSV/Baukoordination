@@ -279,8 +279,8 @@ export async function GET() {
           ? undefined
           : (passwoerter.data ?? []).length,
         hinweis: passwoerter.error
-          ? 'Migration 0028 fehlt. Lieferanten melden sich nur mit dem ' +
-            'Zugangscode an – den speichert keine Passwortverwaltung.'
+          ? 'Migration 0028 fehlt. Ohne sie kann sich kein Lieferant anmelden – ' +
+            'die Anmeldung läuft nur noch über E-Mail und Passwort.'
           : undefined,
       };
 

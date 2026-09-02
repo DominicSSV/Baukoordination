@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers';
 import { ApiError, handler, ok, readJson } from '@/lib/api';
-import { normalizeCode } from '@/lib/codes';
 import { createSupplierSession, supplierLabel } from '@/lib/auth/session';
 import { pruefePasswort } from '@/lib/auth/passwort';
 import { serviceClient } from '@/lib/supabase/service';
@@ -22,11 +21,17 @@ type Zeile = {
  * Firmen bei uns hinterlegt sind – auch ohne je hineinzukommen.
  */
 const ABGELEHNT =
-  'E-Mail oder Passwort stimmt nicht. Hast du noch kein Passwort gesetzt, ' +
-  'melde dich mit deinem Zugangscode an.';
+  'E-Mail oder Passwort stimmt nicht. Die Passwörter vergibt die Swiss Solar ' +
+  'Ventures AG – melde dich bei uns, wenn du keines hast.';
 
-/** Anmeldung über die Mailadresse und das selbst gesetzte Passwort. */
-async function perPasswort(email: string, passwort: string): Promise<Zeile> {
+/**
+ * Der einzige Weg hinein: Mailadresse und das von uns vergebene Passwort.
+ *
+ * Die Prüfung läuft über service_role, weil zu diesem Zeitpunkt noch keine
+ * Identität feststeht. Gesucht wird ausschliesslich über die Adresse, und
+ * zurück geht nur, was für die Sitzung gebraucht wird.
+ */
+async function anmelden(email: string, passwort: string): Promise<Zeile> {
   const adresse = email.trim().toLowerCase();
   if (!adresse || !passwort) throw new ApiError('Bitte E-Mail und Passwort eingeben.');
 
@@ -37,9 +42,9 @@ async function perPasswort(email: string, passwort: string): Promise<Zeile> {
 
   if (error) {
     throw new ApiError(
-      'Die Anmeldung mit Passwort ist noch nicht eingerichtet. Bitte melde dich ' +
-        'mit deinem Zugangscode an.',
-      400,
+      'Die Anmeldung ist noch nicht eingerichtet (Datenbank-Aktualisierung 0028 ' +
+        'fehlt). Bitte melde dich bei der Swiss Solar Ventures AG.',
+      500,
     );
   }
 
@@ -66,60 +71,17 @@ async function perPasswort(email: string, passwort: string): Promise<Zeile> {
 }
 
 /**
- * Anmeldung per Zugangscode. Die Prüfung läuft bewusst über service_role, weil zu
- * diesem Zeitpunkt noch keine Identität feststeht – gefunden wird ausschliesslich
- * über den exakten Code, es wird nichts anderes aus der Tabelle zurückgegeben.
- */
-async function perCode(code: string): Promise<Zeile> {
-  const normalized = normalizeCode(code);
-  if (!normalized) throw new ApiError('Bitte gib deinen Zugangscode ein.');
-
-  const db = serviceClient();
-
-  // passwort_hash wird nur gelesen, um danach zum Setzen eines Passworts
-  // aufzufordern. Ohne Migration 0028 gibt es die Spalte nicht – dann läuft
-  // die Anmeldung wie bisher, nur ohne diese Aufforderung.
-  let { data: supplier, error } = await db
-    .from('suppliers')
-    .select('id, name, firma, passwort_hash')
-    .eq('access_code', normalized)
-    .maybeSingle();
-
-  if (error) {
-    ({ data: supplier, error } = await db
-      .from('suppliers')
-      .select('id, name, firma')
-      .eq('access_code', normalized)
-      .maybeSingle());
-  }
-
-  if (error) throw new ApiError(`Anmeldung fehlgeschlagen: ${error.message}`, 500);
-  if (!supplier) {
-    throw new ApiError(
-      'Code ungültig. Bitte bei der Swiss Solar Ventures AG nachfragen.',
-      401,
-    );
-  }
-
-  return supplier as Zeile;
-}
-
-/**
- * Zwei Wege hinein, ein Ergebnis.
+ * Anmeldung eines Lieferanten.
  *
- * Der Zugangscode bleibt: Er ist der Weg hinein, bevor es ein Passwort gibt,
- * und die Rettung, wenn jemand es vergisst. Das Passwort gibt es, weil ein
- * gewöhnliches Codefeld von keiner Passwortverwaltung gespeichert wird – auf
- * der Baustelle hiess das, den Code jedes Mal aus der alten Mail zu suchen.
+ * Der frühere Zugangscode ist abgeschafft: Er war ein zweites Geheimnis, das
+ * keine Passwortverwaltung speichert – auf der Baustelle hiess das, den Code
+ * jedes Mal aus einer alten Mail zu suchen. Jetzt gibt es einen Weg, und der
+ * lässt sich auf dem Handy hinterlegen.
  */
 export const POST = handler(async (request: Request) => {
-  const body = await readJson<{ code?: string; email?: string; passwort?: string }>(
-    request,
-  );
+  const body = await readJson<{ email?: string; passwort?: string }>(request);
 
-  const supplier = body.email
-    ? await perPasswort(String(body.email), String(body.passwort ?? ''))
-    : await perCode(String(body.code ?? ''));
+  const supplier = await anmelden(String(body.email ?? ''), String(body.passwort ?? ''));
 
   const userAgent = request.headers.get('user-agent');
   const token = await createSupplierSession(supplier.id, userAgent);
@@ -133,11 +95,5 @@ export const POST = handler(async (request: Request) => {
     maxAge: SUPPLIER_SESSION_DAYS * 24 * 60 * 60,
   });
 
-  return ok({
-    name: supplierLabel(supplier),
-    // Nach der Anmeldung mit Code soll die App auffordern, ein Passwort zu
-    // setzen – sonst bleibt es beim Suchen in alten Mails.
-    ohnePasswort:
-      !body.email && supplier.passwort_hash !== undefined && !supplier.passwort_hash,
-  });
+  return ok({ name: supplierLabel(supplier) });
 });

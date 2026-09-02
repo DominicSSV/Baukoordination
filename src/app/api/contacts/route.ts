@@ -8,9 +8,9 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Die ganze Projektmannschaft an einer Stelle – wir und alle Lieferanten,
- * samt Zugangscodes und der Angabe, wer auf welches Projekt zugreifen darf.
+ * samt vergebenem Passwort und der Angabe, wer auf welches Projekt zugreifen darf.
  *
- * Nur für die Swiss Solar Ventures AG: Hier stehen die Zugangscodes und die
+ * Nur für die Swiss Solar Ventures AG: Hier stehen die Zugänge und die
  * Kontaktdaten sämtlicher Firmen beieinander. Ein Lieferant hat auf dieser
  * Ansicht nichts verloren.
  */
@@ -18,14 +18,25 @@ export const GET = handler(async () => {
   await requireAdmin();
   const db = serviceClient();
 
+  /**
+   * Die Spalten der Lieferantenzeile, von der vollständigen Fassung abwärts.
+   *
+   * Früher stand hier ein einziger Rückfall auf die nackte Liste. Das hatte
+   * einen unschönen Nebeneffekt: Fehlte nur Migration 0031, verschwand mit dem
+   * Startpasswort auch die Mail-Freigabe und die Angabe, wer überhaupt ein
+   * Passwort hat – drei Anzeigen weg wegen einer fehlenden Spalte. Jetzt wird
+   * Stufe für Stufe zurückgegangen, und es fehlt nur, was wirklich fehlt.
+   */
+  const SPALTEN_STUFEN = [
+    'id, name, firma, gewerk, kontakt, email, avatar_path, mail_an, passwort_gesetzt_am, start_passwort',
+    'id, name, firma, gewerk, kontakt, email, avatar_path, mail_an, passwort_gesetzt_am',
+    'id, name, firma, gewerk, kontakt, email, avatar_path, mail_an',
+    'id, name, firma, gewerk, kontakt, email, avatar_path',
+  ];
+
   const [adminRes, lieferantenRes, projekteRes, zugriffRes] = await Promise.all([
     db.from('admins').select('user_id, name, firma, funktion, email, kontakt, avatar_path'),
-    db
-      .from('suppliers')
-      .select(
-        'id, name, firma, gewerk, kontakt, email, access_code, avatar_path, mail_an, passwort_gesetzt_am, start_passwort',
-      )
-      .order('firma', { ascending: true }),
+    db.from('suppliers').select(SPALTEN_STUFEN[0]).order('firma', { ascending: true }),
     db.from('projects').select('id, name'),
     db.from('project_access').select('supplier_id, project_id'),
   ]);
@@ -42,13 +53,16 @@ export const GET = handler(async () => {
   if (adminsRoh.error) {
     throw new ApiError(`Kontakte konnten nicht geladen werden: ${adminsRoh.error.message}`, 500);
   }
-  // Ohne Migration 0027 gibt es die Mail-Freigabe noch nicht.
-  const lieferantenRoh = lieferantenRes.error
-    ? await db
-        .from('suppliers')
-        .select('id, name, firma, gewerk, kontakt, email, access_code, avatar_path')
-        .order('firma', { ascending: true })
-    : lieferantenRes;
+  // Stufe für Stufe zurück, bis eine Fassung durchgeht.
+  let lieferantenRoh = lieferantenRes;
+  let stufe = 0;
+  while (lieferantenRoh.error && stufe < SPALTEN_STUFEN.length - 1) {
+    stufe += 1;
+    lieferantenRoh = await db
+      .from('suppliers')
+      .select(SPALTEN_STUFEN[stufe])
+      .order('firma', { ascending: true });
+  }
 
   if (lieferantenRoh.error) {
     throw new ApiError(
@@ -73,7 +87,6 @@ export const GET = handler(async () => {
     gewerk: string | null;
     kontakt: string | null;
     email: string | null;
-    access_code: string | null;
     avatar_path: string | null;
     mail_an?: boolean | null;
     passwort_gesetzt_am?: string | null;
@@ -81,7 +94,9 @@ export const GET = handler(async () => {
   };
 
   const adminZeilen = (adminsRoh.data ?? []) as AdminZeile[];
-  const lieferantZeilen = (lieferantenRoh.data ?? []) as LieferantZeile[];
+  // Der Umweg über unknown ist nötig, weil die Spaltenliste aus einer Variable
+  // kommt: Supabase leitet den Zeilentyp nur aus einem festen Text her.
+  const lieferantZeilen = (lieferantenRoh.data ?? []) as unknown as LieferantZeile[];
 
   const bilder = await signAvatars([
     ...adminZeilen.map((a) => a.avatar_path),
@@ -127,7 +142,6 @@ export const GET = handler(async () => {
       rolle: a.funktion,
       kontakt: a.kontakt ?? null,
       email: a.email,
-      code: null,
       avatarUrl: a.avatar_path ? (bilder.get(a.avatar_path) ?? null) : null,
       projekte: intern.get(a.user_id) ?? [],
       // Bei uns entscheidet die Firmen-Domain, nicht eine Freigabe je Person.
@@ -145,7 +159,6 @@ export const GET = handler(async () => {
       rolle: l.gewerk,
       kontakt: l.kontakt,
       email: l.email,
-      code: l.access_code,
       avatarUrl: l.avatar_path ? (bilder.get(l.avatar_path) ?? null) : null,
       projekte: zugriffe.get(l.id) ?? [],
       mailAn: l.mail_an === true,
@@ -162,7 +175,10 @@ export const GET = handler(async () => {
     kontakte,
     projekte,
     ohneTelefonspalte: Boolean(adminRes.error),
-    ohneMailFreigabe: Boolean(lieferantenRes.error),
+    // Erst ab Stufe 3 fehlt die Mail-Freigabe wirklich (Migration 0027).
+    ohneMailFreigabe: stufe >= 3,
+    // Ab Stufe 1 fehlt das nachlesbare Startpasswort (Migration 0031).
+    ohneStartpasswort: stufe >= 1,
     ohneZuteilung: Boolean(internRes.error),
   });
 });

@@ -107,7 +107,7 @@ export default function SuppliersTab({
 
   function deleteSupplier(s: Supplier) {
     confirm(
-      `„${supplierLabel(s)}“ wirklich komplett löschen?\n\nDer Zugangscode wird ungültig und der Zugriff auf ALLE Projekte geht verloren – nicht nur auf das aktuelle.`,
+      `„${supplierLabel(s)}“ wirklich komplett löschen?\n\nDie Anmeldung wird ungültig und der Zugriff auf ALLE Projekte geht verloren – nicht nur auf das aktuelle.`,
       async () => {
         await del(`/api/suppliers/${s.id}`);
         await reload();
@@ -139,16 +139,20 @@ export default function SuppliersTab({
       });
     }, 'Einladung konnte nicht verschickt werden.');
 
-  const copyCode = (s: Supplier) =>
+  /** E-Mail und Passwort in einem Zug – so, wie man sie weitergibt. */
+  const copyZugang = (s: Supplier) =>
     run(async () => {
-      const code = s.access_code ?? '';
+      const zugang = [
+        s.email ?? '– keine E-Mail hinterlegt –',
+        s.start_passwort ?? '– kein Passwort vergeben –',
+      ].join('\n');
       try {
-        await navigator.clipboard.writeText(code);
-        toast(`📋 Code kopiert: ${code}`);
+        await navigator.clipboard.writeText(zugang);
+        toast('📋 Anmeldedaten kopiert.');
       } catch {
-        toast(`⚠️ Kopieren blockiert – der Code lautet: ${code}`, 'error');
+        toast(`⚠️ Kopieren blockiert – die Daten lauten: ${zugang}`, 'error');
       }
-    }, 'Code konnte nicht kopiert werden.');
+    }, 'Anmeldedaten konnten nicht kopiert werden.');
 
   const bildHochladen = (supplierId: string, file: File | undefined) =>
     file
@@ -244,8 +248,8 @@ export default function SuppliersTab({
             }}
           />
           <p style={{ fontSize: 11.5, color: 'var(--ink-soft)', margin: '8px 0 0' }}>
-            Der Zugangscode bleibt beim Bearbeiten unverändert – bereits verschickte
-            Einladungen funktionieren weiter.
+            Das Passwort bleibt beim Bearbeiten unverändert. Vergeben und ändern
+            lässt es sich im Register „Kontakte“.
           </p>
           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
             <button
@@ -297,12 +301,22 @@ export default function SuppliersTab({
                   <div className="supplier-info">
                     <div className="supplier-name">{supplierLabel(s)}</div>
                     <div className="supplier-meta">{displayMeta(s)}</div>
+                    {/* Anmeldedaten statt Zugangscode: Der Code ist abgeschafft,
+                        hinein kommt man nur noch mit E-Mail und Passwort. */}
                     <div className="supplier-meta">
-                      Code:{' '}
-                      <strong style={{ letterSpacing: '0.06em' }}>
-                        {s.access_code ?? '—'}
-                      </strong>
-                      {s.email ? ` · ${s.email}` : ' · keine E-Mail hinterlegt'}
+                      {s.email ?? 'keine E-Mail hinterlegt'}
+                      {s.start_passwort ? (
+                        <>
+                          {' · '}
+                          <strong style={{ letterSpacing: '0.04em' }}>
+                            {s.start_passwort}
+                          </strong>
+                        </>
+                      ) : s.passwort_gesetzt_am ? (
+                        ' · Passwort gesetzt'
+                      ) : (
+                        ' · kein Passwort – kann sich nicht anmelden'
+                      )}
                     </div>
                   </div>
                 </div>
@@ -318,10 +332,10 @@ export default function SuppliersTab({
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => copyCode(s)}
-                    title="Code kopieren"
+                    onClick={() => copyZugang(s)}
+                    title="E-Mail und Passwort kopieren"
                   >
-                    📋 Code
+                    📋 Zugang
                   </button>
                   <button
                     type="button"
@@ -338,7 +352,8 @@ export default function SuppliersTab({
                   <WhatsAppButton
                     text={einladungsText(
                       s.name,
-                      s.access_code ?? null,
+                      s.email ?? null,
+                      s.start_passwort ?? null,
                       basisAdresse(),
                     )}
                     nummer={waNummer(s.kontakt)}

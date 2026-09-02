@@ -4359,22 +4359,15 @@ button:disabled {
   align-self: flex-start;
 }
 
-/* Der Wechsel zwischen Passwort und Zugangscode auf der Anmeldeseite: ein
-   Nebenweg, kein zweiter Hauptknopf. */
-.auth-wechsel {
-  display: block;
-  width: 100%;
-  margin-top: 12px;
-  padding: 6px 0;
-  border: none;
-  background: none;
+/* Der Satz unter dem Anmeldeknopf: was tun, wenn man kein Passwort hat.
+   Leise gesetzt – er soll da sein, wenn man ihn braucht, und sonst nicht
+   vom Anmelden ablenken. */
+.auth-hinweis {
+  margin: 14px 0 0;
   font-size: 12.5px;
+  line-height: 1.5;
   color: var(--ink-soft);
-  text-decoration: underline;
-}
-
-.auth-wechsel:hover {
-  color: var(--ink);
+  text-align: center;
 }
 
 .mail-test {

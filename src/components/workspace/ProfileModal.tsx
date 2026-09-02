@@ -152,7 +152,7 @@ export default function ProfileModal({
             <div className="mail-status-kopf">
               <strong>Anmeldung</strong>
               <span className={session.hatPasswort ? 'mail-an' : 'mail-aus'}>
-                {session.hatPasswort ? 'mit Passwort' : 'nur mit Zugangscode'}
+                {session.hatPasswort ? 'mit Passwort' : 'noch kein Passwort'}
               </span>
             </div>
             <p>
@@ -184,7 +184,7 @@ export default function ProfileModal({
               <p>
                 {session.mailAnLieferanten
                   ? 'Lieferanten erhalten ebenfalls Benachrichtigungen.'
-                  : 'Lieferanten erhalten keine automatischen Mails – nur die Einladung mit dem Zugangscode, die du von Hand auslöst.'}
+                  : 'Lieferanten erhalten keine automatischen Mails – nur die Einladung mit den Anmeldedaten, die du von Hand auslöst.'}
                 {' '}Für welche Projekte du selbst Post bekommst, stellst du unter
                 Kontakte ein.
               </p>

@@ -63,8 +63,19 @@ export type Supplier = {
   gewerk: string | null;
   kontakt: string | null;
   email: string | null;
-  /** Nur für den Admin gesetzt – Lieferanten bekommen fremde Codes nie zu sehen. */
+  /**
+   * Alter Zugangscode. Wird nirgends mehr angezeigt und führt nirgends mehr
+   * hinein – die Anmeldung läuft ausschliesslich über E-Mail und Passwort.
+   * Die Spalte bleibt, damit alte Zeilen nicht angefasst werden müssen.
+   */
   access_code?: string | null;
+  /**
+   * Das von uns vergebene Passwort im Klartext – nur für den Admin gesetzt,
+   * damit wir nachlesen können, wem wir was mitgeteilt haben.
+   */
+  start_passwort?: string | null;
+  /** Wann zuletzt ein Passwort vergeben wurde. Null = die Person kommt nicht herein. */
+  passwort_gesetzt_am?: string | null;
   created_at?: string;
   /** Kurzlebige Signatur auf das Profilbild, null = keines hinterlegt. */
   avatar_url?: string | null;
@@ -177,7 +188,7 @@ export const OFFERTEN_STAENDE: Array<{ wert: OffertenStand; name: string }> = [
 
 /**
  * Eine Person im Register "Kontakte" – wir und die Lieferanten in einer Liste.
- * Nur für die Swiss Solar Ventures AG: Hier stehen Zugangscodes und die
+ * Nur für die Swiss Solar Ventures AG: Hier stehen die Zugänge und die
  * Kontaktdaten sämtlicher Firmen beieinander.
  */
 export type Kontakt = {
@@ -189,8 +200,6 @@ export type Kontakt = {
   rolle: string | null;
   kontakt: string | null;
   email: string | null;
-  /** Zugangscode – nur bei Lieferanten. */
-  code: string | null;
   avatarUrl: string | null;
   /** Kennungen der Projekte, für die der Lieferant freigegeben ist. */
   projekte: string[];
@@ -205,13 +214,14 @@ export type Kontakt = {
    * Hat diese Person ein Passwort für die Anmeldung?
    *
    * Bei uns immer – dort läuft die Anmeldung über den Anmeldedienst. Bei
-   * Lieferanten heisst false: Sie kommen bisher nur über den Zugangscode herein.
+   * Lieferanten heisst false: Diese Person kommt gar nicht herein, solange wir
+   * ihr kein Passwort vergeben haben.
    */
   hatPasswort: boolean;
   /**
-   * Das von uns vergebene Startpasswort im Klartext – als Merkhilfe, wem man
-   * was mitgeteilt hat. Null, sobald die Person sich selbst eines setzt: Ab
-   * dann ist es ihres, und viele verwenden überall dasselbe.
+   * Das von uns vergebene Passwort im Klartext – als Merkhilfe, wem man was
+   * mitgeteilt hat. Vertretbar, weil die Lieferanten ihr Passwort nicht selbst
+   * wählen: Es kommt immer von uns und gilt nur für diese App.
    */
   startPasswort: string | null;
 };

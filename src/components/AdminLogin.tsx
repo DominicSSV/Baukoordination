@@ -153,7 +153,7 @@ export default function AdminLogin() {
       </div>
 
       <p className="auth-alt">
-        Lieferant? <Link href="/">Mit Zugangscode anmelden</Link>
+        Lieferant? <Link href="/">Hier anmelden</Link>
       </p>
     </div>
   );
