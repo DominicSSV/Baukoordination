@@ -176,6 +176,17 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
           vorlagen.map((v) => {
             const bearbeitet = offen === v.schluessel;
 
+            /**
+             * Eine angepasste Einladung von vor der Umstellung auf Passwörter.
+             *
+             * {code} wird nicht mehr gefüllt – in der Mail stünde wörtlich
+             * "{code}". Die App schickt deshalb wieder den Standardtext. Das
+             * muss hier stehen, sonst ändert man den Text und wundert sich,
+             * warum die Mail anders aussieht.
+             */
+            const veraltet =
+              v.schluessel === 'einladung' && v.angepasst && v.text.includes('{code}');
+
             return (
               <div className="vorlage" key={v.schluessel}>
                 <div className="vorlage-kopf">
@@ -205,6 +216,16 @@ export default function MailTemplatesModal({ onClose }: { onClose: () => void })
                     </button>
                   </div>
                 </div>
+
+                {veraltet && (
+                  <p className="speicher-hinweis">
+                    Dieser angepasste Text nennt noch den Zugangscode ({'{code}'}) – den
+                    gibt es nicht mehr, die Anmeldung läuft über E-Mail und Passwort.
+                    Solange er hier steht, verschickt die App den Standardtext. Nimm
+                    {' {code}'} heraus und setze stattdessen {'{email}'} und{' '}
+                    {'{passwort}'} ein, oder drücke auf „Zurücksetzen“.
+                  </p>
+                )}
 
                 {!bearbeitet ? (
                   <div className="vorlage-vorschau">

@@ -4569,9 +4569,17 @@ button:disabled {
   border-bottom: none;
 }
 
-.woche-text {
+/* Text und Zuständige untereinander, beide neben dem Häkchen. Die Breite hängt
+   hier und nicht mehr am Knopf: Sonst könnten die Merkzeichen nicht darunter
+   stehen. */
+.woche-inhalt {
   flex: 1;
   min-width: 0;
+}
+
+.woche-text {
+  display: block;
+  width: 100%;
   border: none;
   background: none;
   padding: 0;
@@ -4594,6 +4602,15 @@ button:disabled {
   margin-top: 2px;
   font-size: 11.5px;
   color: var(--ink-soft);
+}
+
+/* Die Zuständigen unter der Aufgabe – nur in der Ansicht über alle Projekte.
+   Umbrechend, weil an einem Gewerk auch mal drei dranstehen. */
+.woche-zustaendig {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
 }
 
 /* --- Offerten: Betrag und Stand -------------------------------------------- */

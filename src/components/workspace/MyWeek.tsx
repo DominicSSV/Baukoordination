@@ -6,6 +6,8 @@ import { api, patch } from '@/lib/client/api';
 import { fmtDueDate, heute } from '@/lib/due';
 import { tagPlus } from '@/lib/schedule';
 import { assigneeLabel } from '@/lib/assignee';
+import { assigneePerson, personLabel } from '@/lib/people';
+import Avatar from '@/components/Avatar';
 import Spinner from '@/components/Spinner';
 import { spieleMuenze } from '@/lib/client/ton';
 import type { MeineAufgabe } from '@/app/api/mytasks/route';
@@ -197,6 +199,11 @@ export default function MyWeek({
                   title="Als erledigt markieren"
                   aria-label="Als erledigt markieren"
                 />
+                {/* Der Knopf umschliesst nur den Text. Die Merkzeichen der
+                    Zuständigen stehen daneben und nicht darin: Ein Bild in
+                    einem Knopf ist kein gültiges HTML, und anklickbar müssen
+                    sie ohnehin nicht sein. */}
+                <div className="woche-inhalt">
                 <button
                   type="button"
                   className="woche-text"
@@ -207,19 +214,39 @@ export default function MyWeek({
                   <span className="woche-meta">
                     {a.projectName}
                     {a.dueDate && ` · bis ${fmtDueDate(a.dueDate)}`}
-                    {/* Bei den eigenen Aufgaben zählt, wer ausser einem selbst
-                        noch dran ist – an einem Gewerk sind oft zwei zuständig.
-                        Bei fremden zählt, wem sie überhaupt gehört. */}
-                    {a.meine
-                      ? a.andere.length > 0 &&
-                        ` · mit ${a.andere
-                          .map((w) => assigneeLabel(w, admins, suppliers))
-                          .join(', ')}`
-                      : ` · ${a.assignees
-                          .map((w) => assigneeLabel(w, admins, suppliers))
-                          .join(', ')}`}
+                    {/* In der eigenen Liste zählt nur, wer ausser einem selbst
+                        noch dran ist – der eigene Name auf jeder Zeile wäre
+                        Lärm. Wer alles sieht, bekommt die Zuständigen darunter
+                        als Merkzeichen. */}
+                    {nurMeine &&
+                      a.andere.length > 0 &&
+                      ` · mit ${a.andere
+                        .map((w) => assigneeLabel(w, admins, suppliers))
+                        .join(', ')}`}
                   </span>
                 </button>
+
+                  {/* Über alle Projekte hinweg ist "wem gehört das" die erste
+                      Frage. Mit Bild statt nur als Name: In einer langen Liste
+                      erkennt man das Gesicht schneller als die Zeile. */}
+                  {!nurMeine && (
+                    <div className="woche-zustaendig">
+                      {a.assignees.map((wert) => {
+                        const person = assigneePerson({ admins, suppliers }, wert);
+                        return (
+                          <span
+                            key={wert}
+                            className="assignee-chip"
+                            title={assigneeLabel(wert, admins, suppliers)}
+                          >
+                            <Avatar url={person.avatarUrl} name={person.name} size={18} />
+                            {personLabel(person)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

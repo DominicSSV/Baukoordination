@@ -39,6 +39,21 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   if (!supplier) throw new ApiError('Lieferant nicht gefunden.', 404);
 
+  // Ohne Passwort ist die Einladung wertlos: Sie nennt die Adresse der App und
+  // die eigene E-Mail, aber nichts, womit man hineinkommt. Lieber hier
+  // abbrechen als eine Mail verschicken, auf die ein Anruf folgt.
+  //
+  // Fehlt die Spalte (Migration 0031), lässt sich das nicht beurteilen – dann
+  // geht die Einladung raus wie bisher.
+  if (!mitPasswort.error && !(supplier as { start_passwort?: string | null }).start_passwort) {
+    throw new ApiError(
+      `Für ${supplier.name?.trim() || supplier.firma?.trim() || 'diesen Lieferanten'} `
+        + 'ist noch kein Passwort vergeben. Setze es zuerst im Register „Kontakte“ – '
+        + 'die Einladung schickt es dann gleich mit.',
+      400,
+    );
+  }
+
   const { data: project } = await ctx.db
     .from('projects')
     .select('id, name, ort, created_at')

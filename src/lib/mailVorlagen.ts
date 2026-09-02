@@ -134,6 +134,22 @@ export function einsetzen(text: string, werte: Record<string, string>): string {
 }
 
 /**
+ * Ist dieser gespeicherte Text von vor der Umstellung auf Passwörter?
+ *
+ * Der Zugangscode ist abgeschafft. Eine Einladung, die vorher angepasst wurde,
+ * verspricht darin aber weiterhin einen Code – und weil {code} heute nicht mehr
+ * gefüllt wird, steht in der Mail wörtlich "{code}". Genau so ist es passiert.
+ *
+ * Ein solcher Text ist nicht mehr zu retten: Er nennt einen Weg hinein, den es
+ * nicht mehr gibt. Deshalb gilt hier wieder der Standard, der E-Mail und
+ * Passwort mitschickt. Die angepasste Fassung bleibt in der Tabelle stehen –
+ * wer sie behalten will, bearbeitet sie in der App und nimmt {code} heraus.
+ */
+function veraltet(schluessel: VorlagenSchluessel, text: string): boolean {
+  return schluessel === 'einladung' && text.includes('{code}');
+}
+
+/**
  * Der gültige Text: die angepasste Fassung, sonst der Standard.
  *
  * Schlägt die Abfrage fehl – etwa weil Migration 0025 fehlt –, wird das nicht
@@ -154,9 +170,11 @@ export async function ladeVorlage(
     if (error || !data) return { betreff: standard.betreff, text: standard.text };
 
     const zeile = data as { betreff: string | null; text: string | null };
+    const text = zeile.text?.trim();
+
     return {
       betreff: zeile.betreff?.trim() || standard.betreff,
-      text: zeile.text?.trim() || standard.text,
+      text: text && !veraltet(schluessel, text) ? text : standard.text,
     };
   } catch {
     return { betreff: standard.betreff, text: standard.text };
