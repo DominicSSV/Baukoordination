@@ -47,9 +47,13 @@ function einordnen(due: string | null): Fach {
 }
 
 /**
- * Startseite über alle Projekte: was steht an, sortiert nach Dringlichkeit.
+ * Startseite über alle Projekte: was steht für mich an, sortiert nach
+ * Dringlichkeit.
  *
- * Erledigtes bleibt draussen – die Frage lautet "was ist zu tun", nicht "was war".
+ * Hier steht ausschliesslich, was einem selbst zugewiesen ist – aussortiert
+ * schon auf dem Server. Erledigtes bleibt draussen, und Weggeräumtes ebenso:
+ * Die Frage lautet "was ist zu tun", nicht "was war".
+ *
  * Abhaken geht direkt hier, für alles Weitere führt ein Klick ins Projekt.
  */
 export default function MyWeek({
@@ -63,7 +67,6 @@ export default function MyWeek({
 }) {
   const { reportError, toast } = useFeedback();
   const [aufgaben, setAufgaben] = useState<MeineAufgabe[] | null>(null);
-  const [nurMeine, setNurMeine] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
   const laden = useCallback(async () => {
@@ -83,17 +86,12 @@ export default function MyWeek({
     return () => window.clearTimeout(start);
   }, [laden]);
 
-  const sichtbar = useMemo(
-    () => (aufgaben ?? []).filter((a) => !nurMeine || a.meine),
-    [aufgaben, nurMeine],
-  );
-
   const gruppiert = useMemo(() => {
     const map = new Map<Fach, MeineAufgabe[]>();
     for (const f of FAECHER) map.set(f.wert, []);
-    for (const a of sichtbar) map.get(einordnen(a.dueDate))!.push(a);
+    for (const a of aufgaben ?? []) map.get(einordnen(a.dueDate))!.push(a);
     return map;
-  }, [sichtbar]);
+  }, [aufgaben]);
 
   async function abhaken(a: MeineAufgabe) {
     setBusy(a.id);
@@ -119,28 +117,18 @@ export default function MyWeek({
     );
   }
 
-  const offen = sichtbar.length;
+  const offen = aufgaben.length;
 
   return (
     <div className="card">
       <div className="section-head">
         <h2>Meine To-Do&rsquo;s</h2>
-        <label className="woche-schalter">
-          <input
-            type="checkbox"
-            checked={nurMeine}
-            onChange={(e) => setNurMeine(e.target.checked)}
-          />
-          Nur meine
-        </label>
       </div>
 
       <p className="woche-hinweis">
         {offen
           ? `${offen} offene Aufgabe${offen === 1 ? '' : 'n'} über alle Projekte.`
-          : nurMeine
-            ? 'Dir ist gerade nichts offen zugewiesen.'
-            : 'Es ist nichts offen.'}
+          : 'Dir ist gerade nichts offen zugewiesen.'}
       </p>
 
       {FAECHER.map((fach) => {
@@ -174,8 +162,10 @@ export default function MyWeek({
                   <span className="woche-meta">
                     {a.projectName}
                     {a.dueDate && ` · bis ${fmtDueDate(a.dueDate)}`}
-                    {!a.meine &&
-                      ` · ${a.assignees
+                    {/* An einem Gewerk sind oft zwei dran – dann ist es ein
+                        Unterschied, ob man allein zuständig ist. */}
+                    {a.andere.length > 0 &&
+                      ` · mit ${a.andere
                         .map((w) => assigneeLabel(w, admins, suppliers))
                         .join(', ')}`}
                   </span>

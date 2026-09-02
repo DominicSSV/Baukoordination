@@ -46,6 +46,9 @@ export const GET = handler(async (request: Request) => {
       .from('todos')
       .select('id, project_id, text, done')
       .ilike('text', muster)
+      // Weggeräumtes gehört nicht in die Suche: Wer es findet und anklickt,
+      // landet bei einer Aufgabe, die es für ihn nicht mehr gibt.
+      .is('deleted_at', null)
       .limit(PRO_ART),
     ctx.db
       .from('files')

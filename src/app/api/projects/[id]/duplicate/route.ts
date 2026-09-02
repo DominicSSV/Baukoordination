@@ -97,6 +97,9 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       .from('todos')
       .select('text, assigned_to, order_index, created_at')
       .eq('project_id', sourceId)
+      // Was im Papierkorb liegt, wollte jemand loswerden. Es in ein neues
+      // Projekt mitzukopieren hiesse, es wieder auferstehen zu lassen.
+      .is('deleted_at', null)
       .order('order_index', { ascending: true })
       .order('created_at', { ascending: true });
 

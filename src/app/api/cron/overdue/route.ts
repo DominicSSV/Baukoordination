@@ -48,6 +48,9 @@ export const GET = handler(async (request: Request) => {
       .from('todos')
       .select(spalten)
       .eq('done', false)
+      // Für eine weggeräumte Aufgabe zu mahnen wäre das Peinlichste: eine Mail
+      // über etwas, das der Empfänger in der App gar nicht mehr findet.
+      .is('deleted_at', null)
       .not('due_date', 'is', null)
       .lt('due_date', stichtag)
       .is('overdue_notified_at', null)

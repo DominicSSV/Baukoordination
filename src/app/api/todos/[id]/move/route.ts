@@ -29,6 +29,10 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     .from('todos')
     .select('id, order_index')
     .eq('project_id', todo.project_id)
+    // Nur was auch in der Liste steht: Läge eine weggeräumte Aufgabe dazwischen,
+    // täte der Pfeil scheinbar nichts – getauscht würde mit einer Zeile, die
+    // niemand sieht.
+    .is('deleted_at', null)
     .order('order_index', { ascending: true })
     .order('created_at', { ascending: true });
 
