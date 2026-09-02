@@ -610,7 +610,7 @@ function WorkspaceInner({
                 <FilesTab detail={detail} reload={reload} onOpenFile={setViewerFileId} />
               )}
               {tab === 'kontakte' && (
-                <ProjectInfoTab detail={detail} isAdmin={isAdmin} />
+                <ProjectInfoTab detail={detail} isAdmin={isAdmin} reload={reload} />
               )}
               {tab === 'aktivitaet' && (
                 <ActivityTab

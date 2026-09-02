@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { api, del, patch, post } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
+import { removeProjektBild, uploadProjektBild } from '@/lib/client/bildUpload';
 import { WOCHENTAGE, istHeuteVorOrt, tageText } from '@/lib/tage';
 import type { ProjectDetail, ProjektInfo, ProjektKontakt } from '@/types';
 
@@ -91,9 +92,11 @@ const STANDARD_ANGABEN = [
 export default function ProjectInfoTab({
   detail,
   isAdmin,
+  reload,
 }: {
   detail: ProjectDetail;
   isAdmin: boolean;
+  reload: () => Promise<void>;
 }) {
   const projectId = detail.project.id;
 
@@ -117,6 +120,41 @@ export default function ProjectInfoTab({
   const [bearbeitet, setBearbeitet] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState<Entwurf>(LEER);
   const [busy, setBusy] = useState(false);
+  const [bildLaeuft, setBildLaeuft] = useState(false);
+  const bildWahl = useRef<HTMLInputElement>(null);
+
+  const bildUrl = detail.project.bild_url ?? null;
+
+  /**
+   * Bild der Liegenschaft setzen oder austauschen.
+   *
+   * Darf jeder mit Zugriff auf das Projekt – dieselbe Regel wie bei den übrigen
+   * Angaben. Wer vor Ort steht, hat das Foto ohnehin schon auf dem Handy; es
+   * erst über uns laufen zu lassen hiesse, dass es nie hochgeladen wird.
+   */
+  async function bildSetzen(file: File | null) {
+    if (!file || bildLaeuft) return;
+    setBildLaeuft(true);
+    try {
+      await uploadProjektBild(projectId, file);
+      // Neu laden statt die Adresse im Zustand zu halten: Sie ist kurzlebig
+      // signiert und gehört deshalb dorthin, wo sie herkommt.
+      await reload();
+      toast('✓ Bild gespeichert.');
+    } catch (error) {
+      reportError(error, 'Das Bild konnte nicht gespeichert werden.');
+    } finally {
+      setBildLaeuft(false);
+    }
+  }
+
+  function bildEntfernen() {
+    confirm('Das Bild der Liegenschaft entfernen?', async () => {
+      await removeProjektBild(projectId);
+      await reload();
+      toast('🗑️ Bild entfernt.');
+    });
+  }
 
   const laden = useCallback(async () => {
     try {
@@ -376,6 +414,71 @@ export default function ProjectInfoTab({
           Projektinformationen gibt es erst nach der Datenbank-Aktualisierung 0029.
         </p>
       )}
+
+      {/* Ganz oben und ohne Überschrift: Ein Foto sagt mehr über eine Baustelle
+          als drei Zeilen Adresse – Flachdach oder Schrägdach, Gerüst nötig oder
+          nicht, wo der Lieferwagen hinkommt. Wer zum ersten Mal hinfährt,
+          erkennt daran, ob er richtig ist. */}
+      <div className="liegenschaft">
+        {bildUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="liegenschaft-bild" src={bildUrl} alt={detail.project.name} />
+            <div className="liegenschaft-knoepfe">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => bildWahl.current?.click()}
+                disabled={bildLaeuft}
+              >
+                {bildLaeuft ? 'Wird geladen…' : '📷 Bild austauschen'}
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={bildEntfernen}
+                  disabled={bildLaeuft}
+                >
+                  🗑️ Entfernen
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="liegenschaft-leer"
+            onClick={() => bildWahl.current?.click()}
+            disabled={bildLaeuft}
+          >
+            <span className="liegenschaft-zeichen">📷</span>
+            <span>
+              {bildLaeuft
+                ? 'Wird geladen…'
+                : 'Bild der Liegenschaft hinzufügen'}
+            </span>
+            <span className="liegenschaft-hinweis">
+              Ein Foto von aussen genügt – daran erkennt man beim ersten Mal, ob
+              man richtig ist.
+            </span>
+          </button>
+        )}
+
+        {/* Bewusst ohne capture: Auf dem Handy bietet die Auswahl dann sowohl
+            die Kamera als auch die Galerie an. Mit capture ginge nur noch die
+            Kamera – und das Foto vom letzten Besuch liegt schon im Telefon. */}
+        <input
+          ref={bildWahl}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            void bildSetzen(e.target.files?.[0] ?? null);
+            e.target.value = '';
+          }}
+        />
+      </div>
 
       <h4 className="pkontakt-titel">Angaben zum Objekt</h4>
 

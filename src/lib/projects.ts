@@ -1,7 +1,7 @@
 import 'server-only';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
-import { signAvatars } from '@/lib/avatars';
+import { signAvatar, signAvatars } from '@/lib/avatars';
 import type { Ctx } from '@/lib/auth/guards';
 
 import type {
@@ -131,25 +131,43 @@ export async function loadProjectDetail(
   const db = ctx.db;
   const isAdmin = ctx.session.kind === 'admin';
 
-  const projektMitPlan = await db
+  // Von der vollständigen Fassung abwärts: ohne Migration 0034 fehlt das Bild
+  // der Liegenschaft, ohne 0006 der Zeitraum des Terminplans.
+  const projektStufen = [
+    'id, name, ort, created_at, schedule_start, schedule_end, bild_path',
+    'id, name, ort, created_at, schedule_start, schedule_end',
+    'id, name, ort, created_at',
+  ];
+
+  let projektRes = await db
     .from('projects')
-    .select('id, name, ort, created_at, schedule_start, schedule_end')
+    .select(projektStufen[0])
     .eq('id', projectId)
     .maybeSingle();
 
-  // schedule_start/-end kommen erst mit Migration 0006.
-  const projektRes = projektMitPlan.error
-    ? await db
-        .from('projects')
-        .select('id, name, ort, created_at')
-        .eq('id', projectId)
-        .maybeSingle()
-    : projektMitPlan;
+  for (let stufe = 1; projektRes.error && stufe < projektStufen.length; stufe += 1) {
+    projektRes = await db
+      .from('projects')
+      .select(projektStufen[stufe])
+      .eq('id', projectId)
+      .maybeSingle();
+  }
 
   if (projektRes.error) throw new Error(`Projekt: ${projektRes.error.message}`);
   if (!projektRes.data) throw new Error('Projekt nicht gefunden.');
 
-  const project = projektRes.data as Project;
+  // Der Umweg über unknown ist nötig, weil die Spaltenliste aus einer Variable
+  // kommt: Supabase leitet den Zeilentyp nur aus einem festen Text her.
+  const projektZeile = projektRes.data as unknown as Project & {
+    bild_path?: string | null;
+  };
+
+  const project: Project = {
+    ...projektZeile,
+    // Das Bild liegt beim selben Ablageort wie die Profilbilder und wird wie
+    // diese nur kurzlebig signiert – nie öffentlich.
+    bild_url: await signAvatar(projektZeile.bild_path),
+  };
 
   const [todosRes, filesRes, activityRes, accessRes] = await Promise.all([
     db

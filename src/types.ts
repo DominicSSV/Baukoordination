@@ -11,6 +11,11 @@ export type Project = {
   /** Gruppe in der Seitenleiste. */
   status?: ProjektStatus;
   order_index?: number;
+  /**
+   * Bild der Liegenschaft – kurzlebige Signatur, null = keines hinterlegt.
+   * Gefüllt nur in der Projektansicht, nicht in der Liste der Seitenleiste.
+   */
+  bild_url?: string | null;
 };
 
 export type ProjektStatus = 'planung' | 'umsetzung' | 'abschluss' | 'abgeschlossen';

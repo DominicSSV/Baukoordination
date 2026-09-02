@@ -3832,6 +3832,67 @@ button:disabled {
   margin: 0 0 14px;
 }
 
+/* --- Bild der Liegenschaft -------------------------------------------------
+   Steht zuoberst im Register "Infos". Breit und flach wie ein Aushang: Man
+   soll das Gebäude erkennen, ohne dass das Bild die Angaben darunter
+   verdrängt. */
+.liegenschaft {
+  margin-bottom: 4px;
+}
+
+.liegenschaft-bild {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.liegenschaft-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Solange keines da ist: eine grosse, gestrichelte Fläche. Ein kleiner Knopf
+   "Bild hinzufügen" ginge zwischen den Angaben unter, und dann lädt es nie
+   jemand hoch. */
+.liegenschaft-leer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 26px 16px;
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.liegenschaft-leer:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.liegenschaft-zeichen {
+  font-size: 24px;
+}
+
+.liegenschaft-hinweis {
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
 .pkontakt-titel {
   font-family: var(--font-anton), sans-serif;
   font-weight: 400;
