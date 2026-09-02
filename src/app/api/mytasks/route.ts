@@ -27,14 +27,13 @@ export type MeineAufgabe = {
 };
 
 /**
- * Die eigenen offenen Aufgaben aus allen Projekten.
+ * Offene Aufgaben aus allen Projekten, auf die man Zugriff hat.
  *
- * Nur die eigenen: Wer hier hereinschaut, fragt "was muss ich tun", nicht "was
- * ist auf allen Baustellen los". Was den Kollegen zugewiesen ist, steht im
- * Projekt und nicht in der persönlichen Liste.
- *
- * Aussortiert wird auf dem Server und nicht erst in der Ansicht: Was einen
- * nichts angeht, soll gar nicht erst über die Leitung gehen.
+ * Geliefert wird alles Sichtbare; ob nur die eigenen oder alle angezeigt
+ * werden, entscheidet der Schalter in der Ansicht. Bewusst so herum: Das
+ * Umschalten geht damit ohne neue Abfrage, und ein Grund, es serverseitig zu
+ * beschneiden, gäbe es nur, wenn man das Übrige nicht sehen dürfte – man darf
+ * es aber, es steht genauso im Projekt.
  *
  * Gelesen wird mit der Sitzung: fremde Projekte und vertrauliche Aufgaben
  * blendet die Datenbank selbst aus (Migrationen 0014/0015). Erledigtes bleibt
@@ -88,28 +87,26 @@ export const GET = handler(async () => {
       ? adminAssignee(ctx.session.userId)
       : supplierAssignee(ctx.session.supplierId);
 
-  const aufgaben: MeineAufgabe[] = rows
-    .map((r) => {
-      const assignees = r.assignees?.length ? r.assignees : [r.assigned_to];
+  const aufgaben: MeineAufgabe[] = rows.map((r) => {
+    const assignees = r.assignees?.length ? r.assignees : [r.assigned_to];
 
-      return {
-        id: r.id,
-        projectId: r.project_id,
-        projectName: r.projects?.name ?? 'Projekt',
-        text: r.text,
-        dueDate: r.due_date,
-        assignees,
-        andere: assignees.filter((a) => a !== ich),
-        meine:
-          assignees.includes(ich) ||
-          // Eine Aufgabe an die Firma allgemein geht uns alle etwas an. Bei den
-          // Lieferanten gibt es das nicht: Dort ist immer eine Person gemeint.
-          (ctx.session.kind === 'admin' &&
-            assignees.some((a) => parseAssignee(a).kind === 'internal')),
-        createdBy: r.created_by,
-      };
-    })
-    .filter((a) => a.meine);
+    return {
+      id: r.id,
+      projectId: r.project_id,
+      projectName: r.projects?.name ?? 'Projekt',
+      text: r.text,
+      dueDate: r.due_date,
+      assignees,
+      andere: assignees.filter((a) => a !== ich),
+      meine:
+        assignees.includes(ich) ||
+        // Eine Aufgabe an die Firma allgemein geht uns alle etwas an. Bei den
+        // Lieferanten gibt es das nicht: Dort ist immer eine Person gemeint.
+        (ctx.session.kind === 'admin' &&
+          assignees.some((a) => parseAssignee(a).kind === 'internal')),
+      createdBy: r.created_by,
+    };
+  });
 
   return ok({ aufgaben });
 });

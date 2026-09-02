@@ -46,13 +46,20 @@ function einordnen(due: string | null): Fach {
   return due <= tagPlus(dieseWoche, 7) ? 'naechste' : 'spaeter';
 }
 
+/** Wo die Wahl des Schalters liegt, damit sie den Tagesbeginn übersteht. */
+const SPEICHER = 'baukoordination.woche.nurMeine';
+
 /**
- * Startseite über alle Projekte: was steht für mich an, sortiert nach
- * Dringlichkeit.
+ * Startseite über alle Projekte: was steht an, sortiert nach Dringlichkeit.
  *
- * Hier steht ausschliesslich, was einem selbst zugewiesen ist – aussortiert
- * schon auf dem Server. Erledigtes bleibt draussen, und Weggeräumtes ebenso:
- * Die Frage lautet "was ist zu tun", nicht "was war".
+ * Der Schalter "Nur meine" entscheidet, ob hier nur die eigenen Aufgaben
+ * stehen oder alles über alle Projekte. Standard sind die eigenen: Wer die
+ * App öffnet, fragt zuerst nach der eigenen Arbeit. Die Wahl bleibt danach
+ * gespeichert – wer sie einmal umgestellt hat, will sie nicht jeden Morgen
+ * wieder umstellen.
+ *
+ * Erledigtes bleibt draussen, und Weggeräumtes ebenso: Die Frage lautet "was
+ * ist zu tun", nicht "was war".
  *
  * Abhaken geht direkt hier, für alles Weitere führt ein Klick ins Projekt.
  */
@@ -68,6 +75,26 @@ export default function MyWeek({
   const { reportError, toast } = useFeedback();
   const [aufgaben, setAufgaben] = useState<MeineAufgabe[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Beim ersten Aufbau lesen und nicht in einem Effekt nachziehen: Sonst
+  // erschiene kurz die falsche Liste und spränge dann um.
+  const [nurMeine, setNurMeine] = useState(() => {
+    try {
+      return window.localStorage.getItem(SPEICHER) !== 'nein';
+    } catch {
+      // Privates Fenster oder blockierte Speicherung – dann eben ohne Gedächtnis.
+      return true;
+    }
+  });
+
+  function umschalten(wert: boolean) {
+    setNurMeine(wert);
+    try {
+      window.localStorage.setItem(SPEICHER, wert ? 'ja' : 'nein');
+    } catch {
+      // Nicht speichern zu können ist kein Grund, den Schalter nicht zu bedienen.
+    }
+  }
 
   const laden = useCallback(async () => {
     try {
@@ -86,12 +113,17 @@ export default function MyWeek({
     return () => window.clearTimeout(start);
   }, [laden]);
 
+  const sichtbar = useMemo(
+    () => (aufgaben ?? []).filter((a) => !nurMeine || a.meine),
+    [aufgaben, nurMeine],
+  );
+
   const gruppiert = useMemo(() => {
     const map = new Map<Fach, MeineAufgabe[]>();
     for (const f of FAECHER) map.set(f.wert, []);
-    for (const a of aufgaben ?? []) map.get(einordnen(a.dueDate))!.push(a);
+    for (const a of sichtbar) map.get(einordnen(a.dueDate))!.push(a);
     return map;
-  }, [aufgaben]);
+  }, [sichtbar]);
 
   async function abhaken(a: MeineAufgabe) {
     setBusy(a.id);
@@ -117,18 +149,31 @@ export default function MyWeek({
     );
   }
 
-  const offen = aufgaben.length;
+  const offen = sichtbar.length;
 
   return (
     <div className="card">
       <div className="section-head">
         <h2>Meine To-Do&rsquo;s</h2>
+        <label className="woche-schalter">
+          <input
+            type="checkbox"
+            checked={nurMeine}
+            onChange={(e) => umschalten(e.target.checked)}
+          />
+          Nur meine
+        </label>
       </div>
 
       <p className="woche-hinweis">
         {offen
-          ? `${offen} offene Aufgabe${offen === 1 ? '' : 'n'} über alle Projekte.`
-          : 'Dir ist gerade nichts offen zugewiesen.'}
+          ? `${offen} offene Aufgabe${offen === 1 ? '' : 'n'} ${
+              nurMeine ? 'für dich' : 'über alle Projekte'
+            }.`
+          : nurMeine
+            ? 'Dir ist gerade nichts offen zugewiesen. Schalte „Nur meine“ aus, '
+              + 'um alles zu sehen.'
+            : 'Es ist nichts offen.'}
       </p>
 
       {FAECHER.map((fach) => {
@@ -162,12 +207,17 @@ export default function MyWeek({
                   <span className="woche-meta">
                     {a.projectName}
                     {a.dueDate && ` · bis ${fmtDueDate(a.dueDate)}`}
-                    {/* An einem Gewerk sind oft zwei dran – dann ist es ein
-                        Unterschied, ob man allein zuständig ist. */}
-                    {a.andere.length > 0 &&
-                      ` · mit ${a.andere
-                        .map((w) => assigneeLabel(w, admins, suppliers))
-                        .join(', ')}`}
+                    {/* Bei den eigenen Aufgaben zählt, wer ausser einem selbst
+                        noch dran ist – an einem Gewerk sind oft zwei zuständig.
+                        Bei fremden zählt, wem sie überhaupt gehört. */}
+                    {a.meine
+                      ? a.andere.length > 0 &&
+                        ` · mit ${a.andere
+                          .map((w) => assigneeLabel(w, admins, suppliers))
+                          .join(', ')}`
+                      : ` · ${a.assignees
+                          .map((w) => assigneeLabel(w, admins, suppliers))
+                          .join(', ')}`}
                   </span>
                 </button>
               </div>
