@@ -3579,6 +3579,17 @@ button:disabled {
   color: var(--ink);
 }
 
+/* Das endgültige Löschen des Protokolls. Rot, weil es als Einziges hier
+   wirklich löscht – alles andere blendet nur aus. */
+.glocke-aktion.gefaehrlich {
+  color: var(--danger);
+}
+
+.glocke-aktion.gefaehrlich:hover {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* Der Eintrag und sein Wegräum-Kreuz stehen nebeneinander; das Kreuz zeigt
    sich erst beim Darüberfahren, damit die Liste ruhig bleibt. Auf dem Handy
    gibt es kein Darüberfahren – dort steht es immer da. */

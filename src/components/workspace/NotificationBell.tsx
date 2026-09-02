@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, post } from '@/lib/client/api';
+import { api, del, post } from '@/lib/client/api';
 import { useFeedback } from '@/components/Feedback';
 import { fmtDate } from '@/lib/format';
 import Avatar from '@/components/Avatar';
@@ -91,6 +91,10 @@ export default function NotificationBell({
   );
   /** true = auch zeigen, was weggeräumt wurde. */
   const [alleZeigen, setAlleZeigen] = useState(false);
+  /** Der Dialog zum endgültigen Löschen des Protokolls – nur für uns. */
+  const [loeschDialog, setLoeschDialog] = useState(false);
+  const [bestaetigung, setBestaetigung] = useState('');
+  const [busy, setBusy] = useState(false);
   const feldRef = useRef<HTMLDivElement>(null);
 
   const laden = useCallback(async (alle = false) => {
@@ -248,6 +252,42 @@ export default function NotificationBell({
     void laden(neu);
   }
 
+  /**
+   * Das ganze Protokoll löschen – anders als alles andere hier wirklich löschen.
+   *
+   * Deshalb der abgetippte Wortlaut statt einer Rückfrage mit Ja/Nein: Ein Klick
+   * neben den Knopf "Leeren", der die Mitschrift aller Projekte auf einmal
+   * beseitigt, wäre eine Falle. Denselben Wortlaut prüft auch der Server, damit
+   * die Sperre nicht nur in der Ansicht liegt.
+   */
+  const passt = bestaetigung.trim().toUpperCase() === 'ALLES LOESCHEN';
+
+  async function protokollLoeschen() {
+    if (!passt || busy) return;
+    setBusy(true);
+    try {
+      const res = await del<{ geloescht: number; glockeGesetzt: boolean }>(
+        '/api/notifications/protokoll',
+        { bestaetigung: bestaetigung.trim() },
+      );
+      setLoeschDialog(false);
+      setBestaetigung('');
+      setOffen(false);
+      // Die eigenen Merker im Browser zeigen sonst auf Einträge, die es nicht
+      // mehr gibt – und "3 weggeräumt" stünde unter einer leeren Liste.
+      wiederherstellen();
+      await laden(alleZeigen);
+      toast(
+        `🗑️ ${res.geloescht} Protokolleinträge gelöscht.`
+          + (res.glockeGesetzt ? ' Die Glocke ist bei allen auf null.' : ''),
+      );
+    } catch (error) {
+      reportError(error, 'Löschen fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const weggeraeumt = eintraege.filter(istWeggeraeumt).length;
 
   return (
@@ -312,6 +352,21 @@ export default function NotificationBell({
                   Für alle ausser mir leeren
                 </button>
               )}
+              {/* Steht bewusst nur unter "Alle anzeigen" und ganz zuletzt: Wer
+                  hier hinkommt, hat sich schon einmal entschieden, tiefer zu
+                  gehen. */}
+              {alleZeigen && istAdmin && (
+                <button
+                  type="button"
+                  className="glocke-aktion gefaehrlich"
+                  onClick={() => {
+                    setBestaetigung('');
+                    setLoeschDialog(true);
+                  }}
+                >
+                  Protokoll löschen
+                </button>
+              )}
             </span>
           </div>
 
@@ -373,6 +428,66 @@ export default function NotificationBell({
               ? '← Nur Neues zeigen'
               : `Alle anzeigen${weggeraeumt ? ` (${weggeraeumt} weggeräumt)` : ''}`}
           </button>
+        </div>
+      )}
+
+      {loeschDialog && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setLoeschDialog(false);
+          }}
+        >
+          <div className="modal">
+            <h3>Protokoll löschen</h3>
+            <p style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+              Damit geht die <strong>gesamte Mitschrift aller Projekte</strong> – wer
+              wann was gemacht hat. Das Register „Aktivität“ ist danach überall leer,
+              und die Glocke steht bei allen auf null. Das lässt sich nicht rückgängig
+              machen.
+            </p>
+            <p style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+              Projekte, Aufgaben, Dateien, Offerten, Termine, Kommentare, Kontakte und
+              Zugänge bleiben unberührt. Am Protokoll hängt nichts davon.
+            </p>
+            <p style={{ fontSize: 13.5 }}>
+              Tippe zur Bestätigung ab: <strong>ALLES LOESCHEN</strong>
+            </p>
+            <input
+              type="text"
+              value={bestaetigung}
+              onChange={(e) => setBestaetigung(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && passt && !busy) void protokollLoeschen();
+              }}
+              placeholder="Hier eintippen"
+              aria-label="Bestätigung abtippen"
+              autoFocus
+            />
+            <p className={`loesch-pruefung ${passt ? 'passt' : ''}`} aria-live="polite">
+              {passt
+                ? '✓ Stimmt überein – der Knopf ist jetzt frei.'
+                : 'Der Knopf wird erst frei, wenn der Wortlaut genau übereinstimmt.'}
+            </p>
+            <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setLoeschDialog(false)}
+                disabled={busy}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-gefaehrlich"
+                onClick={() => void protokollLoeschen()}
+                disabled={busy || !passt}
+              >
+                {busy ? 'Wird gelöscht…' : 'Endgültig löschen'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
