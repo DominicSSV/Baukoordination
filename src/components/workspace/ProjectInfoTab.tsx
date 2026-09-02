@@ -6,6 +6,7 @@ import { api, del, patch, post } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
+import { WOCHENTAGE, istHeuteVorOrt, tageText } from '@/lib/tage';
 import type { ProjectDetail, ProjektInfo, ProjektKontakt } from '@/types';
 
 type Entwurf = {
@@ -15,9 +16,19 @@ type Entwurf = {
   telefon: string;
   email: string;
   notiz: string;
+  /** Wochentage 1–7. Leer = immer vor Ort, siehe lib/tage.ts. */
+  tage: number[];
 };
 
-const LEER: Entwurf = { rolle: '', name: '', firma: '', telefon: '', email: '', notiz: '' };
+const LEER: Entwurf = {
+  rolle: '',
+  name: '',
+  firma: '',
+  telefon: '',
+  email: '',
+  notiz: '',
+  tage: [],
+};
 
 /**
  * Vorschläge für das Feld "Funktion".
@@ -97,6 +108,8 @@ export default function ProjectInfoTab({
   const [infos, setInfos] = useState<ProjektInfo[] | null>(null);
   const [kontakte, setKontakte] = useState<ProjektKontakt[] | null>(null);
   const [ohneTabelle, setOhneTabelle] = useState(false);
+  /** true = Migration 0032 fehlt, die Tage vor Ort lassen sich nicht speichern. */
+  const [ohneTage, setOhneTage] = useState(false);
   const [neueInfo, setNeueInfo] = useState<{ titel: string; text: string } | null>(null);
   const [infoBearbeitet, setInfoBearbeitet] = useState<string | null>(null);
   const [infoEntwurf, setInfoEntwurf] = useState({ titel: '', text: '' });
@@ -111,13 +124,14 @@ export default function ProjectInfoTab({
         api<{ infos: ProjektInfo[]; ohneTabelle?: boolean }>(
           `/api/projects/${projectId}/infos`,
         ),
-        api<{ kontakte: ProjektKontakt[]; ohneTabelle?: boolean }>(
+        api<{ kontakte: ProjektKontakt[]; ohneTabelle?: boolean; ohneTage?: boolean }>(
           `/api/projects/${projectId}/contacts`,
         ),
       ]);
       setInfos(a.infos);
       setKontakte(b.kontakte);
       setOhneTabelle(Boolean(a.ohneTabelle || b.ohneTabelle));
+      setOhneTage(Boolean(b.ohneTage));
     } catch (error) {
       reportError(error, 'Die Projektinformationen konnten nicht geladen werden.');
       setInfos([]);
@@ -254,6 +268,7 @@ export default function ProjectInfoTab({
       telefon: k.telefon ?? '',
       email: k.email ?? '',
       notiz: k.notiz ?? '',
+      tage: k.tage ?? [],
     });
   }
 
@@ -309,6 +324,39 @@ export default function ProjectInfoTab({
           placeholder="Notiz, z.B. Schlüssel bei ihm"
           aria-label="Notiz"
         />
+
+        {/* Anwesenheit: Der Hauswart ist dienstags und donnerstags da, die
+            Bauleitung nur montags. Nichts anzuwählen heisst "immer" – das
+            steht auch so darunter, sonst liest es sich wie "nie". */}
+        <div className="tage-wahl" role="group" aria-label="Tage vor Ort">
+          {WOCHENTAGE.map((t) => {
+            const an = wert.tage.includes(t.nummer);
+            return (
+              <button
+                key={t.nummer}
+                type="button"
+                className={`tage-knopf ${an ? 'an' : ''}`}
+                aria-pressed={an}
+                title={t.lang}
+                onClick={() =>
+                  setzen({
+                    ...wert,
+                    tage: an
+                      ? wert.tage.filter((n) => n !== t.nummer)
+                      : [...wert.tage, t.nummer].sort((a, b) => a - b),
+                  })
+                }
+              >
+                {t.kurz}
+              </button>
+            );
+          })}
+        </div>
+        <p className="tage-hinweis">
+          {wert.tage.length
+            ? `Vor Ort: ${tageText(wert.tage)}`
+            : 'Kein Tag angewählt = immer vor Ort.'}
+        </p>
       </div>
     );
   }
@@ -486,6 +534,13 @@ export default function ProjectInfoTab({
 
       <h4 className="pkontakt-titel">Kontakte vor Ort</h4>
 
+      {ohneTage && (
+        <p className="speicher-hinweis">
+          Die Tage vor Ort lassen sich erst nach der Datenbank-Aktualisierung 0032
+          speichern. Alles andere am Kontakt wird ganz normal gesichert.
+        </p>
+      )}
+
       <div className="kontakt-karten">
 
       {kontakte.map((k) => {
@@ -545,6 +600,22 @@ export default function ProjectInfoTab({
               {k.name?.trim() || '—'}
               {k.firma && <span className="kontakt-firma"> · {k.firma}</span>}
             </div>
+
+            {/* Nur bei fester Anwesenheit eine Zeile. "Immer vor Ort" bei jedem
+                zweiten Kontakt hinzuschreiben wäre Lärm – und wer heute anruft,
+                will wissen, ob heute jemand da ist. */}
+            {k.tage.length > 0 && (
+              <div
+                className={`pkontakt-tage ${istHeuteVorOrt(k.tage) ? 'heute' : ''}`}
+                title={istHeuteVorOrt(k.tage) ? 'Heute vor Ort' : 'Heute nicht vor Ort'}
+              >
+                📆 {tageText(k.tage)}
+                <span className="pkontakt-heute">
+                  {istHeuteVorOrt(k.tage) ? '· heute da' : '· heute nicht'}
+                </span>
+              </div>
+            )}
+
             {k.notiz && <div className="pkontakt-notiz">{k.notiz}</div>}
 
             {/* Auf der Baustelle zählt der eine Griff zum Anruf – deshalb sind

@@ -1,12 +1,21 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
+import { saubereTage } from '@/lib/tage';
 import type { ProjektKontakt } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-const SPALTEN = 'id, rolle, name, firma, telefon, email, notiz, sortierung';
+const SPALTEN = 'id, rolle, name, firma, telefon, email, notiz, tage, sortierung';
+/** Ohne Migration 0032 gibt es die Anwesenheitstage noch nicht. */
+const SPALTEN_OHNE_TAGE = 'id, rolle, name, firma, telefon, email, notiz, sortierung';
+
+/** Fehlt die Spalte, kommt tage als undefined zurück – die App will immer eine Liste. */
+function mitTagen(zeile: unknown): ProjektKontakt {
+  const k = zeile as ProjektKontakt & { tage?: number[] | null };
+  return { ...k, tage: saubereTage(k.tage) };
+}
 
 /**
  * Die Leute am Bau, die nicht in der App sind: Hauswart, Verwaltung, Bauherr,
@@ -21,26 +30,33 @@ export const GET = handler(async (_request: Request, { params }: Params) => {
   const ctx = await requireSession();
   await requireProjectAccess(ctx, projectId);
 
-  const { data, error } = await ctx.db
-    .from('project_contacts')
-    .select(SPALTEN)
-    .eq('project_id', projectId)
-    .order('sortierung', { ascending: true })
-    .order('created_at', { ascending: true });
+  const laden = (spalten: string) =>
+    ctx.db
+      .from('project_contacts')
+      .select(spalten)
+      .eq('project_id', projectId)
+      .order('sortierung', { ascending: true })
+      .order('created_at', { ascending: true });
 
-  // Ohne Migration 0029 gibt es die Tabelle noch nicht. Dann bleibt die Liste
-  // leer, statt dass das ganze Register mit einer Fehlermeldung stehen bleibt.
-  if (error) return ok({ kontakte: [], ohneTabelle: true });
+  const mitSpalte = await laden(SPALTEN);
 
-  return ok({ kontakte: (data ?? []) as ProjektKontakt[] });
+  // Zwei Stufen zurück: Ohne Migration 0032 fehlen nur die Tage, ohne 0029 die
+  // ganze Tabelle. Beides darf das Register nicht mit einer Fehlermeldung
+  // anhalten – die Kontakte sind wichtiger als die Anwesenheit.
+  const res = mitSpalte.error ? await laden(SPALTEN_OHNE_TAGE) : mitSpalte;
+  if (res.error) return ok({ kontakte: [], ohneTabelle: true });
+
+  return ok({
+    kontakte: (res.data ?? []).map(mitTagen),
+    ohneTage: Boolean(mitSpalte.error),
+  });
 });
 
-/** Anlegen – wie beim Terminplan pflegt das allein die Swiss Solar Ventures AG. */
+/** Anlegen darf jeder mit Zugriff auf das Projekt – auch die Lieferanten. */
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: projectId } = await params;
-  // Anlegen darf jeder mit Zugriff auf das Projekt – auch die Lieferanten. Wer
-  // vor Ort ist, kennt den Zugangscode oft zuerst. Die Datenbank prüft dasselbe
-  // ein zweites Mal über die RLS-Regel.
+  // Wer vor Ort ist, kennt die Nummer des Hauswarts oft zuerst. Die Datenbank
+  // prüft dasselbe ein zweites Mal über die RLS-Regel.
   const ctx = await requireSession();
   await requireProjectAccess(ctx, projectId);
 
@@ -51,6 +67,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     telefon?: string;
     email?: string;
     notiz?: string;
+    tage?: unknown;
   }>(request);
 
   const rolle = requireString(body.rolle, 'Funktion', 120);
@@ -65,21 +82,35 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     .limit(1)
     .maybeSingle();
 
-  const { data, error } = await ctx.db
+  const felder = {
+    project_id: projectId,
+    rolle,
+    name: optionalString(body.name, 200),
+    firma: optionalString(body.firma, 200),
+    telefon: optionalString(body.telefon, 60),
+    email: optionalString(body.email, 200),
+    notiz: optionalString(body.notiz, 500),
+    sortierung: ((letzte as { sortierung: number } | null)?.sortierung ?? 0) + 1,
+    created_by: ctx.session.name,
+  };
+
+  const tage = saubereTage(body.tage);
+
+  const mitSpalte = await ctx.db
     .from('project_contacts')
-    .insert({
-      project_id: projectId,
-      rolle,
-      name: optionalString(body.name, 200),
-      firma: optionalString(body.firma, 200),
-      telefon: optionalString(body.telefon, 60),
-      email: optionalString(body.email, 200),
-      notiz: optionalString(body.notiz, 500),
-      sortierung: ((letzte as { sortierung: number } | null)?.sortierung ?? 0) + 1,
-      created_by: ctx.session.name,
-    })
+    .insert({ ...felder, tage })
     .select(SPALTEN)
     .single();
+
+  // Ohne Migration 0032 wird der Kontakt trotzdem angelegt – nur ohne Tage.
+  // Ein Hauswart ohne Anwesenheitsangabe ist immer noch ein Hauswart.
+  const { data, error } = mitSpalte.error
+    ? await ctx.db
+        .from('project_contacts')
+        .insert(felder)
+        .select(SPALTEN_OHNE_TAGE)
+        .single()
+    : mitSpalte;
 
   if (error) {
     throw new ApiError(
@@ -88,5 +119,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     );
   }
 
-  return ok({ kontakt: data as ProjektKontakt }, { status: 201 });
+  return ok(
+    { kontakt: mitTagen(data), ohneTage: Boolean(mitSpalte.error) },
+    { status: 201 },
+  );
 });

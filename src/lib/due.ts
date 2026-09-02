@@ -58,50 +58,40 @@ export function istHeuteFaellig(
 /**
  * Aufgaben nach Frist ordnen – die Reihenfolge, in der man sie abarbeitet.
  *
- * Drei Blöcke, und zwar in dieser Folge:
+ * Zwei Blöcke:
  *
- * 1. Offen mit Frist, die früheste zuoberst. Was überfällig ist, steht damit
- *    von selbst ganz oben.
- * 2. Offen ohne Frist. Sie kämen sonst entweder ganz nach oben (kein Datum ist
- *    kein "sofort") oder verschwänden unter den erledigten. Untereinander
- *    bleibt hier die selbst gewählte Reihenfolge – bei frisch übernommenen
- *    Meilensteinen ist das die Reihenfolge des Bauablaufs.
- * 3. Erledigte, das zuletzt Fällige zuoberst. Sie sind Nachweis, nicht Arbeit,
- *    und stehen deshalb unten – sonst würde eine abgehakte, lange überfällige
- *    Aufgabe dauerhaft die Spitze der Liste besetzen.
+ * 1. Mit Frist, die früheste zuoberst. Was überfällig ist, steht damit von
+ *    selbst ganz oben.
+ * 2. Ohne Frist. Sie kämen sonst ganz nach oben – kein Datum ist kein "sofort".
+ *    Untereinander bleibt hier die selbst gewählte Reihenfolge; bei frisch
+ *    übernommenen Meilensteinen ist das die Reihenfolge des Bauablaufs.
+ *
+ * Erledigte bleiben, wo sie sind: Eine abgehakte Aufgabe rutscht nicht nach
+ * unten. Wer eine Liste abarbeitet, will sehen, was daneben schon erledigt ist
+ * – und nicht jedes Häkchen mit einem Sprung quittiert bekommen.
  *
  * Bei gleicher Frist entscheidet die selbst gewählte Reihenfolge.
  *
  * Sortiert wird eine Kopie: Die Liste aus dem Server bleibt unangetastet.
  */
-export function fristBlock(t: { due_date: string | null; done: boolean }): 0 | 1 | 2 {
-  return t.done ? 2 : t.due_date ? 0 : 1;
+export function fristBlock(t: { due_date: string | null }): 0 | 1 {
+  return t.due_date ? 0 : 1;
 }
 
 export function nachFrist<
   T extends {
     due_date: string | null;
-    done: boolean;
     order_index: number;
   },
 >(aufgaben: T[]): T[] {
-  const block = fristBlock;
-
   return [...aufgaben].sort((a, b) => {
-    const blockA = block(a);
-    const blockB = block(b);
+    const blockA = fristBlock(a);
+    const blockB = fristBlock(b);
     if (blockA !== blockB) return blockA - blockB;
 
-    // Innerhalb der Erledigten zählt das zuletzt Fällige zuerst, sonst stünde
-    // das älteste Häkchen zuoberst.
     if (a.due_date && b.due_date && a.due_date !== b.due_date) {
-      return blockA === 2
-        ? b.due_date.localeCompare(a.due_date)
-        : a.due_date.localeCompare(b.due_date);
+      return a.due_date.localeCompare(b.due_date);
     }
-
-    // Erledigte ohne Frist hinter die mit Frist.
-    if (Boolean(a.due_date) !== Boolean(b.due_date)) return a.due_date ? -1 : 1;
 
     return a.order_index - b.order_index;
   });

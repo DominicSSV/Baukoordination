@@ -1,12 +1,15 @@
 import { ApiError, handler, ok, optionalString, readJson, requireString } from '@/lib/api';
 import { requireAdmin, requireProjectAccess, requireSession } from '@/lib/auth/guards';
+import { saubereTage } from '@/lib/tage';
 import type { ProjektKontakt } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-const SPALTEN = 'id, rolle, name, firma, telefon, email, notiz, sortierung';
+const SPALTEN = 'id, rolle, name, firma, telefon, email, notiz, tage, sortierung';
+/** Ohne Migration 0032 gibt es die Anwesenheitstage noch nicht. */
+const SPALTEN_OHNE_TAGE = 'id, rolle, name, firma, telefon, email, notiz, sortierung';
 
 /**
  * Ändern darf jeder mit Zugriff auf das Projekt – auch die Lieferanten.
@@ -36,24 +39,43 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     telefon?: string;
     email?: string;
     notiz?: string;
+    tage?: unknown;
   }>(request);
 
-  const { data, error } = await ctx.db
+  const felder = {
+    rolle: requireString(body.rolle, 'Funktion', 120),
+    name: optionalString(body.name, 200),
+    firma: optionalString(body.firma, 200),
+    telefon: optionalString(body.telefon, 60),
+    email: optionalString(body.email, 200),
+    notiz: optionalString(body.notiz, 500),
+  };
+
+  const mitSpalte = await ctx.db
     .from('project_contacts')
-    .update({
-      rolle: requireString(body.rolle, 'Funktion', 120),
-      name: optionalString(body.name, 200),
-      firma: optionalString(body.firma, 200),
-      telefon: optionalString(body.telefon, 60),
-      email: optionalString(body.email, 200),
-      notiz: optionalString(body.notiz, 500),
-    })
+    .update({ ...felder, tage: saubereTage(body.tage) })
     .eq('id', id)
     .select(SPALTEN)
     .single();
 
+  // Ohne Migration 0032 wird trotzdem gespeichert – nur ohne die Tage. Sonst
+  // liesse sich an einem bestehenden Kontakt gar nichts mehr ändern.
+  const { data, error } = mitSpalte.error
+    ? await ctx.db
+        .from('project_contacts')
+        .update(felder)
+        .eq('id', id)
+        .select(SPALTEN_OHNE_TAGE)
+        .single()
+    : mitSpalte;
+
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
-  return ok({ kontakt: data as ProjektKontakt });
+
+  const zeile = data as ProjektKontakt & { tage?: number[] | null };
+  return ok({
+    kontakt: { ...zeile, tage: saubereTage(zeile.tage) },
+    ohneTage: Boolean(mitSpalte.error),
+  });
 });
 
 /**

@@ -315,6 +315,31 @@ export async function GET() {
             : undefined,
       };
 
+      const startpasswoerter = await db
+        .from('suppliers')
+        .select('id')
+        .not('start_passwort', 'is', null);
+
+      report.migration_0031 = {
+        passwort_nachlesbar: !startpasswoerter.error,
+        nachlesbare_passwoerter: startpasswoerter.error
+          ? undefined
+          : (startpasswoerter.data ?? []).length,
+        hinweis: startpasswoerter.error
+          ? 'Migration 0031 fehlt. Die vergebenen Passwörter lassen sich in den ' +
+            'Kontakten nicht nachlesen – setzen und anmelden geht trotzdem.'
+          : undefined,
+      };
+
+      const anwesenheit = await db.from('project_contacts').select('tage').limit(1);
+      report.migration_0032 = {
+        tage_vor_ort: !anwesenheit.error,
+        hinweis: anwesenheit.error
+          ? 'Migration 0032 fehlt. Bei den Kontakten vor Ort lässt sich nicht ' +
+            'hinterlegen, an welchen Tagen jemand da ist.'
+          : undefined,
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,

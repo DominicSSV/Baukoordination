@@ -431,7 +431,7 @@ export default function TodosTab({
           const commentsOpen = openComments.has(todo.id);
 
           /**
-           * Wo ein Block endet und der nächste beginnt.
+           * Wo die Aufgaben mit Frist aufhören.
            *
            * Ohne diese Zwischenzeile sieht die Liste falsch sortiert aus: Nach
            * dem letzten Datum kommen unvermittelt Aufgaben ohne, und das wirkt
@@ -441,9 +441,7 @@ export default function TodosTab({
             nachFristSortieren &&
             index > 0 &&
             fristBlock(todo) !== fristBlock(aufgaben[index - 1])
-              ? todo.done
-                ? 'Erledigt'
-                : 'Ohne Frist'
+              ? 'Ohne Frist'
               : null;
 
           const zwischenzeile = trenner ? (

@@ -262,6 +262,11 @@ export type ProjektKontakt = {
   telefon: string | null;
   email: string | null;
   notiz: string | null;
+  /**
+   * An welchen Wochentagen die Person vor Ort ist: 1 = Montag … 7 = Sonntag.
+   * Leer heisst "immer vor Ort" und nicht "nie" – siehe lib/tage.ts.
+   */
+  tage: number[];
   sortierung: number;
 };
 
