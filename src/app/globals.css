@@ -4590,7 +4590,15 @@ button:disabled {
   border-color: var(--accent);
 }
 
-/* "Nur meine" im Kopf der Übersicht: ein Filter, kein Hauptknopf – deshalb
+/* Die zwei Filter im Kopf der Übersicht. Auf schmalen Bildschirmen brechen sie
+   um, statt den Titel zu quetschen. */
+.woche-schalter-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* "Nur meine" und "Erledigte zeigen": Filter, keine Hauptknöpfe – deshalb
    leise gesetzt und nicht als Schaltfläche. */
 .woche-schalter {
   display: flex;
@@ -4710,6 +4718,17 @@ button:disabled {
   display: block;
   margin-top: 2px;
   font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+/* Eine erledigte Zeile tritt zurück: durchgestrichen und blasser. Sie ist
+   Nachweis, nicht Arbeit – man soll sie finden, aber nicht zuerst sehen. */
+.woche-zeile.erledigt .woche-aufgabe {
+  text-decoration: line-through;
+  color: var(--ink-faint);
+}
+
+.woche-zeile.erledigt .woche-text:hover .woche-aufgabe {
   color: var(--ink-soft);
 }
 
