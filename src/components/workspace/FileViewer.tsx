@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { api } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
+import FileComments from '@/components/workspace/FileComments';
+import type { ProjectDetail, SessionInfo } from '@/types';
 
 type FileUrl = { url: string; name: string; mimeType: string | null };
 
@@ -12,12 +14,24 @@ type FileUrl = { url: string; name: string; mimeType: string | null };
  *
  * Die Ansicht nimmt bewusst fast das ganze Fenster ein: Offerten sind mehrseitige
  * PDF mit Preistabellen, in einem kleinen Fenster wären sie nicht lesbar.
+ *
+ * Anmerkungen stehen darunter, weil man genau hier hinschaut, wenn man etwas
+ * dazu sagen will: "Das ist die Stelle mit dem Riss" schreibt man vor dem Bild
+ * und nicht danach in der Kachelübersicht.
  */
 export default function FileViewer({
   fileId,
+  detail,
+  session,
+  isAdmin,
+  reload,
   onClose,
 }: {
   fileId: string;
+  detail: ProjectDetail;
+  session: SessionInfo;
+  isAdmin: boolean;
+  reload: () => Promise<void>;
   onClose: () => void;
 }) {
   const { reportError } = useFeedback();
@@ -54,6 +68,7 @@ export default function FileViewer({
 
   const isImage = Boolean(file?.mimeType?.startsWith('image/'));
   const isPdf = file?.mimeType === 'application/pdf';
+  const eintrag = detail.files.find((f) => f.id === fileId) ?? null;
 
   async function herunterladen() {
     try {
@@ -125,6 +140,21 @@ export default function FileViewer({
             </div>
           )}
         </div>
+
+        {/* Die Datei aus den geladenen Projektdaten – der Betrachter selbst
+            holt nur die Adresse, nicht die Anmerkungen. Fehlt sie dort (etwa
+            weil sie inzwischen weggeräumt wurde), bleibt der Block weg. */}
+        {eintrag && (
+          <div className="viewer-notizen">
+            <FileComments
+              datei={eintrag}
+              detail={detail}
+              session={session}
+              isAdmin={isAdmin}
+              reload={reload}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

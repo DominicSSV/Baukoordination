@@ -9,6 +9,7 @@ import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
+import FileComments from '@/components/workspace/FileComments';
 import type {
   DokumentOrdner,
   ProjectDetail,
@@ -49,7 +50,18 @@ export default function DocumentsTab({
   const [neu, setNeu] = useState<{ parentId: string | null; name: string } | null>(null);
   const [umbenennen, setUmbenennen] = useState<{ id: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Welche Dokumente ihre Anmerkungen zeigen – zugeklappt bleibt die Liste ruhig. */
+  const [offeneNotizen, setOffeneNotizen] = useState<Set<string>>(new Set());
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  function notizenUmschalten(fileId: string) {
+    setOffeneNotizen((current) => {
+      const next = new Set(current);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  }
 
   const haupt = useMemo(
     () => detail.documentFolders.filter((o) => !o.parent_id),
@@ -363,6 +375,16 @@ export default function DocumentsTab({
                       ))}
                     </select>
                   )}
+                  {/* Zu einem Plan gehört oft eine Bemerkung – "gilt ab
+                      Revision C", "Masse stimmen nicht". Sie gehört an den
+                      Plan und nicht in eine Mail. */}
+                  <button
+                    type="button"
+                    className="offer-notiz-knopf"
+                    onClick={() => notizenUmschalten(f.id)}
+                  >
+                    💬{f.comments.length > 0 ? ` ${f.comments.length}` : ''}
+                  </button>
                   {f.can_delete && (
                     <button
                       type="button"
@@ -378,6 +400,16 @@ export default function DocumentsTab({
                     >
                       ✕
                     </button>
+                  )}
+
+                  {offeneNotizen.has(f.id) && (
+                    <FileComments
+                      datei={f}
+                      detail={detail}
+                      session={session}
+                      isAdmin={isAdmin}
+                      reload={reload}
+                    />
                   )}
                 </div>
               );

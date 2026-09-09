@@ -10,18 +10,41 @@ import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
 import { ordnerName } from '@/lib/offers';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
-import type { ProjectDetail, ProjectFile } from '@/types';
+import FileComments from '@/components/workspace/FileComments';
+import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
 
 export default function FilesTab({
   detail,
+  session,
+  isAdmin,
   reload,
   onOpenFile,
 }: {
   detail: ProjectDetail;
+  session: SessionInfo;
+  isAdmin: boolean;
   reload: () => Promise<void>;
   onOpenFile: (fileId: string) => void;
 }) {
   const { toast, reportError, confirm } = useFeedback();
+  /**
+   * Welche Karten ihre Anmerkungen zeigen.
+   *
+   * Zugeklappt, solange keine da sind: In einer Kachelansicht mit dreissig
+   * Fotos wären dreissig offene Eingabefelder nur Lärm. Wo schon etwas steht,
+   * ist die Zahl am Knopf zu sehen – dann klappt man gezielt auf.
+   */
+  const [offeneNotizen, setOffeneNotizen] = useState<Set<string>>(new Set());
+
+  function notizenUmschalten(fileId: string) {
+    setOffeneNotizen((current) => {
+      const next = new Set(current);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  }
+
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -303,7 +326,29 @@ export default function FilesTab({
                       🔗 {linkedTodo.text}
                     </div>
                   )}
+
+                  {/* "Das ist die Stelle mit dem Riss" gehört zum Foto und
+                      nicht in einen WhatsApp-Verlauf, wo es eine Woche später
+                      niemand mehr findet. */}
+                  <button
+                    type="button"
+                    className="file-notiz-knopf"
+                    onClick={() => notizenUmschalten(f.id)}
+                  >
+                    💬 Anmerkungen
+                    {f.comments.length > 0 && ` (${f.comments.length})`}
+                  </button>
                 </div>
+
+                {offeneNotizen.has(f.id) && (
+                  <FileComments
+                    datei={f}
+                    detail={detail}
+                    session={session}
+                    isAdmin={isAdmin}
+                    reload={reload}
+                  />
+                )}
               </div>
             );
           })}

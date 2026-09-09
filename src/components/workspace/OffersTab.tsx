@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { del, patch, post } from '@/lib/client/api';
+import { del, patch } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
 import { fmtSize, fmtDate } from '@/lib/format';
 import Spinner from '@/components/Spinner';
@@ -10,6 +10,7 @@ import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
 import { OFFERTEN_ORDNER, ordnerName } from '@/lib/offers';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
+import FileComments from '@/components/workspace/FileComments';
 import { OFFERTEN_STAENDE, type OffertenStand } from '@/types';
 import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
 
@@ -47,9 +48,8 @@ export default function OffersTab({
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
   // Erst benennen, dann hochladen – Dateinamen wie "OFFERT~1.PDF" sagen nichts aus.
   const [wartend, setWartend] = useState<{ ordner: string; files: File[] } | null>(null);
-  // Geöffnete Anmerkungslisten und die Entwürfe dazu, je Datei.
+  // Welche Anmerkungslisten offen sind. Den Entwurf hält die Komponente selbst.
   const [offeneNotizen, setOffeneNotizen] = useState<Set<string>>(new Set());
-  const [entwuerfe, setEntwuerfe] = useState<Record<string, string>>({});
   // Betragsfelder je Datei – erst beim Verlassen des Felds wird gespeichert.
   const [betragEntwurf, setBetragEntwurf] = useState<Record<string, string>>({});
 
@@ -118,26 +118,6 @@ export default function OffersTab({
       if (next.has(fileId)) next.delete(fileId);
       else next.add(fileId);
       return next;
-    });
-  }
-
-  async function kommentieren(fileId: string) {
-    const text = (entwuerfe[fileId] ?? '').trim();
-    if (!text) return;
-
-    try {
-      await post(`/api/files/${fileId}/comments`, { text });
-      setEntwuerfe((current) => ({ ...current, [fileId]: '' }));
-      await reload();
-    } catch (error) {
-      reportError(error, 'Anmerkung konnte nicht gespeichert werden.');
-    }
-  }
-
-  function kommentarLoeschen(kommentarId: string) {
-    confirm('Diese Anmerkung löschen?', async () => {
-      await del(`/api/files/comments/${kommentarId}`);
-      await reload();
     });
   }
 
@@ -396,66 +376,13 @@ export default function OffersTab({
                           )}
 
                           {offeneNotizen.has(f.id) && (
-                            <div className="offer-notizen">
-                              {f.comments.map((k) => {
-                                const wer = findPerson(detail, {
-                                  name: k.author,
-                                  supplierId: k.author_supplier_id,
-                                });
-                                const meins =
-                                  session.kind === 'supplier'
-                                    ? k.author_supplier_id === session.supplierId
-                                    : k.author_supplier_id === null;
-
-                                return (
-                                  <div className="offer-notiz" key={k.id}>
-                                    <Avatar
-                                      url={wer.avatarUrl}
-                                      name={k.author}
-                                      size={22}
-                                    />
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                      <div className="offer-notiz-text">{k.text}</div>
-                                      <div className="offer-notiz-meta">
-                                        {personLabel(wer)} · {fmtDate(k.created_at)}
-                                        {(meins || isAdmin) && (
-                                          <button
-                                            type="button"
-                                            onClick={() => kommentarLoeschen(k.id)}
-                                          >
-                                            entfernen
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-
-                              <div className="offer-notiz-form">
-                                <input
-                                  type="text"
-                                  value={entwuerfe[f.id] ?? ''}
-                                  placeholder="Anmerkung schreiben …"
-                                  onChange={(e) =>
-                                    setEntwuerfe((current) => ({
-                                      ...current,
-                                      [f.id]: e.target.value,
-                                    }))
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') void kommentieren(f.id);
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className="btn btn-accent btn-sm"
-                                  onClick={() => void kommentieren(f.id)}
-                                >
-                                  Senden
-                                </button>
-                              </div>
-                            </div>
+                            <FileComments
+                              datei={f}
+                              detail={detail}
+                              session={session}
+                              isAdmin={isAdmin}
+                              reload={reload}
+                            />
                           )}
                         </div>
                       );

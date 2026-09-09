@@ -4366,6 +4366,48 @@ button:disabled {
   color: var(--accent);
 }
 
+/* Derselbe Knopf auf einer Bildkachel: über die ganze Breite, weil dort
+   darunter kein Platz für eine Zeile mit mehreren Bedienelementen ist. */
+.file-notiz-knopf {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.file-notiz-knopf:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Auf der Kachel steht der Anmerkungsblock unter dem Bild und darf die Karte
+   nicht sprengen – deshalb hier ohne die Umbruch-Regel aus der Offertenzeile. */
+.file-card .offer-notizen {
+  padding: 0 9px 9px;
+  margin-top: 0;
+}
+
+/* Im Vollbild unter der Datei: fester Streifen am unteren Rand, damit das Bild
+   den Platz behält und die Anmerkungen trotzdem immer sichtbar sind. */
+.viewer-notizen {
+  flex-shrink: 0;
+  max-height: 32vh;
+  overflow-y: auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.viewer-notizen .offer-notizen {
+  margin: 0;
+}
+
 .offer-notizen {
   flex-basis: 100%;
   margin: 8px 0 2px;

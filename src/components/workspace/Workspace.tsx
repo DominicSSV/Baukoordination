@@ -607,7 +607,13 @@ function WorkspaceInner({
                 />
               )}
               {tab === 'dateien' && (
-                <FilesTab detail={detail} reload={reload} onOpenFile={setViewerFileId} />
+                <FilesTab
+                  detail={detail}
+                  session={session}
+                  isAdmin={isAdmin}
+                  reload={reload}
+                  onOpenFile={setViewerFileId}
+                />
               )}
               {tab === 'kontakte' && (
                 <ProjectInfoTab detail={detail} isAdmin={isAdmin} reload={reload} />
@@ -670,8 +676,17 @@ function WorkspaceInner({
       )}
 
       {message && <MessageModal draft={message} onClose={() => setMessage(null)} />}
-      {viewerFileId && (
-        <FileViewer fileId={viewerFileId} onClose={() => setViewerFileId(null)} />
+      {/* Ohne geladenes Projekt gibt es auch keine Datei zum Öffnen – die
+          Bedingung hält zugleich den Typ sauber. */}
+      {viewerFileId && detail && (
+        <FileViewer
+          fileId={viewerFileId}
+          detail={detail}
+          session={session}
+          isAdmin={isAdmin}
+          reload={reload}
+          onClose={() => setViewerFileId(null)}
+        />
       )}
     </div>
   );
