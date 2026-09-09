@@ -107,6 +107,18 @@ export default function ProjectInfoTab({
    * die zweite wäre nach der ersten Änderung der Freigaben falsch.
    */
   const beteiligte = detail.suppliers.filter((l) => detail.accessIds.includes(l.id));
+
+  /**
+   * Unsere Ansprechpersonen für dieses Projekt.
+   *
+   * Nur die Zugeteilten – wer das Projekt nicht betreut, gehört auch nicht als
+   * Ansprechperson hingeschrieben. Ist niemand zugeteilt, stehen wir alle da:
+   * Ein Projekt ohne Ansprechperson wäre schlimmer als eine zu lange Liste.
+   * Dieselbe Regel gilt bei den Benachrichtigungen.
+   */
+  const unsere = detail.adminIds.length
+    ? detail.admins.filter((a) => detail.adminIds.includes(a.user_id))
+    : detail.admins;
   const { toast, reportError, confirm } = useFeedback();
   const [infos, setInfos] = useState<ProjektInfo[] | null>(null);
   const [kontakte, setKontakte] = useState<ProjektKontakt[] | null>(null);
@@ -661,6 +673,54 @@ export default function ProjectInfoTab({
             + Angabe hinzufügen
           </button>
         ))}
+
+      {/* Steht vor den Kontakten vor Ort: Wer eine Frage zum Projekt hat,
+          fragt zuerst uns. Ohne Bearbeiten-Knopf – die Liste ergibt sich aus
+          der Zuteilung im Register "Kontakte". */}
+      <h4 className="pkontakt-titel">Swiss Solar Ventures AG</h4>
+
+      <div className="kontakt-karten">
+        {unsere.map((a) => {
+          const nummer = waNummer(a.kontakt);
+
+          return (
+            <div className="kontakt-karte" key={a.user_id}>
+              <div className="kontakt-karte-kopf">
+                <span className="pkontakt-rolle">
+                  {a.funktion?.trim() || 'Bauherrenvertretung'}
+                </span>
+              </div>
+              <div className="pkontakt-name">{a.name}</div>
+              <div className="pkontakt-wege">
+                {a.kontakt && (
+                  <a className="btn btn-ghost btn-sm" href={`tel:${a.kontakt}`}>
+                    📞 {a.kontakt}
+                  </a>
+                )}
+                {nummer && (
+                  <WhatsAppButton
+                    nummer={nummer}
+                    text=""
+                    titel={`${a.name} über WhatsApp anschreiben`}
+                  />
+                )}
+                {a.email && (
+                  <a className="btn btn-ghost btn-sm" href={`mailto:${a.email}`}>
+                    ✉️ {a.email}
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!unsere.length && (
+        <p className="leer-hinweis">
+          Für dieses Projekt ist noch niemand von uns zugeteilt.
+          {isAdmin && ' Das stellst du im Register „Kontakte" ein.'}
+        </p>
+      )}
 
       <h4 className="pkontakt-titel">Kontakte vor Ort</h4>
 

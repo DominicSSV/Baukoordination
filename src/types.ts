@@ -86,12 +86,20 @@ export type Supplier = {
   avatar_url?: string | null;
 };
 
-/** Bauherrenvertreter, wie ihn auch ein Lieferant sehen darf – ohne E-Mail. */
+/**
+ * Bauherrenvertreter, wie ihn auch ein Lieferant sehen darf.
+ *
+ * Telefon und E-Mail sind bewusst dabei: Wer am Bau beteiligt ist, soll seine
+ * Ansprechperson erreichen können, ohne bei uns nach der Nummer zu fragen.
+ */
 export type AdminProfile = {
   user_id: string;
   name: string;
   firma: string;
   funktion: string | null;
+  /** Telefon – erst ab Migration 0023 gefüllt. */
+  kontakt?: string | null;
+  email?: string | null;
   /** Kurzlebige Signatur auf das Profilbild, null = keines hinterlegt. */
   avatar_url?: string | null;
 };
@@ -344,6 +352,11 @@ export type ProjectDetail = {
   activity: ActivityEntry[];
   /** Lieferanten mit Zugriff auf dieses Projekt. */
   accessIds: string[];
+  /**
+   * Wer von uns dieses Projekt betreut (Kennungen aus project_admins).
+   * Leer = niemand zugeteilt; dann gelten alle als zuständig.
+   */
+  adminIds: string[];
   /** Namen aller relevanten Lieferanten (für Zuweisungs-Anzeige). */
   suppliers: Supplier[];
   /** Weitere Lieferanten ohne Zugriff – nur für den Admin gefüllt. */

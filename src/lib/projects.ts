@@ -23,31 +23,50 @@ import type {
 const SIGNED_URL_TTL = 60 * 60;
 
 /**
- * Die Bauherrenvertreter, denen eine Aufgabe zugewiesen werden kann.
+ * Die Bauherrenvertreter: zuweisbar – und für die Lieferanten erreichbar.
  *
- * Bewusst über service_role und mit fester Spaltenauswahl: die Liste muss auch ein
- * Lieferant sehen, und sie darf keine E-Mail-Adressen enthalten. Über RLS ginge das
- * nur mit der View admin_public aus Migration 0002 – die Namensliste wäre dann aber
- * leer, solange diese Migration nicht eingespielt ist, und niemand könnte jemandem
- * etwas zuweisen. Die Spalten firma und funktion kommen ebenfalls erst mit 0002,
- * daher der zweite, schlankere Versuch.
+ * Telefon und E-Mail sind bewusst dabei. Früher blieben sie draussen, aber das
+ * hiess: Der Elektriker steht auf dem Dach, hat eine Frage, und findet in der
+ * App keine Nummer. Es sind Geschäftsangaben von Leuten, die genau für dieses
+ * Projekt zuständig sind – wer am Bau beteiligt ist, soll uns erreichen können.
+ * Im Register "Infos" stehen sie deshalb bei jedem Projekt.
+ *
+ * Bewusst über service_role und mit fester Spaltenauswahl: Die Liste muss auch
+ * ein Lieferant sehen. Über RLS ginge das nur mit der View admin_public aus
+ * Migration 0002 – die Namensliste wäre dann aber leer, solange diese Migration
+ * nicht eingespielt ist, und niemand könnte jemandem etwas zuweisen. firma und
+ * funktion kommen ebenfalls erst mit 0002, kontakt erst mit 0023; daher die
+ * schlankeren Versuche danach.
  */
 async function loadAdminProfiles(): Promise<AdminProfile[]> {
   const db = serviceClient();
 
-  const full = await db
-    .from('admins')
-    .select('user_id, name, firma, funktion, avatar_path')
-    .order('name', { ascending: true });
+  const stufen = [
+    'user_id, name, firma, funktion, avatar_path, kontakt, email',
+    'user_id, name, firma, funktion, avatar_path, email',
+    'user_id, name, firma, funktion, avatar_path',
+  ];
+
+  let full = await db.from('admins').select(stufen[0]).order('name', { ascending: true });
+
+  for (let stufe = 1; full.error && stufe < stufen.length; stufe += 1) {
+    full = await db.from('admins').select(stufen[stufe]).order('name', { ascending: true });
+  }
 
   if (!full.error) {
-    const rows = (full.data ?? []) as Array<AdminProfile & { avatar_path: string | null }>;
+    // Der Umweg über unknown ist nötig, weil die Spaltenliste aus einer
+    // Variable kommt: Supabase leitet den Zeilentyp nur aus einem festen Text her.
+    const rows = (full.data ?? []) as unknown as Array<
+      AdminProfile & { avatar_path: string | null }
+    >;
     const urls = await signAvatars(rows.map((r) => r.avatar_path));
     return rows.map((r) => ({
       user_id: r.user_id,
       name: r.name,
       firma: r.firma,
       funktion: r.funktion,
+      kontakt: r.kontakt ?? null,
+      email: r.email ?? null,
       avatar_url: r.avatar_path ? (urls.get(r.avatar_path) ?? null) : null,
     }));
   }
@@ -359,6 +378,27 @@ export async function loadProjectDetail(
     (r: { supplier_id: string }) => r.supplier_id,
   );
 
+  /**
+   * Wer von uns dieses Projekt betreut.
+   *
+   * Gelesen mit dem Dienstschlüssel, weil auch ein Lieferant die Liste sehen
+   * soll – im Register "Infos" stehen die Ansprechpersonen mit Nummer.
+   *
+   * Ist niemand zugeteilt, bleibt die Liste leer und die Ansicht zeigt uns
+   * alle. Dieselbe Regel wie bei den Benachrichtigungen: Ein Projekt ohne
+   * Zuteilung soll nicht ohne Ansprechperson dastehen.
+   *
+   * Ohne Migration 0024 gibt es die Tabelle noch nicht – dann eben leer.
+   */
+  const betreuungRes = await serviceClient()
+    .from('project_admins')
+    .select('user_id')
+    .eq('project_id', projectId);
+
+  const adminIds = betreuungRes.error
+    ? []
+    : ((betreuungRes.data ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
+
   // Der Admin sieht die volle Kartei inkl. vergebener Passwörter, ein Lieferant
   // nur Namen (View supplier_public liefert weder Zugang noch Kontaktdaten
   // anderer Lieferanten).
@@ -523,6 +563,7 @@ export async function loadProjectDetail(
     documentFolders,
     activity: (activityRes.data ?? []) as ActivityEntry[],
     accessIds,
+    adminIds,
     suppliers,
     otherSuppliers,
     admins,
