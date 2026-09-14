@@ -68,6 +68,9 @@ export async function GET() {
       // false heisst nicht mehr "gar keine": Einzelne Lieferanten lassen sich
       // seit Migration 0027 in den Kontakten freischalten – siehe unten.
       an_alle_lieferanten: process.env.MAIL_AN_LIEFERANTEN === 'true',
+      // Ohne Ausnahme: Jede Nachricht aus der App trägt die
+      // Dringlichkeits-Kopfzeilen (Outlook zeigt das rote Ausrufezeichen).
+      immer_dringend: true,
       meldet_bei:
         'neue Aufgabe, Kommentar zu einer Aufgabe, Dokument/Offerte hochgeladen, ' +
         'Terminplan geändert',

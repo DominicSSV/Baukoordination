@@ -231,11 +231,9 @@ async function send(params: {
   subject: string;
   text: string;
   html: string;
-  /** Setzt die Dringlichkeits-Kopfzeilen, die Outlook als rotes Ausrufezeichen zeigt. */
-  dringend?: boolean;
   /**
    * Darf ausnahmsweise auch nach aussen gehen – gesetzt allein von der
-   * Einladung, die von Hand ausgelöst wird und den Zugangscode enthält.
+   * Einladung, die von Hand ausgelöst wird und die Anmeldedaten enthält.
    */
   anLieferanten?: boolean;
 }): Promise<void> {
@@ -277,13 +275,19 @@ async function send(params: {
     subject: params.subject,
     text: `${params.text}\n\n—\n${hinweis.warnung} ${hinweis.erklaerung}`,
     html: params.html,
-    headers: params.dringend
-      ? {
-          'X-Priority': '1',
-          'X-MSMail-Priority': 'High',
-          Importance: 'high',
-        }
-      : undefined,
+    // Jede Nachricht aus der App geht als dringend hinaus: Outlook setzt das
+    // rote Ausrufezeichen, Apple Mail und Gmail sortieren sie nach oben.
+    //
+    // Bewusst ohne Ausnahme und ohne Schalter je Versandart. Eine Baustelle
+    // hält keine zwei Dringlichkeitsstufen aus: Wer entscheiden müsste, ob eine
+    // Terminverschiebung dringend ist, entscheidet es jedes Mal anders. Wird
+    // eine Aufgabe hochgeladen, während jemand auf dem Dach steht, zählt jede
+    // Nachricht.
+    headers: {
+      'X-Priority': '1',
+      'X-MSMail-Priority': 'High',
+      Importance: 'high',
+    },
   });
 
   if (error) {
@@ -602,7 +606,7 @@ export async function sendOverdueNotice(params: {
     </div>` + textZuHtml(text),
   );
 
-  await send({ to: params.to, subject, text, html, dringend: true });
+  await send({ to: params.to, subject, text, html });
 }
 
 export async function sendActivityNotification(params: {

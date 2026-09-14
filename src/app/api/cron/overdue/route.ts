@@ -24,7 +24,7 @@ type FaelligeAufgabe = {
  * Täglicher Prüflauf auf überschrittene Fristen.
  *
  * Wird von Vercel Cron aufgerufen (siehe vercel.json). Jede überfällige, noch offene
- * Aufgabe löst genau eine dringende Mail an den Zuständigen aus; danach hält
+ * Aufgabe löst genau eine Mail an den Zuständigen aus; danach hält
  * overdue_notified_at fest, dass gemahnt wurde. Wird die Frist später verschoben,
  * setzt die Aufgaben-Route das Feld zurück und es wird erneut gemahnt.
  */
