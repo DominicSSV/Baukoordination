@@ -43,6 +43,14 @@ export default function TodosTab({
   const [newDue, setNewDue] = useState('');
   // Vertraulich = nur wir und die beteiligten Lieferantenfirmen sehen die Aufgabe.
   const [newVertraulich, setNewVertraulich] = useState(false);
+  /**
+   * Gleich beim Anlegen als fester Schritt kennzeichnen.
+   *
+   * Vorher musste man die Aufgabe erst anlegen und dann bearbeiten – zwei
+   * Handgriffe für etwas, das man im Moment des Eintippens schon weiss. Nur
+   * für uns: Die Meilensteine sind der Bauablauf, auf den sich alle verlassen.
+   */
+  const [newMeilenstein, setNewMeilenstein] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editAssignees, setEditAssignees] = useState<string[]>([]);
@@ -173,14 +181,16 @@ export default function TodosTab({
         text,
         assignees: newAssignees,
         vertraulich: newVertraulich,
+        meilenstein: newMeilenstein,
         dueDate: newDue || null,
       });
       setNewText('');
       setNewAssignees([]);
       setNewDue('');
       setNewVertraulich(false);
+      setNewMeilenstein(false);
       await reload();
-      toast('✓ Aufgabe angelegt.');
+      toast(newMeilenstein ? '🏁 Meilenstein angelegt.' : '✓ Aufgabe angelegt.');
     }, 'Aufgabe konnte nicht angelegt werden.');
 
   const toggleTodo = (todo: Todo) =>
@@ -921,13 +931,29 @@ export default function TodosTab({
             />
             🔒 Vertraulich
           </label>
+          {/* Nur für uns: Die Meilensteine sind der Bauablauf, auf den sich
+              alle verlassen – ein Lieferant soll seine eigene Aufgabe nicht
+              dazu erklären können. Der Server prüft dasselbe noch einmal. */}
+          {isAdmin && (
+            <label
+              className="vertraulich-feld"
+              title="Fester Schritt des Projekts – wird in der Liste besonders gekennzeichnet."
+            >
+              <input
+                type="checkbox"
+                checked={newMeilenstein}
+                onChange={(e) => setNewMeilenstein(e.target.checked)}
+              />
+              🏁 Meilenstein
+            </label>
+          )}
           <button
             type="button"
             className="btn btn-accent"
             onClick={addTodo}
             disabled={busy}
           >
-            + Aufgabe
+            {newMeilenstein ? '+ Meilenstein' : '+ Aufgabe'}
           </button>
       </div>
     </div>

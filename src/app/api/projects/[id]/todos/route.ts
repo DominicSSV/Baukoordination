@@ -23,6 +23,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     assignedTo?: string;
     assignees?: string[];
     vertraulich?: boolean;
+    meilenstein?: boolean;
     dueDate?: string | null;
   }>(request);
 
@@ -47,6 +48,17 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   const vertraulich = Boolean(body.vertraulich);
 
+  /**
+   * Nur wir bestimmen, was ein fester Schritt des Projekts ist.
+   *
+   * Ein Lieferant könnte sonst seine eigene Aufgabe zum Meilenstein erklären –
+   * und die Meilensteine sind der Bauablauf, auf den sich alle verlassen.
+   * Dieselbe Regel gilt beim Ändern (siehe /api/todos/[id]); geprüft wird sie
+   * hier und nicht erst in der Ansicht, denn ein ausgeblendetes Kästchen ist
+   * keine Sperre.
+   */
+  const meilenstein = ctx.session.kind === 'admin' && Boolean(body.meilenstein);
+
   const zeile = {
     project_id: projectId,
     text,
@@ -61,14 +73,23 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const SPALTEN =
     'id, project_id, text, assigned_to, done, done_by, done_at, created_by, created_by_supplier_id, created_at, edited_at, order_index, due_date';
 
-  const mitListe = await ctx.db
+  // Von der vollständigen Fassung abwärts: ohne Migration 0030 gibt es das
+  // Kennzeichen "Meilenstein" nicht, ohne 0014 die Liste der Zuständigen. Die
+  // Aufgabe wird trotzdem angelegt – lieber ohne Kennzeichen als gar nicht.
+  const mitMeilenstein = await ctx.db
     .from('todos')
-    .insert({ ...zeile, assignees: zustaendige, vertraulich })
-    .select(`${SPALTEN}, assignees, vertraulich`)
+    .insert({ ...zeile, assignees: zustaendige, vertraulich, meilenstein })
+    .select(`${SPALTEN}, assignees, vertraulich, meilenstein`)
     .single();
 
-  // Ohne Migration 0014 gibt es die Spalte assignees noch nicht – dann wird wie
-  // bisher nur der erste Zuständige gespeichert.
+  const mitListe = mitMeilenstein.error
+    ? await ctx.db
+        .from('todos')
+        .insert({ ...zeile, assignees: zustaendige, vertraulich })
+        .select(`${SPALTEN}, assignees, vertraulich`)
+        .single()
+    : mitMeilenstein;
+
   const result = mitListe.error
     ? await ctx.db.from('todos').insert(zeile).select(SPALTEN).single()
     : mitListe;
@@ -89,7 +110,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     actorSupplierId:
       ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
     text:
-      `hat To-Do "${text}" für ${empfaenger} angelegt` +
+      `hat ${meilenstein ? 'Meilenstein' : 'To-Do'} "${text}" für ${empfaenger} angelegt` +
       (dueDate ? ` (zu erledigen bis ${fmtDueDate(dueDate)})` : ''),
     icon: '📝',
     // Vertrauliche Aufgaben tauchen auch im Protokoll nur bei den Beteiligten auf.
