@@ -1272,6 +1272,16 @@ button:disabled {
   margin-bottom: 14px;
 }
 
+/* Die Regel darüber meint Text- und Datumsfelder. Ein Kästchen oder ein
+   Auswahlknopf ist keines: Auf volle Breite gezogen schiebt es den Text neben
+   sich aus dem Fenster – genau das geschah beim Ton-Schalter im Profil. */
+.modal input[type='checkbox'],
+.modal input[type='radio'] {
+  width: auto;
+  padding: 0;
+  margin-bottom: 0;
+}
+
 .modal-img {
   max-width: 100%;
   max-height: 75vh;
@@ -3824,6 +3834,18 @@ button:disabled {
   flex-shrink: 0;
 }
 
+/* Der Text daneben muss schrumpfen dürfen. Ohne min-width: 0 nimmt ein
+   Flex-Element mindestens die Breite seines längsten Wortes ein und wächst
+   notfalls aus dem Fenster hinaus. */
+.ton-schalter > span {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.ton-schalter .vorlage-zweck {
+  display: block;
+}
+
 /* --- Register "Infos": Angaben zum Objekt und Kontakte vor Ort ------------- */
 .pkontakt-erklaerung {
   font-size: 12.5px;
@@ -4045,6 +4067,21 @@ button:disabled {
   font-weight: 600;
   font-size: 14.5px;
   margin-top: 1px;
+}
+
+/* Bild und Name nebeneinander. Der Name darf schrumpfen und umbrechen –
+   "R&C da Silva GmbH" neben einem Bild sprengt sonst die Karte. */
+.pkontakt-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.pkontakt-person .pkontakt-name {
+  min-width: 0;
+  margin-top: 0;
+  overflow-wrap: break-word;
 }
 
 .pkontakt-notiz,
@@ -4589,6 +4626,18 @@ button:disabled {
   text-align: center;
 }
 
+/* Fusszeile ganz unten im Inhalt – auf dem Rechner wie auf dem Handy.
+   Abgesetzt, aber leise: Sie gehört ans Ende, nicht in den Blick. */
+.app-fuss {
+  margin-top: 28px;
+  padding: 16px 2px 4px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
 /* Die Herkunftszeile ganz unten auf der Anmeldeseite. Noch leiser als der
    Hinweis darüber: Sie gehört dorthin, wo man sie sucht, und sonst nirgends. */
 .auth-herkunft {
@@ -4931,4 +4980,84 @@ button:disabled {
 .korb-meta {
   font-size: 11.5px;
   color: var(--ink-soft);
+}
+
+/* ===========================================================================
+   Handyansicht – Nachbesserungen
+   ===========================================================================
+   Steht bewusst am Schluss der Datei: Was hier drinsteht, soll die Regeln
+   darüber überschreiben. Ein Block weiter oben hätte je nach Reihenfolge
+   verloren, und genau daran ist die mobile Ansicht schon einmal gescheitert.
+   =========================================================================== */
+@media (max-width: 760px) {
+  /* Lange Adressen und Nummern dürfen mitten im Wort umbrechen. Ohne das
+     schiebt "mergim.shoshaj@melintec.ch" die ganze Zeile aus der Karte. */
+  .supplier-meta,
+  .kontakt-meta,
+  .offer-meta,
+  .file-meta,
+  .woche-meta,
+  .pkontakt-wege a {
+    overflow-wrap: anywhere;
+  }
+
+  /* Die Knopfreihe beim Lieferanten stand rechtsbündig und brach ungleichmässig
+     um – zuletzt hingen "WhatsApp", "✕" und der Papierkorb allein auf einer
+     zweiten Zeile. Linksbündig und in gleicher Höhe liest sie sich als Reihe. */
+  .supplier-actions {
+    justify-content: flex-start;
+    row-gap: 8px;
+  }
+
+  /* Zwei beschriftete Knöpfe je Zeile: Mit "flex: 1 1 auto" füllten drei die
+     erste Zeile und die Symbole blieben allein auf der zweiten zurück. */
+  .supplier-actions .btn {
+    flex: 1 1 40%;
+    justify-content: center;
+  }
+
+  /* Symbolknöpfe bleiben klein – sonst zöge "flex: 1" sie auf Textbreite auf. */
+  .supplier-actions .icon-btn,
+  .supplier-actions .icon-btn-gefahr {
+    flex: 0 0 auto;
+  }
+
+  /* Dokumente und Offerten: Name über die ganze Zeile, darunter die Angaben,
+     zuunterst die Bedienung. Nebeneinander blieb für den Namen ein Streifen
+     von zwei Wörtern übrig. */
+  .offer-zeile {
+    align-items: flex-start;
+    row-gap: 6px;
+  }
+
+  .offer-name {
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  /* Ohne Zeile daneben, an die sie sich anlehnen könnte, hat die rechtsbündige
+     Ausrichtung keinen Sinn mehr – sie liess die Angaben in der Luft hängen. */
+  .offer-meta {
+    margin-left: 0;
+  }
+
+  .dokument-verschieben {
+    max-width: 100%;
+  }
+
+  /* Die Auswahl der Zuständigen und das Datumsfeld beim Anlegen einer Aufgabe:
+     nebeneinander wurden beide so schmal, dass nichts mehr lesbar war. */
+  .todo-add-row select,
+  .todo-add-row input[type='date'] {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  /* Ein Bild in der Kachel darf die Karte nicht sprengen. */
+  .file-card img,
+  .file-thumb {
+    max-width: 100%;
+  }
 }

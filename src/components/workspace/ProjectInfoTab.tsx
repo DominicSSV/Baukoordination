@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { api, del, patch, post } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
+import Avatar from '@/components/Avatar';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
 import { removeProjektBild, uploadProjektBild } from '@/lib/client/bildUpload';
@@ -690,7 +691,12 @@ export default function ProjectInfoTab({
                   {a.funktion?.trim() || 'Bauherrenvertretung'}
                 </span>
               </div>
-              <div className="pkontakt-name">{a.name}</div>
+              {/* Mit Bild: Auf der Baustelle trifft man die Leute, deren Namen
+                  hier stehen – ein Gesicht dazu hilft mehr als eine Zeile. */}
+              <div className="pkontakt-person">
+                <Avatar url={a.avatar_url} name={a.name} size={38} />
+                <div className="pkontakt-name">{a.name}</div>
+              </div>
               <div className="pkontakt-wege">
                 {a.kontakt && (
                   <a className="btn btn-ghost btn-sm" href={`tel:${a.kontakt}`}>
@@ -786,9 +792,12 @@ export default function ProjectInfoTab({
                 </button>
               )}
             </div>
-            <div className="pkontakt-name">
-              {k.name?.trim() || '—'}
-              {k.firma && <span className="kontakt-firma"> · {k.firma}</span>}
+            <div className="pkontakt-person">
+              <Avatar url={null} name={k.name || k.rolle} size={38} />
+              <div className="pkontakt-name">
+                {k.name?.trim() || '—'}
+                {k.firma && <span className="kontakt-firma"> · {k.firma}</span>}
+              </div>
             </div>
 
             {/* Nur bei fester Anwesenheit eine Zeile. "Immer vor Ort" bei jedem
@@ -887,9 +896,16 @@ export default function ProjectInfoTab({
             <div className="kontakt-karte-kopf">
               <span className="pkontakt-rolle">{l.gewerk?.trim() || 'Lieferant'}</span>
             </div>
-            <div className="pkontakt-name">
-              {l.firma?.trim() || l.name?.trim() || '—'}
-              {l.firma && l.name && <span className="kontakt-firma"> · {l.name}</span>}
+            <div className="pkontakt-person">
+              <Avatar
+                url={l.avatar_url}
+                name={l.firma || l.name}
+                size={38}
+              />
+              <div className="pkontakt-name">
+                {l.firma?.trim() || l.name?.trim() || '—'}
+                {l.firma && l.name && <span className="kontakt-firma"> · {l.name}</span>}
+              </div>
             </div>
             <div className="pkontakt-wege">
               {l.kontakt && (

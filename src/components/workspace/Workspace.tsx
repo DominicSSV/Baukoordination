@@ -29,6 +29,7 @@ import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
+import { APP_HERKUNFT, APP_RECHTE } from '@/lib/branding';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
 
 export type TabKey =
@@ -628,6 +629,15 @@ function WorkspaceInner({
               )}
             </>
           )}
+
+          {/* Ganz unten, nach allem anderen: Wer bis hierhin scrollt, sieht,
+              von wem die App stammt. Steht im Inhaltsbereich und nicht im
+              Aussenrahmen, damit sie mitscrollt statt zu kleben – eine
+              Fusszeile, die immer im Bild steht, nimmt der Baustelle Platz
+              weg, den sie für die Arbeit braucht. */}
+          <footer className="app-fuss">
+            {APP_HERKUNFT} {APP_RECHTE}
+          </footer>
         </div>
       </div>
 
