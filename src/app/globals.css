@@ -4589,6 +4589,50 @@ button:disabled {
   text-align: center;
 }
 
+/* Die Herkunftszeile ganz unten auf der Anmeldeseite. Noch leiser als der
+   Hinweis darüber: Sie gehört dorthin, wo man sie sucht, und sonst nirgends. */
+.auth-herkunft {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+/* "Über Baukoordination" zuunterst im Profil. Abgesetzt durch eine Linie,
+   damit es nicht wie eine weitere Einstellung aussieht. */
+.ueber-app {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.ueber-app-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.ueber-app-version {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.ueber-app p {
+  margin: 0;
+}
+
+.ueber-app-rechte {
+  color: var(--ink-faint);
+}
+
 .mail-test {
   display: flex;
   gap: 8px;

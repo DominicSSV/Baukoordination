@@ -6,6 +6,11 @@ Grössenbeschränkung für Dateien.
 
 **Stack:** Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Resend · Vercel
 
+**Entwickelt von Dominic Maag** für die Swiss Solar Ventures AG, Baar.
+© 2026 Swiss Solar Ventures AG – alle Rechte vorbehalten. Proprietäre Software,
+siehe [`LICENSE`](LICENSE). Die Einsicht in dieses Repository begründet kein
+Nutzungsrecht.
+
 ---
 
 ## 1. Einrichtung in vier Schritten
@@ -232,3 +237,16 @@ npm run start       # Produktions-Build lokal starten
 npm run lint        # ESLint
 npm run typecheck   # TypeScript ohne Ausgabe
 ```
+
+---
+
+## Rechte
+
+Diese Software ist Eigentum der Swiss Solar Ventures AG und wurde von
+Dominic Maag entwickelt. Sie steht unter keiner freien Lizenz; die Bedingungen
+stehen vollständig in [`LICENSE`](LICENSE).
+
+Die Angaben zu Urheberschaft und Rechten stehen im Code an einer Stelle
+(`src/lib/branding.ts`) und erscheinen von dort aus im Dialog „Über
+Baukoordination", auf beiden Anmeldeseiten und in der Fusszeile jeder
+verschickten Mail.

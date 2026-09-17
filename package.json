@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "description": "Baukoordination – Swiss Solar Ventures AG",
+  "author": "Dominic Maag <dominic.maag@swiss-sv.ch>",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

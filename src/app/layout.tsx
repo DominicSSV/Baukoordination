@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Anton, Poppins } from 'next/font/google';
+import { APP_AUTOR, APP_INHABER, APP_RECHTE } from '@/lib/branding';
 import './globals.css';
 
 const anton = Anton({
@@ -19,6 +20,13 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Baukoordination – Swiss Solar Ventures AG',
   description: 'Projekte, Lieferanten, To-Dos und Dateien der Swiss Solar Ventures AG',
+  // Steht in der Seite selbst, nicht nur sichtbar auf dem Bildschirm: Wer den
+  // Quelltext ansieht oder die Seite auswertet, findet die Urheberschaft dort,
+  // wo man sie sucht.
+  authors: [{ name: APP_AUTOR }],
+  creator: APP_AUTOR,
+  publisher: APP_INHABER,
+  other: { copyright: APP_RECHTE },
   // Die Symbole liegen bewusst als icon.png, icon1.png und apple-icon.png neben
   // dieser Datei, statt hier von Hand auf /public zu zeigen.
   //

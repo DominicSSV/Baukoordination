@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { appBaseUrl, mailFrom, mailReplyTo, resendApiKey } from '@/lib/env';
 import { firmenKollegen } from '@/lib/auth/offerAccess';
 import { serviceClient } from '@/lib/supabase/service';
+import { APP_HERKUNFT, APP_RECHTE } from '@/lib/branding';
 import {
   einsetzen,
   ladeVorlage,
@@ -175,7 +176,10 @@ function wrapHtml(title: string, bodyHtml: string): string {
         <p style="margin:22px 0 0;font-size:11.5px;color:#929291;border-top:1px solid #D9D9D9;padding-top:12px;">
           Swiss Solar Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination
           versendet.<br />
-          <strong>${escapeHtml(hinweis.warnung)}</strong> ${escapeHtml(hinweis.erklaerung)}
+          <strong>${escapeHtml(hinweis.warnung)}</strong> ${escapeHtml(hinweis.erklaerung)}<br />
+          <!-- Geht an jeden Empfänger und kostet eine Zeile: Wer die App nutzt,
+               soll wissen, von wem sie stammt. -->
+          <span style="color:#A8A8A6;">${escapeHtml(APP_HERKUNFT)} ${escapeHtml(APP_RECHTE)}</span>
         </p>
       </td>
     </tr>
@@ -273,7 +277,9 @@ async function send(params: {
     to: empfaenger,
     ...(antwortAn ? { replyTo: antwortAn } : {}),
     subject: params.subject,
-    text: `${params.text}\n\n—\n${hinweis.warnung} ${hinweis.erklaerung}`,
+    // Beide Fassungen der Mail tragen denselben Fuss – sonst behauptete die
+    // Nur-Text-Fassung etwas anderes als die gestaltete.
+    text: `${params.text}\n\n—\n${hinweis.warnung} ${hinweis.erklaerung}\n${APP_HERKUNFT} ${APP_RECHTE}`,
     html: params.html,
     // Jede Nachricht aus der App geht als dringend hinaus: Outlook setzt das
     // rote Ausrufezeichen, Apple Mail und Gmail sortieren sie nach oben.

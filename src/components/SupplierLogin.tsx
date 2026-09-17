@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { post } from '@/lib/client/api';
 import { zielNachAnmeldung } from '@/lib/client/ziel';
+import { APP_HERKUNFT } from '@/lib/branding';
 
 /**
  * Startbildschirm der App. Wer den Link zum ersten Mal öffnet, landet direkt hier
@@ -121,6 +122,10 @@ export default function SupplierLogin() {
             Admin-Anmeldung nicht verloren. */}
         Bauherrenvertreter? <Link href={adminLink}>Hier anmelden</Link>
       </p>
+
+      {/* Sieht jeder Lieferant beim ersten Öffnen – klein genug, um beim
+          Anmelden nicht im Weg zu stehen. */}
+      <p className="auth-herkunft">{APP_HERKUNFT}</p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useState, type FormEvent } from 'react';
 import { browserClient } from '@/lib/supabase/browser';
 import { post } from '@/lib/client/api';
 import { zielNachAnmeldung } from '@/lib/client/ziel';
+import { APP_HERKUNFT } from '@/lib/branding';
 
 type Mode = 'password' | 'magic';
 
@@ -155,6 +156,8 @@ export default function AdminLogin() {
       <p className="auth-alt">
         Lieferant? <Link href="/">Hier anmelden</Link>
       </p>
+
+      <p className="auth-herkunft">{APP_HERKUNFT}</p>
     </div>
   );
 }

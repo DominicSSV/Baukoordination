@@ -6,6 +6,12 @@ import { useFeedback } from '@/components/Feedback';
 import { post } from '@/lib/client/api';
 import { setzeTon, spieleMuenze, tonAn } from '@/lib/client/ton';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
+import {
+  APP_HERKUNFT,
+  APP_NAME,
+  APP_RECHTE,
+  APP_VERSION,
+} from '@/lib/branding';
 import type { SessionInfo } from '@/types';
 
 /** Eigenes Profil: zeigt, wer angemeldet ist, und lässt das Bild wechseln. */
@@ -229,6 +235,18 @@ export default function ProfileModal({
               Entfernen
             </button>
           )}
+        </div>
+
+        {/* Steht zuunterst und ohne Knopf: Wer wissen will, woher diese App
+            kommt, schaut hier nach – im Arbeitsalltag soll die Angabe niemanden
+            aufhalten. */}
+        <div className="ueber-app">
+          <div className="ueber-app-kopf">
+            Über {APP_NAME}
+            <span className="ueber-app-version">Version {APP_VERSION}</span>
+          </div>
+          <p>{APP_HERKUNFT}</p>
+          <p className="ueber-app-rechte">{APP_RECHTE}</p>
         </div>
       </div>
     </div>
