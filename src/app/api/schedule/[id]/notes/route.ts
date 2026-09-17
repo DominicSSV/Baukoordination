@@ -67,9 +67,17 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   }
 
   const warning = await logActivity(ctx.db, {
+    // Ein Terminvorschlag ist der Anfang einer Absprache und keine Randnotiz:
+    // Solange niemand hinschaut, liegt er im Protokoll und die Baustelle wartet.
+    // Deshalb geht er als Mail an alle Beteiligten – auch an die übrigen Firmen,
+    // denn ein verschobenes Gewerk verschiebt oft das nächste mit.
+    notify: true,
     projectId: task.project_id,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,
+    // Ohne diese Zeile bekäme ein Lieferant Post über den eigenen Vorschlag.
+    actorSupplierId:
+      ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
     text:
       start && ende
         ? `schlägt für "${task.label}" den Zeitraum ${fmtDueDate(start)} bis ${fmtDueDate(ende)} vor: "${text}"`

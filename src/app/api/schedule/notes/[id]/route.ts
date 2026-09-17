@@ -60,6 +60,11 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
   const warning = await logActivity(ctx.db, {
+    // Wer einen Vorschlag macht, wartet auf die Antwort. Ohne Mail erfährt er
+    // sie erst, wenn er von sich aus in der App nachsieht – und bis dahin weiss
+    // er nicht, ob er den Termin einplanen darf. Das gilt für die Ablehnung
+    // genauso: Ein "nein" ist eine Antwort, ein Schweigen nicht.
+    notify: true,
     projectId: task.project_id,
     actorName: ctx.session.name,
     actorEmail: ctx.session.email,

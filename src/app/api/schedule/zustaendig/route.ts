@@ -1,8 +1,39 @@
 import { ApiError, handler, ok, readJson } from '@/lib/api';
 import { requireAdmin } from '@/lib/auth/guards';
-import { pruefeZustaendigen } from '@/lib/auth/assignTarget';
+import { assigneeDisplayName, pruefeZustaendigen } from '@/lib/auth/assignTarget';
+import { logActivity } from '@/lib/activity';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Meldet, wer eine Arbeit neu übernimmt.
+ *
+ * Wer zuständig gemacht wird, muss es erfahren – sonst steht der Termin im
+ * Plan und niemand weiss, dass er gemeint ist. Und wer es vorher war, soll
+ * ebenfalls Bescheid wissen; deshalb geht die Nachricht wie jede andere
+ * Terminplanänderung an alle Beteiligten.
+ */
+async function melden(
+  ctx: Awaited<ReturnType<typeof requireAdmin>>,
+  projectId: string,
+  label: string,
+  zustaendige: string[],
+): Promise<string | null> {
+  const namen = (
+    await Promise.all(zustaendige.map((z) => assigneeDisplayName(z)))
+  ).join(', ');
+
+  return logActivity(ctx.db, {
+    notify: true,
+    projectId,
+    actorName: ctx.session.name,
+    actorEmail: ctx.session.email,
+    text: namen
+      ? `hat "${label}" im Terminplan an ${namen} übergeben`
+      : `hat die Zuständigkeit für "${label}" im Terminplan entfernt`,
+    icon: '📅',
+  });
+}
 
 /**
  * Die Zuständigen einer ganzen Zeile setzen – eine Arbeit kann mehreren
@@ -27,15 +58,19 @@ export const POST = handler(async (request: Request) => {
     : [];
 
   // Alle Arbeiten der Zeile gehören zum selben Projekt – für die Prüfung
-  // genügt daher das Projekt der ersten.
+  // genügt daher das Projekt der ersten. Die Bezeichnung braucht es für den
+  // Protokolltext: "hat die Zuständigkeit geändert" sagt niemandem, wofür.
   const erste = await ctx.db
     .from('schedule_tasks')
-    .select('project_id')
+    .select('project_id, label')
     .eq('id', ids[0])
     .maybeSingle();
 
   if (!erste.data) throw new ApiError('Arbeit nicht gefunden.', 404);
-  const projectId = (erste.data as { project_id: string }).project_id;
+  const { project_id: projectId, label } = erste.data as {
+    project_id: string;
+    label: string;
+  };
 
   // Jeder Eintrag wird einzeln geprüft: Nur Personen, die tatsächlich zu diesem
   // Projekt gehören, dürfen zuständig sein.
@@ -65,8 +100,10 @@ export const POST = handler(async (request: Request) => {
       throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
     }
 
-    return ok({ ok: true, owners: geprueft.slice(0, 1), nurEiner: true });
+    const warning = await melden(ctx, projectId, label, geprueft.slice(0, 1));
+    return ok({ ok: true, owners: geprueft.slice(0, 1), nurEiner: true, warning });
   }
 
-  return ok({ ok: true, owners: geprueft });
+  const warning = await melden(ctx, projectId, label, geprueft);
+  return ok({ ok: true, owners: geprueft, warning });
 });

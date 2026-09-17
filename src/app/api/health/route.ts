@@ -73,7 +73,10 @@ export async function GET() {
       immer_dringend: true,
       meldet_bei:
         'neue Aufgabe, Kommentar zu einer Aufgabe, Dokument/Offerte hochgeladen, ' +
-        'Terminplan geändert',
+        'Terminplan: neue Arbeit, Termin/Bezeichnung geändert, Arbeit entfernt, ' +
+        'Zuständigkeit übergeben, Terminvorschlag gemacht, Vorschlag übernommen ' +
+        'oder abgelehnt',
+      meldet_nicht_bei: 'Farbe und Reihenfolge im Terminplan',
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
       hinweis: process.env.RESEND_API_KEY
         ? undefined
