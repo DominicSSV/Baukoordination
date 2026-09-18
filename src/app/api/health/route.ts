@@ -415,6 +415,24 @@ export async function GET() {
           : undefined,
       };
 
+      const [stillePause, stilleSpalte] = await Promise.all([
+        db.from('notify_pause').select('user_id').limit(50),
+        db.from('activity').select('leise').limit(1),
+      ]);
+
+      report.migration_0038 = {
+        benachrichtigungen_abstellbar: !stillePause.error && !stilleSpalte.error,
+        gerade_abgestellt: stillePause.error
+          ? undefined
+          : (stillePause.data ?? []).length,
+        hinweis:
+          stillePause.error || stilleSpalte.error
+            ? 'Migration 0038 fehlt. Der Knopf "Benachrichtigungen ausschalten" '
+              + 'ist zwar da, bewirkt aber nichts.'
+            : 'Der Knopf steht im Projekt zwischen der Projektkarte und den '
+              + 'Registern – nicht in der Startansicht "Meine Woche".',
+      };
+
       const bilder = await db.from('admins').select('avatar_path').limit(1);
       report.migration_0005 = {
         profilbilder: !bilder.error,
