@@ -1,6 +1,11 @@
 -- =============================================================================
 -- Baukoordination – Daten 39: Terminplan Tägerwilen – PVA
 --
+-- ACHTUNG, GESCHICHTE DIESER DATEI: Die erste Fassung suchte das Projekt über
+-- "%tägerwilen%" und nahm das älteste Ergebnis. In Tägerwilen gibt es aber zwei
+-- Projekte – PVA und BESS – und getroffen wurde BESS. Dessen Terminplan wurde
+-- dabei geleert. Genau dafür ist unten die Sperre eingebaut.
+--
 -- Übernimmt aus dem Excel-Balkenplan NUR die Arbeiten von Convoltas AG und
 -- Melintec AG. Brenner, Covra Metall, Kunz Bau, Ammann, MABBA, Rugag, Ziegler
 -- Weber und die übrigen Zeilen bleiben ausdrücklich draussen.
@@ -12,42 +17,50 @@
 -- eine Arbeit in Wirklichkeit kürzer, lässt sie sich in der App mit zwei
 -- Klicks zurechtziehen – oder hier oben ändern und das Skript neu ausführen.
 --
--- Zuständig ist überall Dominic Maag, wie beim Plan für Dietikon. In der App
--- ist das je Zeile änderbar; die Firma steht ohnehin links in der Spalte.
---
 -- Im Supabase SQL-Editor ausführen. Darf mehrfach laufen: der Terminplan
--- dieses Projekts wird jedes Mal frisch aufgebaut.
+-- dieses einen Projekts wird jedes Mal frisch aufgebaut.
 --
 -- Voraussetzung: 0006, 0008 und 0022 sind eingespielt.
 -- =============================================================================
 
 do $$
 declare
-  v_name    text := 'Tägerwilen - PVA';
   v_projekt uuid;
+  v_treffer int;
+  v_liste   text;
   v_owner   text;
   v_besitz  text[];
 begin
-  -- Bestehendes Projekt suchen. Der Bindestrich und die Schreibweise mit
-  -- Umlaut sind zu unsicher für einen Vergleich auf Gleichheit, deshalb über
-  -- den Ortsnamen.
+  -- -------------------------------------------------------------------------
+  -- Sperre: Es muss genau ein Projekt passen.
+  --
+  -- Gesucht wird nach Tägerwilen UND PVA. BESS wird zusätzlich ausdrücklich
+  -- ausgeschlossen – doppelt, weil unten gelöscht wird und ein Fehlgriff hier
+  -- einen fremden Terminplan kostet. Passt nicht genau eines, bricht das
+  -- Skript ab und rührt nichts an.
+  -- -------------------------------------------------------------------------
+  select count(*), string_agg(name, ' | ' order by name)
+    into v_treffer, v_liste
+    from public.projects
+   where (name ilike '%tägerwilen%' or name ilike '%taegerwilen%'
+          or ort ilike '%tägerwilen%' or ort ilike '%taegerwilen%')
+     and name ilike '%pva%'
+     and name not ilike '%bess%';
+
+  if v_treffer <> 1 then
+    raise exception
+      'Abbruch: % Projekte passen auf "Tägerwilen ... PVA" (%). Es wurde nichts geändert. Bitte den genauen Projektnamen in dieses Skript eintragen.',
+      v_treffer, coalesce(v_liste, 'keines gefunden');
+  end if;
+
   select id into v_projekt
     from public.projects
-   where name ilike '%tägerwilen%'
-      or name ilike '%taegerwilen%'
-      or ort  ilike '%tägerwilen%'
-      or ort  ilike '%taegerwilen%'
-   order by created_at
-   limit 1;
+   where (name ilike '%tägerwilen%' or name ilike '%taegerwilen%'
+          or ort ilike '%tägerwilen%' or ort ilike '%taegerwilen%')
+     and name ilike '%pva%'
+     and name not ilike '%bess%';
 
-  if v_projekt is null then
-    insert into public.projects (name, ort)
-    values (v_name, 'Tägerwilen')
-    returning id into v_projekt;
-    raise notice 'Projekt "%" neu angelegt.', v_name;
-  else
-    raise notice 'Bestehendes Projekt verwendet: %', v_projekt;
-  end if;
+  raise notice 'Projekt gefunden: %', v_projekt;
 
   -- Zuständiger. Fehlt der Eintrag, bleibt die Spalte leer und der Plan
   -- funktioniert trotzdem – nur ohne Gesicht auf der linken Seite.
@@ -66,7 +79,7 @@ begin
          schedule_end   = date '2026-11-27'
    where id = v_projekt;
 
-  -- Sauberer Neuaufbau, damit das Skript wiederholbar bleibt.
+  -- Nur dieses eine Projekt, und erst nach der Sperre oben.
   delete from public.schedule_tasks where project_id = v_projekt;
 
   insert into public.schedule_tasks
@@ -96,13 +109,13 @@ begin
     (v_projekt, 'Convoltas AG', v_owner, v_besitz, 'IBN – Inbetriebnahme',
      date '2026-11-23', date '2026-11-23', '#70AD47', 25);
 
-  raise notice 'Terminplan Tägerwilen aufgebaut: 2 Arbeiten Melintec, 6 Convoltas.';
+  raise notice 'Terminplan PVA aufgebaut: 2 Arbeiten Melintec, 6 Convoltas.';
 end;
 $$;
 
--- Kontrolle: Stimmt der Plan?
---   select t.responsible, t.label, t.start_date, t.end_date
+-- Kontrolle: Stimmt der Plan – und steht er beim richtigen Projekt?
+--   select p.name, t.responsible, t.label, t.start_date, t.end_date
 --     from public.schedule_tasks t
 --     join public.projects p on p.id = t.project_id
 --    where p.name ilike '%tägerwilen%'
---    order by t.order_index;
+--    order by p.name, t.order_index;
