@@ -129,13 +129,14 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
   },
   {
     schluessel: 'fristnah',
-    name: 'Erinnerung zwei Tage vorher',
+    name: 'Erinnerung vor der Frist',
     beschreibung:
       'Geht zwei Tage vor der Frist an die Zuständigen – früh genug, um noch '
-      + 'Material zu bestellen oder einen Kran zu organisieren.',
-    betreff: 'In 2 Tagen fällig – {projekt}: {aufgabe}',
+      + 'Material zu bestellen oder einen Kran zu organisieren. Am Freitag geht '
+      + 'sie für das ganze Wochenende und den Wochenanfang mit hinaus.',
+    betreff: 'Fällig {wann} – {projekt}: {aufgabe}',
     text: [
-      'Diese Aufgabe ist in zwei Tagen fällig:',
+      'Diese Aufgabe ist {wann} fällig:',
       '',
       '{aufgabe}',
       '',
@@ -150,7 +151,11 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
     platzhalter: [
       { name: '{projekt}', erklaerung: 'Name des Projekts' },
       { name: '{aufgabe}', erklaerung: 'Text der Aufgabe' },
-      { name: '{frist}', erklaerung: 'Fälligkeitsdatum – also übermorgen' },
+      {
+        name: '{wann}',
+        erklaerung: 'Wann sie fällig ist: „in 2 Tagen“, „morgen“, „am Samstag“',
+      },
+      { name: '{frist}', erklaerung: 'Fälligkeitsdatum' },
       { name: '{link}', erklaerung: 'Adresse der App' },
     ],
   },

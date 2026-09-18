@@ -650,27 +650,41 @@ export async function sendFristErinnerung(params: {
   todoText: string;
   projectName: string;
   dueLabel: string;
-  /** 'vorlauf' = zwei Tage vorher, 'heute' = der Tag der Frist. */
+  /** 'vorlauf' = vor der Frist, 'heute' = der Tag der Frist. */
   wann: 'vorlauf' | 'heute';
+  /**
+   * Wie die Frist genannt wird: "in 2 Tagen", "morgen", "am Samstag".
+   *
+   * Nötig, weil der Vorlauf nicht mehr immer genau zwei Tage beträgt: Am
+   * Freitag geht die Erinnerung für das ganze Wochenende und den Wochenanfang
+   * mit hinaus, weil Samstag und Sonntag keine Post an die Lieferanten geht.
+   * "In zwei Tagen" wäre dann für die Hälfte der Mails schlicht falsch.
+   */
+  wannText?: string;
 }): Promise<void> {
   const vorlage = await ladeVorlage(
     params.wann === 'vorlauf' ? 'fristnah' : 'fristheute',
   );
 
+  const wannText = params.wannText ?? 'in 2 Tagen';
+
   const werte = {
     projekt: params.projectName,
     aufgabe: params.todoText,
     frist: params.dueLabel,
+    wann: wannText,
     link: appBaseUrl(),
   };
 
   const subject = einsetzen(vorlage.betreff, werte);
   const text = einsetzen(vorlage.text, werte);
 
-  const kopf = params.wann === 'vorlauf' ? 'In 2 Tagen fällig' : 'Heute fällig';
+  // Grossgeschrieben, weil es am Anfang der Überschrift steht.
+  const grossWann = wannText.charAt(0).toUpperCase() + wannText.slice(1);
+  const kopf = params.wann === 'vorlauf' ? `Fällig ${wannText}` : 'Heute fällig';
   const banner =
     params.wann === 'vorlauf'
-      ? `Diese Aufgabe ist in zwei Tagen fällig – am ${escapeHtml(params.dueLabel)}.`
+      ? `${grossWann} fällig – ${escapeHtml(params.dueLabel)}.`
       : `Diese Aufgabe ist heute fällig – ${escapeHtml(params.dueLabel)}.`;
 
   const html = wrapHtml(
@@ -1003,6 +1017,7 @@ const VORSCHAU_WERTE: Record<VorlagenSchluessel, Record<string, string>> = {
   fristnah: {
     projekt: 'Dietikon',
     aufgabe: 'Zählerplatz freigeben',
+    wann: 'in 2 Tagen',
     frist: '12.08.2026',
     link: appBaseUrl(),
   },

@@ -91,8 +91,12 @@ export async function GET() {
       zeitpunkt: {
         wir: 'sofort',
         lieferanten:
-          'gesammelt am Morgen um halb acht (Migration 0037); '
-          + 'Einladung, Fristerinnerung und Mahnung gehen sofort und einzeln',
+          'gesammelt am Morgen um halb acht, nur Montag bis Freitag '
+          + '(Migration 0037). Fristerinnerung und Mahnung gehen einzeln, '
+          + 'ebenfalls nur werktags; die Einladung geht sofort, auch am Wochenende',
+        wochenende:
+          'Samstag und Sonntag geht keine Post an die Lieferanten. Der Freitag '
+          + 'erinnert dafür an alles, was bis Dienstag fällig ist.',
       },
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
       hinweis: process.env.RESEND_API_KEY

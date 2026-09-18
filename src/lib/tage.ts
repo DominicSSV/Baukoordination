@@ -27,6 +27,52 @@ export function heutigerTag(): number {
   return js === 0 ? 7 : js;
 }
 
+/** Wochentag eines Datums (JJJJ-MM-TT) als 1–7. */
+export function tagVonDatum(datum: string): number {
+  // Mittags gerechnet, damit keine Zeitzone das Datum um einen Tag verschiebt.
+  const js = new Date(`${datum}T12:00:00Z`).getUTCDay();
+  return js === 0 ? 7 : js;
+}
+
+/**
+ * Ist das ein Arbeitstag?
+ *
+ * Samstag und Sonntag zählen nicht. Feiertage schon – die sind kantonal
+ * verschieden, und eine Liste davon wäre nach einem Jahr falsch. Wer am
+ * 1. August Post bekommt, ärgert sich weniger als der, dem eine Frist
+ * durchgeht, weil die App den Tag für einen Feiertag hielt.
+ */
+export function istWerktag(datum: string): boolean {
+  return tagVonDatum(datum) <= 5;
+}
+
+/**
+ * Wie eine Frist genannt wird, wenn sie noch bevorsteht: "morgen",
+ * "in 3 Tagen", "am Samstag".
+ *
+ * Das Wochenende wird beim Namen genannt statt gezählt. Am Freitag geht die
+ * Erinnerung für Samstag und Sonntag mit hinaus – "morgen fällig" wäre dann
+ * zwar richtig, sagt aber nicht, dass der Termin auf einen Tag fällt, an dem
+ * niemand auf der Baustelle ist. "Am Samstag fällig" sagt es.
+ */
+export function fristWort(stichtag: string, faellig: string): string {
+  const tage = Math.round(
+    (Date.parse(`${faellig}T00:00:00Z`) - Date.parse(`${stichtag}T00:00:00Z`)) /
+      86_400_000,
+  );
+
+  if (tage <= 0) return 'heute';
+
+  const wochentag = tagVonDatum(faellig);
+  // Nur innerhalb der kommenden Woche: "am Samstag" wäre in zwölf Tagen
+  // missverständlich – dann ist die Zahl die klarere Angabe.
+  if (wochentag >= 6 && tage <= 6) {
+    return `am ${WOCHENTAGE.find((t) => t.nummer === wochentag)!.lang}`;
+  }
+
+  return tage === 1 ? 'morgen' : `in ${tage} Tagen`;
+}
+
 /**
  * Aus beliebiger Eingabe eine saubere Tagesliste machen: aufsteigend, ohne
  * Doppelte, ohne Unsinn.

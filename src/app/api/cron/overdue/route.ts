@@ -9,6 +9,7 @@ import {
   sendeSammelmails,
 } from '@/lib/email';
 import { fmtDueDate, heute } from '@/lib/due';
+import { fristWort, istWerktag, tagVonDatum } from '@/lib/tage';
 import { tagPlus } from '@/lib/schedule';
 import { beteiligteLieferanten } from '@/lib/beteiligte';
 
@@ -34,9 +35,12 @@ type FaelligeAufgabe = {
  * aufgelaufen ist – statt für jede Kleinigkeit eine eigene. Danach die Fristen,
  * die weiterhin einzeln kommen: Eine Mahnung im Sammelband würde überlesen.
  *
+ * Er läuft nur von Montag bis Freitag. Samstag und Sonntag geht keine Post an
+ * die Lieferanten – siehe die Begründung unten im Ablauf.
+ *
  * Die Fristen in drei Stufen:
  *
- * Erinnerung zwei Tage vorher, Erinnerung am Tag selbst, Mahnung am Tag danach.
+ * Erinnerung vor der Frist, Erinnerung am Tag selbst, Mahnung am Tag danach.
  * Jede Stufe hat ihren eigenen Vermerk (erinnert_am, erinnert_heute_am,
  * overdue_notified_at). Mit einem gemeinsamen unterdrückte
  * die eine Meldung die anderen: Wer zwei Tage vorher erinnert wurde, bekäme am
@@ -61,9 +65,43 @@ export const GET = handler(async (request: Request) => {
 
   const db = serviceClient();
   const stichtag = heute();
+
+  /**
+   * Am Wochenende bleibt es still.
+   *
+   * Auf der Baustelle arbeitet am Samstag niemand; eine Mail an dem Tag wird
+   * entweder nicht gelesen oder als Störung empfunden. Beides macht die Post
+   * aus diesem Werkzeug weniger wert.
+   *
+   * Der Lauf bricht hier ab, bevor irgendetwas vermerkt wird – das ist der
+   * Punkt. Nichts geht verloren: Die Sammelmail bleibt in der Warteschlange
+   * liegen und geht am Montag mit, und weil kein erinnert_am gesetzt wird,
+   * holt der Montagslauf die Mahnungen nach.
+   *
+   * Nur die Erinnerungen für das Wochenende selbst kämen zu spät. Deshalb
+   * arbeitet der Freitag vor – siehe unten.
+   */
+  if (!istWerktag(stichtag)) {
+    return ok({
+      ruhetag: true,
+      hinweis:
+        'Samstag und Sonntag geht keine Post an die Lieferanten. Was aufgelaufen '
+        + 'ist, geht am Montag um halb acht hinaus.',
+    });
+  }
+
+  const freitag = tagVonDatum(stichtag) === 5;
+
   // Zwei Tage Vorlauf: früh genug, um noch Material zu bestellen oder
   // einen Kran zu organisieren. Ein Tag reicht dafür meistens nicht.
-  const vorlauf = tagPlus(stichtag, 2);
+  //
+  // Am Freitag reicht ein einzelner Tag nicht: Samstag und Sonntag läuft
+  // nichts, also müsste die Erinnerung für eine Frist am Dienstag am Sonntag
+  // hinausgehen – und tut es nicht. Deshalb nimmt der Freitag alles mit, was
+  // bis Dienstag fällig ist, das Wochenende eingeschlossen. Lieber eine
+  // Erinnerung zu früh als eine, die nie kommt.
+  const vorlaufVon = freitag ? tagPlus(stichtag, 1) : tagPlus(stichtag, 2);
+  const vorlaufBis = freitag ? tagPlus(stichtag, 4) : tagPlus(stichtag, 2);
 
   /**
    * Die Aufgaben eines Durchgangs.
@@ -83,7 +121,12 @@ export const GET = handler(async (request: Request) => {
       .not('due_date', 'is', null)
       .limit(200);
 
-    if (art === 'vorlauf') return basis.eq('due_date', vorlauf).is('erinnert_am', null);
+    if (art === 'vorlauf') {
+      return basis
+        .gte('due_date', vorlaufVon)
+        .lte('due_date', vorlaufBis)
+        .is('erinnert_am', null);
+    }
     if (art === 'heute') {
       return basis.eq('due_date', stichtag).is('erinnert_heute_am', null);
     }
@@ -158,6 +201,10 @@ export const GET = handler(async (request: Request) => {
             projectName: aufgabe.projects?.name ?? 'Projekt',
             dueLabel: fmtDueDate(aufgabe.due_date),
             wann,
+            // "in 2 Tagen", "morgen", "am Samstag" – je nachdem, wie weit die
+            // Frist wirklich weg ist. Am Freitag ist das nicht mehr immer
+            // dasselbe.
+            wannText: fristWort(stichtag, aufgabe.due_date),
           });
           versendet += 1;
         }
@@ -248,9 +295,11 @@ export const GET = handler(async (request: Request) => {
   }
 
   return ok({
+    wochentag: freitag ? 'Freitag – Erinnerungen bis Dienstag gehen mit' : 'Werktag',
     sammelmail_personen: sammel.personen,
     sammelmail_meldungen: sammel.meldungen,
-    in_zwei_tagen_faellig: vorlaufLauf.gefunden,
+    vorlauf_fenster: `${vorlaufVon} bis ${vorlaufBis}`,
+    vorlauf_gefunden: vorlaufLauf.gefunden,
     vorlauf_erinnert: vorlaufLauf.versendet,
     heute_faellig: heuteLauf.gefunden,
     heute_erinnert: heuteLauf.versendet,
