@@ -12,7 +12,8 @@ import {
   tageZwischen,
 } from '@/lib/schedule';
 import Avatar from '@/components/Avatar';
-import { assigneePerson, mitFirma, personLabel } from '@/lib/people';
+import { assigneePerson, mitFirma, nachFirmen, OHNE_FIRMA, personLabel } from '@/lib/people';
+import { INTERNAL_PARTY } from '@/lib/branding';
 import { adminAssignee, supplierAssignee } from '@/lib/assignee';
 import { fmtDate, supplierLabel } from '@/lib/format';
 import { fmtDueDate } from '@/lib/due';
@@ -157,19 +158,31 @@ export default function ScheduleTab({
 
   const heuteStr = heute();
 
-  /** Wer als Organisator in Frage kommt. */
+  /**
+   * Wer als Organisator in Frage kommt – je Firma eine Überschrift.
+   *
+   * Dieselbe Gliederung wie beim Zuweisen einer Aufgabe und in den Kontakten.
+   * Im Terminplan zählt sie doppelt: Hier steht links ohnehin die Firma, und
+   * wer für die Zeile "Melintec AG" jemanden sucht, will nicht erst in einer
+   * gemischten Liste die Klammern lesen.
+   *
+   * Der Name steht deshalb ohne Firma dahinter – sie steht darüber.
+   */
   const personen = useMemo(
     () => [
       ...detail.admins.map((a) => ({
         wert: adminAssignee(a.user_id),
         name: a.name,
-        gruppe: 'Swiss Solar Ventures AG',
+        gruppe: INTERNAL_PARTY,
       })),
-      ...detail.suppliers.map((s) => ({
-        wert: supplierAssignee(s.id),
-        name: mitFirma(supplierLabel(s), s.firma),
-        gruppe: 'Lieferanten',
-      })),
+      ...nachFirmen(detail.suppliers, (s) => s.firma).flatMap((g) =>
+        g.leute.map((s) => ({
+          wert: supplierAssignee(s.id),
+          name:
+            g.firma === OHNE_FIRMA ? mitFirma(supplierLabel(s), s.firma) : supplierLabel(s),
+          gruppe: g.firma,
+        })),
+      ),
     ],
     [detail.admins, detail.suppliers],
   );
