@@ -5122,3 +5122,51 @@ button:disabled {
     margin-right: 2px;
   }
 }
+
+/* --- Benachrichtigungen vorübergehend abstellen --------------------------- */
+/* Steht unter dem Projektkopf und damit über jedem Register. Im Normalzustand
+   zurückhaltend – es ist ein Angebot, keine Warnung. Abgestellt dagegen
+   auffällig: Wer vergisst, wieder einzuschalten, merkt es sonst erst, wenn
+   sich tagelang niemand meldet. */
+.stille-leiste {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.stille-text {
+  flex: 1;
+  min-width: 200px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.stille-leiste.aus {
+  border-color: #E5A93B;
+  background: #FFF6E6;
+}
+
+.stille-leiste.aus .stille-text {
+  color: #7A5510;
+}
+
+@media (max-width: 760px) {
+  /* Auf dem Handy untereinander: Text und Knopf nebeneinander lassen beiden
+     zu wenig Platz, und der Knopf rutscht aus dem Bild. */
+  .stille-leiste {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stille-leiste .btn {
+    justify-content: center;
+  }
+}

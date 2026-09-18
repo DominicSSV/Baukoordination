@@ -190,15 +190,23 @@ export const GET = handler(async (request: Request) => {
     return ok({ eintraege: [] as Benachrichtigung[] });
   }
 
-  const abfrage = ctx.db
-    .from('activity')
-    .select('id, project_id, actor_name, text, icon, created_at')
-    .order('created_at', { ascending: false })
-    .limit(anzahl * 2);
+  const bauen = () => {
+    const q = ctx.db
+      .from('activity')
+      .select('id, project_id, actor_name, text, icon, created_at')
+      .order('created_at', { ascending: false })
+      .limit(anzahl * 2);
 
-  const { data, error } = await (meineProjekte
-    ? abfrage.in('project_id', meineProjekte)
-    : abfrage);
+    return meineProjekte ? q.in('project_id', meineProjekte) : q;
+  };
+
+  // Was entstand, während jemand die Benachrichtigungen abgestellt hatte,
+  // taucht in keiner Glocke auf – auch später nicht. Im Register Aktivität
+  // steht es weiterhin; dort ist es kein Hinweis, sondern das Protokoll.
+  let { data, error } = await bauen().eq('leise', false);
+
+  // Ohne Migration 0038 gibt es die Spalte noch nicht. Dann eben alles.
+  if (error) ({ data, error } = await bauen());
 
   if (error) {
     throw new ApiError(`Benachrichtigungen: ${error.message}`, 500);

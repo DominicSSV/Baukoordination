@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { del, patch, post } from '@/lib/client/api';
+import { api, del, patch, post, put } from '@/lib/client/api';
 import type { Project } from '@/types';
 
 /**
@@ -42,6 +42,55 @@ export default function ProjectHeader({
 
   const [menuOffen, setMenuOffen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Benachrichtigungen für dieses Projekt vorübergehend abstellen.
+   *
+   * Steht hier im Kopf und nicht in einem Register, weil er in jedem gebraucht
+   * wird: Aufräumen heisst Aufgaben anlegen, Termine schieben und Dokumente
+   * ablegen, und das verteilt sich über die ganze Ansicht.
+   */
+  const [stillAus, setStillAus] = useState(false);
+  const [stillBusy, setStillBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let abgebrochen = false;
+
+    void api<{ aus: boolean }>(`/api/projects/${project.id}/stille`)
+      .then((a) => {
+        if (!abgebrochen) setStillAus(a.aus);
+      })
+      // Fehlt die Migration oder hakt das Netz, gilt: nicht abgestellt. Der
+      // Schalter zeigt dann "an", und das ist der ungefährlichere Irrtum.
+      .catch(() => {});
+
+    return () => {
+      abgebrochen = true;
+    };
+  }, [isAdmin, project.id]);
+
+  async function stilleUmschalten() {
+    const neu = !stillAus;
+    setStillBusy(true);
+    try {
+      const antwort = await put<{ aus: boolean; warning?: string }>(
+        `/api/projects/${project.id}/stille`,
+        { aus: neu },
+      );
+      setStillAus(antwort.aus);
+      if (antwort.warning) toast(`⚠️ ${antwort.warning}`);
+      else if (antwort.aus) {
+        toast('🔕 Benachrichtigungen aus. Was du jetzt änderst, meldet sich bei niemandem.');
+      } else {
+        toast('🔔 Benachrichtigungen wieder an. Nichts wird nachgeholt.');
+      }
+    } catch (error) {
+      reportError(error, 'Umschalten nicht möglich.');
+    } finally {
+      setStillBusy(false);
+    }
+  }
 
   // Menü schliesst bei Klick daneben und mit Escape – sonst bliebe es auf dem
   // Handy offen stehen, wo es keinen Rand zum "Wegklicken" gibt.
@@ -326,6 +375,37 @@ export default function ProjectHeader({
           )}
         </div>
       </div>
+
+      {/* Die Leiste steht unter dem Kopf und damit über jedem Register – der
+          Schalter wird beim Aufräumen überall gebraucht.
+
+          Im abgestellten Zustand bewusst auffällig: Wer vergisst, ihn wieder
+          umzulegen, merkt es sonst erst, wenn sich tagelang niemand meldet. */}
+      {isAdmin && (
+        <div className={`stille-leiste ${stillAus ? 'aus' : ''}`}>
+          <span className="stille-text">
+            {stillAus ? (
+              <>
+                <strong>Benachrichtigungen sind aus.</strong> Was du jetzt änderst,
+                steht im Protokoll, meldet sich aber bei niemandem.
+              </>
+            ) : (
+              <>
+                Grösseres Aufräumen? Stell die Benachrichtigungen ab, dann bekommt
+                niemand Post über jeden einzelnen Handgriff.
+              </>
+            )}
+          </span>
+          <button
+            type="button"
+            className={`btn btn-sm ${stillAus ? 'btn-accent' : 'btn-ghost'}`}
+            onClick={() => void stilleUmschalten()}
+            disabled={stillBusy}
+          >
+            {stillAus ? '🔔 Wieder einschalten' : '🔕 Benachrichtigungen ausschalten'}
+          </button>
+        </div>
+      )}
 
       {loeschen && (
         <div

@@ -19,12 +19,21 @@ export const POST = handler(async (_request: Request, { params }: Params) => {
     .maybeSingle();
   if (!project) throw new ApiError('Projekt nicht gefunden.', 404);
 
-  const { data: entries, error } = await ctx.db
-    .from('activity')
-    .select('id, project_id, actor_name, text, icon, created_at')
-    .eq('project_id', id)
-    .order('created_at', { ascending: false })
-    .limit(15);
+  // Was still entstanden ist, bleibt still – auch hier. Sonst brächte ein
+  // einziger Druck auf "Update senden" genau die fünfzehn Aufräum-Einträge
+  // hinaus, die niemanden erreichen sollten, und man merkte es erst hinterher.
+  const abfrage = () =>
+    ctx.db
+      .from('activity')
+      .select('id, project_id, actor_name, text, icon, created_at')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false })
+      .limit(15);
+
+  let { data: entries, error } = await abfrage().eq('leise', false);
+
+  // Ohne Migration 0038 gibt es die Spalte noch nicht.
+  if (error) ({ data: entries, error } = await abfrage());
 
   if (error) throw new ApiError(`Aktivität: ${error.message}`, 500);
 

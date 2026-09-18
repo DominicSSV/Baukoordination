@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { serviceClient } from '@/lib/supabase/service';
 import { sendActivityNotification } from '@/lib/email';
+import { istStillGeschaltet } from '@/lib/stille';
 
 /**
  * Schreibt einen Protokolleintrag und stösst – falls Mailversand konfiguriert ist –
@@ -66,11 +67,25 @@ export async function logActivity(
     nurUnsBenachrichtigen?: boolean;
   },
 ): Promise<string | null> {
+  /**
+   * Hat die auslösende Person die Benachrichtigungen für dieses Projekt gerade
+   * abgestellt?
+   *
+   * Hier und nicht in den einzelnen Routen: Es gibt zwölf Stellen, die
+   * protokollieren, und eine davon zu vergessen hiesse, dass ausgerechnet dort
+   * doch Post hinausginge. Eine Sperre, die man an einer Stelle vergessen kann,
+   * ist keine.
+   */
+  const leise = await istStillGeschaltet(params.projectId);
+
   const zeile: Record<string, unknown> = {
     project_id: params.projectId,
     actor_name: params.actorName,
     text: params.text,
     icon: params.icon,
+    // Der Vermerk bleibt am Eintrag kleben. Wird später wieder eingeschaltet,
+    // holt ihn nichts mehr hervor – genau das ist gewollt.
+    ...(leise ? { leise: true } : {}),
   };
 
   const eingeschraenkt = params.nurFuerSupplierIds !== undefined;
@@ -99,12 +114,23 @@ export async function logActivity(
     ({ error } = await db.from('activity').insert(zeile));
   }
 
+  // Ohne Migration 0038 gibt es die Spalte leise noch nicht. Der Eintrag
+  // kommt dann ohne den Vermerk ins Protokoll – die Meldung bleibt trotzdem
+  // aus, denn darüber entscheidet unten die Variable und nicht die Spalte.
+  if (error && leise) {
+    const ohneVermerk = { ...zeile };
+    delete ohneVermerk.leise;
+    ({ error } = await db.from('activity').insert(ohneVermerk));
+  }
+
   if (error) {
     console.error('[activity] Eintrag konnte nicht gespeichert werden', error);
     return `Aktion gespeichert, aber der Protokolleintrag schlug fehl: ${error.message}`;
   }
 
-  if (params.notify === true) {
+  // Still geschaltet heisst: keine Mail und keine Glocke. Der Eintrag oben
+  // steht trotzdem im Protokoll – das Baustellenbuch darf keine Lücke haben.
+  if (params.notify === true && !leise) {
     // Bewusst nicht awaited blockierend für den Nutzer relevant – aber awaited, damit
     // die Serverless-Funktion nicht vor dem Versand beendet wird.
     try {

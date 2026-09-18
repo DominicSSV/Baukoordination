@@ -48,6 +48,10 @@ export const post = <T,>(url: string, body?: unknown) =>
 export const patch = <T,>(url: string, body: unknown) =>
   api<T>(url, { method: 'PATCH', body: JSON.stringify(body) });
 
+/** Ersetzen statt ändern – für Einstellungen, die nur an oder aus kennen. */
+export const put = <T,>(url: string, body: unknown) =>
+  api<T>(url, { method: 'PUT', body: JSON.stringify(body) });
+
 /**
  * Löschen. Ein Rumpf ist erlaubt – manche Routen brauchen zusätzlich zur Adresse
  * noch die Angabe, was genau entfernt werden soll (z.B. welcher Ordner).
