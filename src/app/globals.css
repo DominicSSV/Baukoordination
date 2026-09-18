@@ -2830,8 +2830,10 @@ button:disabled {
 }
 
 /* Sechs Symbole und der Titel passen auf dem Handy nicht nebeneinander.
-   Speicherkarte, Suche und Neuladen stecken deshalb hinter "⋯" und klappen
-   darunter auf.
+   Speicherkarte und Suche stecken deshalb hinter "⋯" und klappen darunter auf.
+
+   Neuladen ausdrücklich nicht: Das ist auf der Baustelle der meistgebrauchte
+   Knopf. Er steht draussen, direkt links vom eigenen Bild.
 
    Muss nach den Regeln oben stehen: bei gleicher Spezifität gewinnt die
    spätere Regel, und der Handy-Fall käme sonst nie zum Zug. */
@@ -5101,4 +5103,22 @@ button:disabled {
 
 .daumen.meiner .daumen-zahl {
   color: var(--accent);
+}
+
+/* Neuladen steht auf dem Handy draussen bei Glocke und Profilbild, nicht hinter
+   "⋯". Auf der Baustelle wird bei schlechtem Empfang am häufigsten neu geladen;
+   dafür erst ein Menü zu öffnen, ist ein Handgriff zu viel.
+
+   Muss unten stehen: Der Block weiter oben blendet .topbar-werkzeuge auf dem
+   Handy aus, und dieser Knopf liegt bewusst nicht mehr darin. */
+@media (max-width: 760px) {
+  .topbar-icon.topbar-neuladen {
+    display: flex;
+    /* Zwei Pixel grösser als am Rechner (30) und ein wenig Abstand zum Bild:
+       Der Knopf steht direkt neben dem Profil, und danebengetippt landet man
+       sonst dort statt beim Neuladen. */
+    width: 32px;
+    height: 32px;
+    margin-right: 2px;
+  }
 }

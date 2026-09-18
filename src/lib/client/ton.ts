@@ -13,42 +13,82 @@
  */
 
 /**
- * Der Hauptschalter – zurzeit aus.
+ * Zwei Schalter, die sich nicht in die Quere kommen.
  *
- * Die Töne sind abgeschaltet. Auf der Baustelle wird die App im Beisein von
- * Kunden und Handwerkern benutzt; ein Münzgeräusch aus dem Telefon passt dort
- * nicht, und wer zwanzig Aufgaben hintereinander abhakt, hört es ohnehin
- * zwanzigmal.
+ * Der Hauptschalter liegt in der Datenbank und gilt für alle. Umlegen darf ihn
+ * nur die Swiss Solar Ventures AG, im eigenen Profil. Standard ist aus: Auf der
+ * Baustelle wird die App im Beisein von Kunden benutzt, und ein Münzgeräusch
+ * aus dem Telefon will man dort nicht erklären müssen.
  *
- * Bewusst ein Schalter und keine gelöschte Datei: Die Melodien stehen
- * unverändert weiter unten. Sollen sie zurückkommen, wird hier true gesetzt –
- * dann ist auch der Schalter im Profil wieder da, mit dem jede Person es für
- * ihr eigenes Gerät entscheidet.
+ * Der zweite Schalter liegt im Browser und gilt nur für dieses eine Gerät. Im
+ * Büro will man den Ton vielleicht, in der Sitzung nicht.
+ *
+ * Der Hauptschalter steht über dem persönlichen: Ist er aus, bleibt es still,
+ * auch bei jemandem, der den Ton früher einmal ausdrücklich eingeschaltet hat.
  */
-const TOENE_AKTIV = false;
 
 /** Im Browser gemerkt, damit die Wahl das Gerät nicht verlässt. */
 const SCHALTER = 'bk-ton';
 
 /**
- * Gibt es überhaupt etwas einzustellen?
+ * Der zuletzt bekannte Stand des Hauptschalters.
  *
- * Das Profil blendet den Schalter aus, solange die Töne abgeschaltet sind. Ein
- * Schalter, der nichts bewirkt, ist schlimmer als keiner: Wer ihn umlegt und
- * nichts hört, sucht den Fehler bei seinem Telefon.
+ * Die Töne müssen im selben Augenblick kommen wie der Haken – für eine Abfrage
+ * beim Server ist da keine Zeit. Deshalb wird der Stand beim Start einmal
+ * geholt und hier behalten. Bis dahin gilt der gespiegelte Wert aus dem
+ * Browser, sonst bliebe der erste Haken nach dem Laden stumm.
  */
+const SPIEGEL = 'bk-toene-global';
+let globalAn: boolean | null = null;
+
+function ausSpiegel(): boolean {
+  try {
+    return window.localStorage.getItem(SPIEGEL) === 'ja';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Den Hauptschalter vom Server holen. Einmal beim Start der App.
+ *
+ * Schlägt es fehl – kein Netz auf der Baustelle –, bleibt der zuletzt bekannte
+ * Stand gültig. Ein Verbindungsfehler soll nicht den Ton umschalten.
+ */
+export async function ladeToeneGlobal(): Promise<void> {
+  try {
+    const antwort = await fetch('/api/settings/toene', { cache: 'no-store' });
+    if (!antwort.ok) return;
+    const daten = (await antwort.json()) as { an?: boolean };
+    merkeToeneGlobal(daten.an === true);
+  } catch {
+    // Siehe oben: Der letzte bekannte Stand gilt weiter.
+  }
+}
+
+/** Nach dem Umschalten im Profil sofort übernehmen, ohne neu zu laden. */
+export function merkeToeneGlobal(an: boolean): void {
+  globalAn = an;
+  try {
+    window.localStorage.setItem(SPIEGEL, an ? 'ja' : 'nein');
+  } catch {
+    // Ein Browser, der nichts speichern darf, holt den Stand beim nächsten
+    // Start eben wieder vom Server.
+  }
+}
+
+/** Gibt es den Ton überhaupt? Entscheidet, ob das Profil den Geräteschalter zeigt. */
 export function toeneVerfuegbar(): boolean {
-  return TOENE_AKTIV;
+  if (typeof window === 'undefined') return false;
+  return globalAn ?? ausSpiegel();
 }
 
 export function tonAn(): boolean {
-  // Der Hauptschalter steht über der Einstellung im Profil. Sonst hörte
-  // weiterhin jeder etwas, der den Ton früher einmal ausdrücklich eingeschaltet
-  // hat – und genau die sollen jetzt auch Ruhe haben.
-  if (!TOENE_AKTIV) return false;
   if (typeof window === 'undefined') return false;
+  if (!toeneVerfuegbar()) return false;
   try {
-    // Standard ist an – wer es nicht mag, schaltet es im Profil aus.
+    // Ist der Ton für alle an, hört ihn jeder – ausser wer ihn für sein Gerät
+    // ausdrücklich abstellt.
     return window.localStorage.getItem(SCHALTER) !== 'aus';
   } catch {
     return true;

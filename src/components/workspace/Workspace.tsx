@@ -30,6 +30,7 @@ import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
 import { APP_HERKUNFT, APP_RECHTE } from '@/lib/branding';
+import { ladeToeneGlobal } from '@/lib/client/ton';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
 
 export type TabKey =
@@ -147,6 +148,12 @@ function WorkspaceInner({
     },
     [reportError],
   );
+
+  // Einmal beim Start: Gibt es den Ton beim Abhaken? Die Antwort muss da sein,
+  // bevor der erste Haken gesetzt wird – gespielt wird später ohne Nachfrage.
+  useEffect(() => {
+    void ladeToeneGlobal();
+  }, []);
 
   useEffect(() => {
     if (!activeId) return;
@@ -377,9 +384,24 @@ function WorkspaceInner({
             </svg>
           </button>
 
+          </div>
+
+          <NotificationBell
+            istAdmin={isAdmin}
+            werBinIch={
+              session.kind === 'admin' ? session.userId : session.supplierId
+            }
+            onOpenProject={openFromNotification}
+          />
+
+          {/* Neu laden steht bewusst hier draussen und nicht bei den Werkzeugen
+              hinter "⋯". Auf der Baustelle ist das der meistgebrauchte Knopf
+              überhaupt – wer bei schlechtem Empfang nachladen will, soll dafür
+              kein Menü öffnen müssen. Direkt links vom eigenen Bild, wo der
+              Daumen ohnehin liegt. */}
           <button
             type="button"
-            className="topbar-icon"
+            className="topbar-icon topbar-neuladen"
             onClick={() => window.location.reload()}
             title="App neu laden"
             aria-label="App neu laden"
@@ -400,15 +422,6 @@ function WorkspaceInner({
             </svg>
           </button>
 
-          </div>
-
-          <NotificationBell
-            istAdmin={isAdmin}
-            werBinIch={
-              session.kind === 'admin' ? session.userId : session.supplierId
-            }
-            onOpenProject={openFromNotification}
-          />
           <button
             type="button"
             className="me-avatar"

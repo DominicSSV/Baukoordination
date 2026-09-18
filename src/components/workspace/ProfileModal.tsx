@@ -3,8 +3,14 @@
 import { useRef, useState } from 'react';
 import Avatar from '@/components/Avatar';
 import { useFeedback } from '@/components/Feedback';
-import { post } from '@/lib/client/api';
-import { setzeTon, spieleMuenze, toeneVerfuegbar, tonAn } from '@/lib/client/ton';
+import { patch, post } from '@/lib/client/api';
+import {
+  merkeToeneGlobal,
+  setzeTon,
+  spieleMuenze,
+  toeneVerfuegbar,
+  tonAn,
+} from '@/lib/client/ton';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import {
   APP_HERKUNFT,
@@ -34,7 +40,31 @@ export default function ProfileModal({
   );
   // Lazy gelesen: Auf dem Server gibt es den Browserspeicher nicht.
   const [ton, setTon] = useState(() => tonAn());
+  const [toeneFuerAlle, setToeneFuerAlle] = useState(() => toeneVerfuegbar());
+  const [tonBusy, setTonBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+
+  /**
+   * Den Ton für alle ein- oder ausschalten.
+   *
+   * Erst der Server, dann die Anzeige: Wer das Häkchen springen sieht, obwohl
+   * das Speichern fehlgeschlagen ist, hält die Sache für erledigt.
+   */
+  async function toeneUmschalten(an: boolean) {
+    setTonBusy(true);
+    try {
+      await patch('/api/settings/toene', { an });
+      merkeToeneGlobal(an);
+      setToeneFuerAlle(an);
+      setTon(tonAn());
+      if (an) spieleMuenze();
+      toast(an ? '🔊 Ton ist für alle eingeschaltet.' : '🔇 Ton ist für alle aus.');
+    } catch (error) {
+      reportError(error, 'Der Ton konnte nicht umgeschaltet werden.');
+    } finally {
+      setTonBusy(false);
+    }
+  }
 
 
   /** Prüft in einem Schritt Schlüssel, Absenderadresse und Zustellung. */
@@ -121,10 +151,31 @@ export default function ProfileModal({
           überall dort, wo dein Name steht.
         </p>
 
-        {/* Der Ton hängt am Gerät, nicht am Konto: Im Büro will man ihn
-            vielleicht, in der Sitzung nicht. Sind die Töne abgeschaltet, fehlt
-            der Schalter ganz – einer, der nichts bewirkt, verwirrt nur. */}
-        {toeneVerfuegbar() && (
+        {/* Der Hauptschalter gehört uns: Ob es den Ton überhaupt gibt, ist eine
+            Entscheidung für die ganze Baustelle und keine des einzelnen
+            Telefons. Die Lieferanten sehen diesen Schalter darum nicht. */}
+        {session.kind === 'admin' && (
+          <label className="ton-schalter">
+            <input
+              type="checkbox"
+              checked={toeneFuerAlle}
+              disabled={tonBusy}
+              onChange={(e) => void toeneUmschalten(e.target.checked)}
+            />
+            <span>
+              Ton beim Abhaken – für alle
+              <span className="vorlage-zweck">
+                Gilt für jede Person in der App, auch für die Lieferanten. Nur wir
+                sehen diesen Schalter.
+              </span>
+            </span>
+          </label>
+        )}
+
+        {/* Der zweite Schalter hängt am Gerät, nicht am Konto: Im Büro will man
+            den Ton vielleicht, in der Sitzung nicht. Ist er für alle aus, fehlt
+            dieser Schalter – einer, der nichts bewirkt, verwirrt nur. */}
+        {toeneFuerAlle && (
         <label className="ton-schalter">
           <input
             type="checkbox"
@@ -137,9 +188,10 @@ export default function ProfileModal({
             }}
           />
           <span>
-            Ton beim Abhaken einer Aufgabe
+            Ton auf diesem Gerät
             <span className="vorlage-zweck">
-              Gilt nur auf diesem Gerät. Beim Einschalten hörst du ihn gleich.
+              Gilt nur hier und geht niemanden sonst etwas an. Beim Einschalten
+              hörst du ihn gleich.
             </span>
           </span>
         </label>
