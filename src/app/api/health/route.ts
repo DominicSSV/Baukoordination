@@ -84,6 +84,15 @@ export async function GET() {
         vorschlag_abgelehnt: 'nur der Fragende und wir',
         terminplan_geaendert: 'alle am Projekt – auch ein übernommener Vorschlag',
         wir: 'die dem Projekt zugeteilten; ist niemand zugeteilt, alle',
+        fristerinnerungen:
+          'nur die zugewiesenen Personen – ist die Aufgabe uns zugewiesen, '
+          + 'also uns; einem Lieferanten zugewiesen, nur ihm',
+      },
+      zeitpunkt: {
+        wir: 'sofort',
+        lieferanten:
+          'gesammelt am Morgen um halb acht (Migration 0037); '
+          + 'Einladung, Fristerinnerung und Mahnung gehen sofort und einzeln',
       },
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
       hinweis: process.env.RESEND_API_KEY
@@ -351,6 +360,51 @@ export async function GET() {
         hinweis: anwesenheit.error
           ? 'Migration 0032 fehlt. Bei den Kontakten vor Ort lässt sich nicht ' +
             'hinterlegen, an welchen Tagen jemand da ist.'
+          : undefined,
+      };
+
+      // Die vier jüngsten Migrationen. Sie prüfen je eine Spalte oder Tabelle,
+      // die es ohne sie nicht gäbe – so beantwortet die Diagnose die Frage
+      // "habe ich alles eingespielt?", ohne dass man in Supabase nachsieht.
+      const [liegenschaft, erinnerungen, daumen, warteschlange] = await Promise.all([
+        db.from('projects').select('bild_path').limit(1),
+        db.from('todos').select('erinnert_am, erinnert_heute_am').limit(1),
+        db.from('comment_kudos').select('id').limit(1),
+        db.from('mail_queue').select('id').is('gesendet_am', null).limit(500),
+      ]);
+
+      report.migration_0034 = {
+        liegenschaftsbild: !liegenschaft.error,
+        hinweis: liegenschaft.error
+          ? 'Migration 0034 fehlt. Bei den Projektinfos lässt sich kein Bild der '
+            + 'Liegenschaft hinterlegen.'
+          : undefined,
+      };
+
+      report.migration_0035 = {
+        fristerinnerungen: !erinnerungen.error,
+        hinweis: erinnerungen.error
+          ? 'Migration 0035 fehlt. Es gehen keine Erinnerungen zwei Tage vorher '
+            + 'und am Tag der Frist hinaus – die Mahnung danach schon.'
+          : undefined,
+      };
+
+      report.migration_0036 = {
+        daumen_hoch: !daumen.error,
+        hinweis: daumen.error
+          ? 'Migration 0036 fehlt. Kommentare lassen sich nicht mit "Daumen hoch" '
+            + 'bestätigen.'
+          : undefined,
+      };
+
+      report.migration_0037 = {
+        sammelmail: !warteschlange.error,
+        wartet_auf_versand: warteschlange.error
+          ? undefined
+          : (warteschlange.data ?? []).length,
+        hinweis: warteschlange.error
+          ? 'Migration 0037 fehlt. Jede Meldung geht wie früher einzeln hinaus, '
+            + 'statt am Morgen gebündelt.'
           : undefined,
       };
 
