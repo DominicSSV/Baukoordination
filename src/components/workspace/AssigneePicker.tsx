@@ -5,7 +5,7 @@ import Avatar from '@/components/Avatar';
 import { adminAssignee, assigneeLabel, supplierAssignee, INTERNAL } from '@/lib/assignee';
 import { INTERNAL_PARTY } from '@/lib/branding';
 import { supplierLabel } from '@/lib/format';
-import { mitFirma } from '@/lib/people';
+import { mitFirma, nachFirmen, OHNE_FIRMA } from '@/lib/people';
 import type { AdminProfile, Supplier } from '@/types';
 
 /**
@@ -57,6 +57,17 @@ export default function AssigneePicker({
     );
   }
 
+  /**
+   * Je Firma eine Überschrift statt einer einzigen Liste "Lieferanten".
+   *
+   * Auf der Baustelle denkt man in Firmen: "Das macht die Melintec" kommt vor
+   * "Das macht Stive". Eine Liste, in der alle Firmen durcheinanderstehen und
+   * die Zugehörigkeit hinter jedem Namen in Klammern nachgetragen wird, muss
+   * man Zeile für Zeile lesen.
+   *
+   * Der Name steht hier ohne Firma – sie steht ja darüber. Zweimal dasselbe
+   * macht die Zeile nur lang, und auf dem Handy bricht sie dann um.
+   */
   const eintraege = [
     ...(erlaubtIntern
       ? [{ wert: INTERNAL, name: INTERNAL_PARTY, avatarUrl: null, gruppe: INTERNAL_PARTY }]
@@ -67,12 +78,14 @@ export default function AssigneePicker({
       avatarUrl: a.avatar_url ?? null,
       gruppe: INTERNAL_PARTY,
     })),
-    ...suppliers.map((s) => ({
-      wert: supplierAssignee(s.id),
-      name: mitFirma(supplierLabel(s), s.firma),
-      avatarUrl: s.avatar_url ?? null,
-      gruppe: 'Lieferanten',
-    })),
+    ...nachFirmen(suppliers, (s) => s.firma).flatMap((g) =>
+      g.leute.map((s) => ({
+        wert: supplierAssignee(s.id),
+        name: g.firma === OHNE_FIRMA ? mitFirma(supplierLabel(s), s.firma) : supplierLabel(s),
+        avatarUrl: s.avatar_url ?? null,
+        gruppe: g.firma,
+      })),
+    ),
   ];
 
   // Zuständige, die nicht (mehr) zur Auswahl stehen – etwa ein Lieferant, dem der

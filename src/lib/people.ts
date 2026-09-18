@@ -29,6 +29,64 @@ export function personLabel(person: Person): string {
   return mitFirma(person.name, person.firma);
 }
 
+/** Überschrift für alle, bei denen keine Firma hinterlegt ist. */
+export const OHNE_FIRMA = 'Ohne Firma';
+
+/**
+ * Vergleichsform eines Firmennamens.
+ *
+ * Gross- und Kleinschreibung und doppelte Leerzeichen fallen weg. Wer einen
+ * neuen Mitarbeiter mit "melintec ag" statt "Melintec AG" erfasst, soll in
+ * derselben Gruppe landen und nicht eine zweite danebenstellen.
+ *
+ * Bewusst keine weitergehende Angleichung: "Melintec" und "Melintec AG" bleiben
+ * zwei Firmen. Die Rechtsform wegzurechnen würde irgendwann zwei Betriebe
+ * zusammenwerfen, die wirklich verschieden sind – und das fiele erst auf, wenn
+ * jemand eine Offerte sieht, die ihn nichts angeht.
+ */
+export function firmenSchluessel(firma: string | null | undefined): string {
+  return (firma ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Personen nach ihrer Firma gruppieren – alphabetisch, "Ohne Firma" zuletzt.
+ *
+ * Die Gruppen entstehen aus den Daten und nicht aus einer gepflegten Liste:
+ * Kommt eine Firma zum Projekt, ist ihre Überschrift beim nächsten Öffnen da;
+ * geht die letzte Person, verschwindet sie wieder. Eine Liste, die von Hand
+ * nachgeführt werden müsste, wäre nach dem zweiten Projekt falsch.
+ *
+ * Als Überschrift gilt die Schreibweise, die zuerst vorkommt. Steht dieselbe
+ * Firma zweimal verschieden geschrieben in der Datenbank, gewinnt also die
+ * alphabetisch erste – beide Leute stehen aber zusammen, und darauf kommt es an.
+ */
+export function nachFirmen<T>(
+  leute: T[],
+  firmaVon: (person: T) => string | null | undefined,
+): Array<{ firma: string; leute: T[] }> {
+  const gruppen = new Map<string, { firma: string; leute: T[] }>();
+
+  for (const person of leute) {
+    const roh = firmaVon(person)?.trim();
+    const schluessel = firmenSchluessel(roh);
+    const vorhanden = gruppen.get(schluessel);
+
+    if (vorhanden) {
+      vorhanden.leute.push(person);
+      continue;
+    }
+
+    gruppen.set(schluessel, { firma: roh || OHNE_FIRMA, leute: [person] });
+  }
+
+  return Array.from(gruppen.values()).sort((a, b) => {
+    // Ohne Firma ganz nach unten: Das ist eine Sammelstelle und keine Firma.
+    if (a.firma === OHNE_FIRMA) return 1;
+    if (b.firma === OHNE_FIRMA) return -1;
+    return a.firma.localeCompare(b.firma, 'de-CH');
+  });
+}
+
 /**
  * Findet zu einer Person das Profilbild.
  *

@@ -5144,3 +5144,17 @@ button:disabled {
     justify-content: center;
   }
 }
+
+/* Überschrift je Lieferantenfirma in den Kontakten.
+   Eine Stufe unter .kontakt-gruppe-titel: kleiner Einzug, keine Grossbuchstaben,
+   dafür die Firma so geschrieben, wie sie hinterlegt ist. Zwei gleich laute
+   Überschriften nebeneinander liessen nicht erkennen, was zu was gehört. */
+.kontakt-firma-titel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}

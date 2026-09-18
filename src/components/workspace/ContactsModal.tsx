@@ -8,6 +8,7 @@ import Avatar from '@/components/Avatar';
 import Spinner from '@/components/Spinner';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
+import { nachFirmen } from '@/lib/people';
 import type { Kontakt } from '@/types';
 
 type Entwurf = {
@@ -565,6 +566,12 @@ export default function ContactsModal({
             <div className="kontakt-gruppe-titel">
               Lieferanten <span className="gruppe-anzahl">{lieferanten.length}</span>
             </div>
+            <p className="kontakt-erklaerung">
+              Nach Firmen gegliedert. Die Überschriften entstehen aus den
+              hinterlegten Firmennamen – kommt eine Firma dazu, steht sie beim
+              nächsten Öffnen da. Wer dieselbe Firma eingetragen hat, landet in
+              derselben Gruppe.
+            </p>
             {/* Der Zugangscode ist abgeschafft: Wer kein Passwort von uns hat,
                 kommt nicht mehr herein. Das muss man wissen, bevor man sich
                 wundert, warum sich niemand anmeldet. */}
@@ -587,7 +594,15 @@ export default function ContactsModal({
               </p>
             )}
             {lieferanten.length ? (
-              lieferanten.map(zeile)
+              nachFirmen(lieferanten, (k) => k.firma).map((g) => (
+                <div key={g.firma}>
+                  <div className="kontakt-firma-titel">
+                    {g.firma}
+                    <span className="gruppe-anzahl">{g.leute.length}</span>
+                  </div>
+                  {g.leute.map(zeile)}
+                </div>
+              ))
             ) : (
               <p className="kontakt-leer">Niemand gefunden.</p>
             )}
