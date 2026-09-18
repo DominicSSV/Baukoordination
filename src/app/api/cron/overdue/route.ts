@@ -29,11 +29,11 @@ type FaelligeAufgabe = {
 /**
  * Täglicher Prüflauf auf Fristen – drei Stufen in einem Lauf.
  *
- * Erinnerung am Vortag, Erinnerung am Tag selbst, Mahnung für alles
- * Überschrittene. Jede Stufe hat ihren eigenen Vermerk (erinnert_am,
- * erinnert_heute_am, overdue_notified_at). Mit einem gemeinsamen unterdrückte
- * die eine Meldung die anderen: Wer am Vortag erinnert wurde, bekäme am Tag
- * selbst nichts mehr.
+ * Erinnerung zwei Tage vorher, Erinnerung am Tag selbst, Mahnung am Tag danach.
+ * Jede Stufe hat ihren eigenen Vermerk (erinnert_am, erinnert_heute_am,
+ * overdue_notified_at). Mit einem gemeinsamen unterdrückte
+ * die eine Meldung die anderen: Wer zwei Tage vorher erinnert wurde, bekäme am
+ * Tag selbst nichts mehr.
  *
  * Wird die Frist später verschoben, setzt die Aufgaben-Route alle drei zurück,
  * und für den neuen Termin wird erneut erinnert und gemahnt.
@@ -54,16 +54,18 @@ export const GET = handler(async (request: Request) => {
 
   const db = serviceClient();
   const stichtag = heute();
-  const morgen = tagPlus(stichtag, 1);
+  // Zwei Tage Vorlauf: früh genug, um noch Material zu bestellen oder
+  // einen Kran zu organisieren. Ein Tag reicht dafür meistens nicht.
+  const vorlauf = tagPlus(stichtag, 2);
 
   /**
    * Die Aufgaben eines Durchgangs.
    *
-   * "morgen" sucht den morgigen Tag, "heute" den heutigen, "ueberfaellig" alles
-   * davor – jede Stufe mit ihrem eigenen Vermerk, damit keine die andere
+   * "vorlauf" sucht den übernächsten Tag, "heute" den heutigen, "ueberfaellig"
+   * alles davor – jede Stufe mit ihrem eigenen Vermerk, damit keine die andere
    * unterdrückt.
    */
-  const abfrage = (spalten: string, art: 'morgen' | 'heute' | 'ueberfaellig') => {
+  const abfrage = (spalten: string, art: 'vorlauf' | 'heute' | 'ueberfaellig') => {
     const basis = db
       .from('todos')
       .select(spalten)
@@ -74,7 +76,7 @@ export const GET = handler(async (request: Request) => {
       .not('due_date', 'is', null)
       .limit(200);
 
-    if (art === 'morgen') return basis.eq('due_date', morgen).is('erinnert_am', null);
+    if (art === 'vorlauf') return basis.eq('due_date', vorlauf).is('erinnert_am', null);
     if (art === 'heute') {
       return basis.eq('due_date', stichtag).is('erinnert_heute_am', null);
     }
@@ -106,7 +108,7 @@ export const GET = handler(async (request: Request) => {
     return ok({
       ueberfaellig_geprueft: aufgaben.length,
       gemahnt: 0,
-      morgen_erinnert: 0,
+      vorlauf_erinnert: 0,
       heute_erinnert: 0,
       hinweis: 'Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).',
     });
@@ -124,7 +126,7 @@ export const GET = handler(async (request: Request) => {
   const spalten = alteSpalten ? spaltenAlt : spaltenNeu;
 
   /** Ein Erinnerungs-Durchgang: abfragen, verschicken, vermerken. */
-  const erinnern = async (wann: 'morgen' | 'heute', vermerk: string) => {
+  const erinnern = async (wann: 'vorlauf' | 'heute', vermerk: string) => {
     const res = await abfrage(spalten, wann);
     const liste = res.error ? [] : ((res.data ?? []) as unknown as FaelligeAufgabe[]);
     let versendet = 0;
@@ -163,9 +165,9 @@ export const GET = handler(async (request: Request) => {
     return { gefunden: liste.length, versendet, fehlgeschlagen: Boolean(res.error) };
   };
 
-  // Erst der Vortag, dann der Tag selbst – in der Reihenfolge, in der sie im
+  // Erst der Vorlauf, dann der Tag selbst – in der Reihenfolge, in der sie im
   // Postfach ankommen sollen.
-  const morgenLauf = await erinnern('morgen', 'erinnert_am');
+  const vorlaufLauf = await erinnern('vorlauf', 'erinnert_am');
   const heuteLauf = await erinnern('heute', 'erinnert_heute_am');
 
   // Die Erinnerungen stehen bewusst nicht im Protokoll: Sie melden nichts
@@ -233,13 +235,13 @@ export const GET = handler(async (request: Request) => {
   }
 
   return ok({
-    morgen_faellig: morgenLauf.gefunden,
-    morgen_erinnert: morgenLauf.versendet,
+    in_zwei_tagen_faellig: vorlaufLauf.gefunden,
+    vorlauf_erinnert: vorlaufLauf.versendet,
     heute_faellig: heuteLauf.gefunden,
     heute_erinnert: heuteLauf.versendet,
     ueberfaellig_geprueft: aufgaben.length,
     gemahnt,
-    ...(morgenLauf.fehlgeschlagen || heuteLauf.fehlgeschlagen
+    ...(vorlaufLauf.fehlgeschlagen || heuteLauf.fehlgeschlagen
       ? { hinweis: 'Die Erinnerungen brauchen Migration 0035.' }
       : {}),
     fehler,

@@ -636,7 +636,7 @@ export async function assigneeRecipients(assignedTo: string): Promise<string[]> 
 
 /** Dringende Mahnung, wenn eine Frist verstrichen ist. */
 /**
- * Erinnerung vor der Frist – am Vortag und am Tag selbst.
+ * Erinnerung vor der Frist – zwei Tage vorher und am Tag selbst.
  *
  * Bewusst gelb und nicht rot. Rot ist die Mahnung; wer beides gleich einfärbt,
  * nimmt der Mahnung ihre Wirkung, und nach zwei Wochen sieht niemand mehr hin.
@@ -650,11 +650,11 @@ export async function sendFristErinnerung(params: {
   todoText: string;
   projectName: string;
   dueLabel: string;
-  /** 'morgen' = Vortag, 'heute' = der Tag der Frist. */
-  wann: 'morgen' | 'heute';
+  /** 'vorlauf' = zwei Tage vorher, 'heute' = der Tag der Frist. */
+  wann: 'vorlauf' | 'heute';
 }): Promise<void> {
   const vorlage = await ladeVorlage(
-    params.wann === 'morgen' ? 'fristnah' : 'fristheute',
+    params.wann === 'vorlauf' ? 'fristnah' : 'fristheute',
   );
 
   const werte = {
@@ -667,10 +667,10 @@ export async function sendFristErinnerung(params: {
   const subject = einsetzen(vorlage.betreff, werte);
   const text = einsetzen(vorlage.text, werte);
 
-  const kopf = params.wann === 'morgen' ? 'Morgen fällig' : 'Heute fällig';
+  const kopf = params.wann === 'vorlauf' ? 'In 2 Tagen fällig' : 'Heute fällig';
   const banner =
-    params.wann === 'morgen'
-      ? `Diese Aufgabe ist morgen fällig – am ${escapeHtml(params.dueLabel)}.`
+    params.wann === 'vorlauf'
+      ? `Diese Aufgabe ist in zwei Tagen fällig – am ${escapeHtml(params.dueLabel)}.`
       : `Diese Aufgabe ist heute fällig – ${escapeHtml(params.dueLabel)}.`;
 
   const html = wrapHtml(

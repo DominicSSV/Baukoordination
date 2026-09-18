@@ -5,13 +5,15 @@
 -- Das ist zu spät: Wer am Morgen erfährt, dass etwas gestern fällig gewesen
 -- wäre, kann nur noch entschuldigen.
 --
--- Neu gibt es zwei Erinnerungen davor – am Vortag und am Tag selbst, beide um
--- halb acht. Die erste, um den Tag einzuplanen; die zweite, weil zwischen
--- gestern Abend und heute Morgen viel dazwischenkommt.
+-- Neu gibt es zwei Erinnerungen davor – zwei Tage vorher und am Tag selbst,
+-- beide um halb acht. Zwei Tage, weil ein Tag zu knapp ist: Wer noch Material
+-- bestellen oder einen Kran organisieren muss, braucht länger als eine Nacht.
+-- Die zweite am Tag selbst, weil zwischen vorgestern und heute Morgen viel
+-- dazwischenkommt.
 --
 -- Jede Stufe braucht einen eigenen Vermerk. Mit einem gemeinsamen unterdrückte
--- die eine Meldung die anderen: Wer am Vortag erinnert wurde, bekäme am Tag
--- selbst nichts mehr und später auch keine Mahnung.
+-- die eine Meldung die anderen: Wer zwei Tage vorher erinnert wurde, bekäme am
+-- Tag selbst nichts mehr und später auch keine Mahnung.
 --
 -- Wird die Frist später verschoben, setzt die Aufgaben-Route alle drei Vermerke
 -- zurück – dann wird für den neuen Termin erneut erinnert und gemahnt.
@@ -25,11 +27,11 @@ alter table public.todos
   add column if not exists erinnert_heute_am timestamptz;
 
 comment on column public.todos.erinnert_am is
-  'Wann an die morgen ablaufende Frist erinnert wurde. Null = noch nicht.';
+  'Wann zwei Tage vor Ablauf der Frist erinnert wurde. Null = noch nicht.';
 
 comment on column public.todos.erinnert_heute_am is
   'Wann am Tag der Frist erinnert wurde. Null = noch nicht. Eigene Spalte, '
-  'damit die Erinnerung vom Vortag diese hier nicht unterdrückt.';
+  'damit die frühere Erinnerung diese hier nicht unterdrückt.';
 
 -- Der tägliche Prüflauf sucht genau nach diesen Kombinationen.
 create index if not exists todos_erinnerung_idx
