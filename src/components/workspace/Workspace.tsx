@@ -30,7 +30,6 @@ import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
 import { APP_HERKUNFT, APP_RECHTE } from '@/lib/branding';
-import { ladeToeneGlobal } from '@/lib/client/ton';
 import type { Project, ProjectDetail, SessionInfo } from '@/types';
 
 export type TabKey =
@@ -148,12 +147,6 @@ function WorkspaceInner({
     },
     [reportError],
   );
-
-  // Einmal beim Start: Gibt es den Ton beim Abhaken? Die Antwort muss da sein,
-  // bevor der erste Haken gesetzt wird – gespielt wird später ohne Nachfrage.
-  useEffect(() => {
-    void ladeToeneGlobal();
-  }, []);
 
   useEffect(() => {
     if (!activeId) return;

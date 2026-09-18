@@ -10,7 +10,6 @@ import { assigneeLabel } from '@/lib/assignee';
 import { assigneePerson, personLabel } from '@/lib/people';
 import Avatar from '@/components/Avatar';
 import Spinner from '@/components/Spinner';
-import { spieleMuenze, spieleSchade } from '@/lib/client/ton';
 import type { MeineAufgabe } from '@/app/api/mytasks/route';
 import type { AdminProfile, Supplier } from '@/types';
 
@@ -175,9 +174,6 @@ export default function MyWeek({
   async function abhaken(a: MeineAufgabe) {
     setBusy(a.id);
     const neuErledigt = !a.done;
-    if (neuErledigt) spieleMuenze();
-    else spieleSchade();
-
     try {
       await patch(`/api/todos/${a.id}`, { done: neuErledigt });
 
