@@ -69,9 +69,18 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const warning = await logActivity(ctx.db, {
     // Ein Terminvorschlag ist der Anfang einer Absprache und keine Randnotiz:
     // Solange niemand hinschaut, liegt er im Protokoll und die Baustelle wartet.
-    // Deshalb geht er als Mail an alle Beteiligten – auch an die übrigen Firmen,
-    // denn ein verschobenes Gewerk verschiebt oft das nächste mit.
     notify: true,
+    /**
+     * Die Anfrage geht an uns, nicht an die halbe Baustelle.
+     *
+     * Wer eine Verschiebung vorschlägt, fragt die Swiss Solar Ventures AG –
+     * entschieden wird sie ohnehin nur dort. Die übrigen Firmen erfahren davon,
+     * sobald der Plan tatsächlich anders aussieht; vorher wäre es eine Meldung
+     * über etwas, das vielleicht gar nicht eintritt.
+     *
+     * Leere Liste heisst: nur wir.
+     */
+    empfaengerSupplierIds: [],
     projectId: task.project_id,
     actorName: ctx.session.name,
     actorEmail: ctx.session.kind === 'admin' ? ctx.session.email : null,

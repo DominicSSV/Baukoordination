@@ -41,6 +41,20 @@ export async function logActivity(
      */
     nurFuerSupplierIds?: string[];
     /**
+     * Wer Post bekommt – unabhängig davon, wer den Eintrag sehen darf.
+     *
+     * Sichtbarkeit und Postverteiler sind zwei verschiedene Fragen. Eine
+     * gewöhnliche Aufgabe steht für alle am Projekt im Protokoll und in der
+     * Glocke; eine Mail darüber will aber nur, wen sie betrifft. Wer sie nicht
+     * zugewiesen bekommen hat, soll sie finden können, ohne dafür Post zu
+     * bekommen.
+     *
+     * Angegeben werden die Kennungen der Lieferanten; wir bekommen die Post
+     * ohnehin. Eine leere Liste heisst deshalb: nur wir. Weglassen heisst:
+     * alle am Projekt.
+     */
+    empfaengerSupplierIds?: string[];
+    /**
      * Post nur an uns – unabhängig davon, wer den Eintrag sehen darf.
      *
      * Sichtbarkeit und Postverteiler sind nicht dasselbe: Zu einer vertraulichen
@@ -100,11 +114,16 @@ export async function logActivity(
         actorEmail: params.actorEmail,
         actorSupplierId: params.actorSupplierId,
         text: params.text,
-        // Leere Liste = nur wir. Der geschriebene Eintrag oben behält davon
-        // unberührt seine eigene Sichtbarkeit.
-        nurFuerSupplierIds: params.nurUnsBenachrichtigen
-          ? []
-          : params.nurFuerSupplierIds,
+        // Der Postverteiler in dieser Reihenfolge: "nur wir" schlägt alles,
+        // danach eine ausdrückliche Empfängerliste, zuletzt die Sichtbarkeit.
+        // Der geschriebene Eintrag oben behält davon unberührt seine eigene.
+        // Eine ausdrückliche Empfängerliste meint genau diese Personen, nicht
+        // ihre Firmen: Eine Aufgabe gehört einer Person, eine Offerte einer Firma.
+        ...(params.nurUnsBenachrichtigen
+          ? { empfaengerGenau: [] }
+          : params.empfaengerSupplierIds
+            ? { empfaengerGenau: params.empfaengerSupplierIds }
+            : { nurFuerSupplierIds: params.nurFuerSupplierIds }),
       });
     } catch (e) {
       console.error('[activity] Benachrichtigung fehlgeschlagen', e);

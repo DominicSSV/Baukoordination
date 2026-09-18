@@ -169,6 +169,8 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 
   const actorEmail = ctx.session.kind === 'admin' ? ctx.session.email : null;
+  const actorSupplierId =
+    ctx.session.kind === 'supplier' ? ctx.session.supplierId : null;
   let warning: string | null = null;
 
   // Bleibt die Aufgabe vertraulich, bleiben auch die Protokolleinträge dazu bei
@@ -176,27 +178,42 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
   const jetztVertraulich =
     patch.vertraulich !== undefined ? Boolean(patch.vertraulich) : todo.vertraulich;
 
-  const beteiligte = jetztVertraulich
-    ? {
-        nurFuerSupplierIds: Array.from(
-          new Set([
-            ...beteiligteLieferanten(todo),
-            ...beteiligteLieferanten({
-              assignees: (patch.assignees as string[] | undefined) ?? null,
-              created_by_supplier_id: todo.created_by_supplier_id,
-            }),
-          ]),
-        ),
-      }
-    : {};
+  /**
+   * Wen die Aufgabe angeht – vor und nach einer Umverteilung.
+   *
+   * Beide Stände zusammen, denn beim Übergeben muss es der neue Zuständige
+   * erfahren und der bisherige ebenso: Er hört sonst nie, dass die Sache nicht
+   * mehr bei ihm liegt.
+   */
+  const angeht = Array.from(
+    new Set([
+      ...beteiligteLieferanten(todo),
+      ...beteiligteLieferanten({
+        assignees: (patch.assignees as string[] | undefined) ?? null,
+        created_by_supplier_id: todo.created_by_supplier_id,
+      }),
+    ]),
+  );
+
+  const beteiligte = {
+    // Post nur an die Zuständigen und an uns – siehe die Begründung beim
+    // Anlegen einer Aufgabe.
+    empfaengerSupplierIds: angeht,
+    // Die Sichtbarkeit wird nur bei einer vertraulichen Aufgabe beschnitten.
+    ...(jetztVertraulich ? { nurFuerSupplierIds: angeht } : {}),
+  };
 
   if (body.done === true && !todo.done) {
     warning = await logActivity(ctx.db, {
       projectId: todo.project_id,
       actorName: ctx.session.name,
       actorEmail,
+      actorSupplierId,
       text: `hat To-Do "${data.text}" als erledigt markiert`,
       icon: '✓',
+      // Ein Haken ist das Ergebnis, auf das jemand gewartet hat. Ohne Meldung
+      // erfährt es nur, wer zufällig nachsieht.
+      notify: true,
       ...beteiligte,
     });
   }
@@ -217,8 +234,10 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
         projectId: todo.project_id,
         actorName: ctx.session.name,
         actorEmail,
+        actorSupplierId,
         text: `hat To-Do "${data.text}" an ${empfaenger} übergeben`,
         icon: '➡️',
+        notify: true,
         ...beteiligte,
       })) ?? warning;
   }

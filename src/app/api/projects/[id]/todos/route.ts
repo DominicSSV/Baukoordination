@@ -113,6 +113,20 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       `hat ${meilenstein ? 'Meilenstein' : 'To-Do'} "${text}" für ${empfaenger} angelegt` +
       (dueDate ? ` (zu erledigen bis ${fmtDueDate(dueDate)})` : ''),
     icon: '📝',
+    /**
+     * Post nur an die Zuständigen – und an uns.
+     *
+     * Eine Aufgabe für Ralph geht Stive und Mergim nichts an; bekämen sie
+     * jedes Mal Post, lesen sie nach zwei Wochen keine Mail aus dieser App
+     * mehr. Sehen können sie die Aufgabe weiterhin, das steht hier nicht zur
+     * Debatte: Der Eintrag behält seine Sichtbarkeit, nur der Verteiler wird
+     * enger.
+     */
+    empfaengerSupplierIds: beteiligteLieferanten({
+      assignees: zustaendige,
+      created_by_supplier_id:
+        ctx.session.kind === 'supplier' ? ctx.session.supplierId : null,
+    }),
     // Vertrauliche Aufgaben tauchen auch im Protokoll nur bei den Beteiligten auf.
     ...(vertraulich
       ? {

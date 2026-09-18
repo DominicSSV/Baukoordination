@@ -470,6 +470,58 @@ export async function allProjectParties(
 }
 
 /**
+ * Empfänger für eine Sache, die genau benannten Personen gehört.
+ *
+ * Anders als adminsUndFirmen ohne die Kolleginnen und Kollegen derselben Firma:
+ * Ist eine Aufgabe Ralph zugewiesen, geht die Meldung an Ralph – nicht an
+ * Stive und Mergim, die zufällig bei derselben Firma arbeiten. Bei einer
+ * Offerte ist die Firma das Richtige, bei einer Aufgabe die Person.
+ *
+ * Wir bekommen die Post in jedem Fall; eine leere Liste heisst deshalb
+ * "nur wir" und nicht "niemand".
+ */
+async function adminsUndPersonen(
+  supplierIds: string[],
+  exceptEmail?: string | null,
+  projectId?: string,
+): Promise<string[]> {
+  const db = serviceClient();
+
+  // Nur wer für dieses Projekt freigegeben ist – sonst bekäme jemand Post über
+  // ein Projekt, das er in der App gar nicht öffnen kann.
+  let ids = supplierIds;
+  if (projectId && ids.length) {
+    const { data } = await db
+      .from('project_access')
+      .select('supplier_id')
+      .eq('project_id', projectId);
+
+    const erlaubt = new Set(
+      ((data ?? []) as Array<{ supplier_id: string }>).map((z) => z.supplier_id),
+    );
+    ids = ids.filter((id) => erlaubt.has(id));
+  }
+
+  const [admins, { data: supplier }] = await Promise.all([
+    unsereEmpfaenger(projectId),
+    ids.length
+      ? db.from('suppliers').select('email').in('id', ids)
+      : Promise.resolve({ data: [] as Array<{ email: string | null }> }),
+  ]);
+
+  const ausgeschlossen = exceptEmail?.trim().toLowerCase();
+
+  return Array.from(
+    new Set([
+      ...admins,
+      ...((supplier ?? []) as Array<{ email: string | null }>)
+        .map((z) => z.email?.trim())
+        .filter((e): e is string => Boolean(e)),
+    ]),
+  ).filter((mail) => mail.toLowerCase() !== ausgeschlossen);
+}
+
+/**
  * Empfänger für eingeschränkte Vorgänge: alle Bauherrenvertreter und die
  * betroffenen Lieferantenfirmen – also auch die weiteren Ansprechpersonen
  * derselben Firma, die gemeinsam an der Sache arbeiten.
@@ -627,6 +679,13 @@ export async function sendActivityNotification(params: {
    * Lieferanten. Leere Liste = nur wir. Weglassen = alle Beteiligten.
    */
   nurFuerSupplierIds?: string[];
+  /**
+   * Genau diese Personen – ohne die Kolleginnen und Kollegen derselben Firma.
+   *
+   * Hat Vorrang vor nurFuerSupplierIds. Für Aufgaben ist das der richtige
+   * Zuschnitt: Eine Aufgabe gehört einer Person, eine Offerte einer Firma.
+   */
+  empfaengerGenau?: string[];
 }): Promise<void> {
   // Welche Ereignisse überhaupt Post auslösen, entscheidet der Aufrufer über
   // logActivity({ notify: true }) – es sind bewusst nur wenige. Ein zusätzlicher
@@ -646,13 +705,15 @@ export async function sendActivityNotification(params: {
     params.actorEmail ??
     (params.actorSupplierId ? await lieferantenMail(params.actorSupplierId) : null);
 
-  const to = params.nurFuerSupplierIds
-    ? await adminsUndFirmen(
-        params.nurFuerSupplierIds,
-        eigeneAdresse,
-        params.projectId,
-      )
-    : await allProjectParties(params.projectId, eigeneAdresse);
+  const to = params.empfaengerGenau
+    ? await adminsUndPersonen(params.empfaengerGenau, eigeneAdresse, params.projectId)
+    : params.nurFuerSupplierIds
+      ? await adminsUndFirmen(
+          params.nurFuerSupplierIds,
+          eigeneAdresse,
+          params.projectId,
+        )
+      : await allProjectParties(params.projectId, eigeneAdresse);
   if (!to.length) return;
 
   const vorlage = await ladeVorlage('benachrichtigung');

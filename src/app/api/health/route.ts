@@ -72,11 +72,19 @@ export async function GET() {
       // Dringlichkeits-Kopfzeilen (Outlook zeigt das rote Ausrufezeichen).
       immer_dringend: true,
       meldet_bei:
-        'neue Aufgabe, Kommentar zu einer Aufgabe, Dokument/Offerte hochgeladen, ' +
-        'Terminplan: neue Arbeit, Termin/Bezeichnung geändert, Arbeit entfernt, ' +
-        'Zuständigkeit übergeben, Terminvorschlag gemacht, Vorschlag übernommen ' +
-        'oder abgelehnt',
+        'neue Aufgabe, Kommentar zu einer Aufgabe, Aufgabe abgehakt oder ' +
+        'übergeben, Dokument/Offerte hochgeladen, Terminplan: neue Arbeit, ' +
+        'Termin/Bezeichnung geändert, Arbeit entfernt, Zuständigkeit übergeben, ' +
+        'Terminvorschlag gemacht, Vorschlag übernommen oder abgelehnt',
       meldet_nicht_bei: 'Farbe und Reihenfolge im Terminplan',
+      verteiler: {
+        aufgaben:
+          'nur die zugewiesenen Personen (nicht deren Firmenkollegen) und wir',
+        terminvorschlag: 'nur wir – entschieden wird er ohnehin bei uns',
+        vorschlag_abgelehnt: 'nur der Fragende und wir',
+        terminplan_geaendert: 'alle am Projekt – auch ein übernommener Vorschlag',
+        wir: 'die dem Projekt zugeteilten; ist niemand zugeteilt, alle',
+      },
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
       hinweis: process.env.RESEND_API_KEY
         ? undefined

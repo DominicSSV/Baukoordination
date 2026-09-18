@@ -23,7 +23,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   const { data: note } = await serviceClient()
     .from('schedule_notes')
-    .select('id, task_id, vorschlag_start, vorschlag_ende, author')
+    .select('id, task_id, vorschlag_start, vorschlag_ende, author, author_supplier_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -65,6 +65,22 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     // er nicht, ob er den Termin einplanen darf. Das gilt für die Ablehnung
     // genauso: Ein "nein" ist eine Antwort, ein Schweigen nicht.
     notify: true,
+    /**
+     * Übernommen heisst: Der Plan sieht anders aus. Das geht jeden am Projekt
+     * an, denn ein verschobenes Gewerk verschiebt oft das nächste mit.
+     *
+     * Abgelehnt heisst: Es bleibt alles beim Alten. Dann ist es eine Antwort an
+     * den Fragenden und sonst niemanden – die übrigen Firmen mit der Absage auf
+     * eine Frage zu behelligen, die sie nie gestellt haben, wäre nur Lärm.
+     */
+    ...(entscheidung === 'ablehnen'
+      ? {
+          empfaengerSupplierIds: (note as { author_supplier_id: string | null })
+            .author_supplier_id
+            ? [(note as { author_supplier_id: string }).author_supplier_id]
+            : [],
+        }
+      : {}),
     projectId: task.project_id,
     actorName: ctx.session.name,
     actorEmail: ctx.session.email,

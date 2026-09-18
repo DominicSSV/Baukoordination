@@ -57,6 +57,14 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     // Ein Kommentar ist der häufigste Weg, wie auf der Baustelle eine Rückfrage
     // ankommt. Bleibt er still, merkt ihn erst, wer zufällig die Aufgabe öffnet.
     notify: true,
+    /**
+     * Post nur an die Zuständigen – und an uns.
+     *
+     * Wer die Aufgabe nicht hat, will über die Rückfrage dazu keine Mail. Von
+     * uns bekommt sie jeder, der dem Projekt zugeteilt ist: Eine Rückfrage auf
+     * der Baustelle geht uns immer etwas an.
+     */
+    empfaengerSupplierIds: beteiligteLieferanten(t),
     // Zu einer vertraulichen Aufgabe bleibt auch der Kommentar unter den
     // Beteiligten – sichtbar schon, aber ohne Mail nach draussen: Was
     // vertraulich ist, soll das Haus nicht per Post verlassen.
