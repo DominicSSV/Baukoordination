@@ -17,6 +17,7 @@ export type VorlagenSchluessel =
   | 'einladung'
   | 'benachrichtigung'
   | 'update'
+  | 'fristnah'
   | 'fristablauf';
 
 export type Vorlage = {
@@ -101,9 +102,36 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
     ],
   },
   {
+    schluessel: 'fristnah',
+    name: 'Erinnerung am Vortag',
+    beschreibung:
+      'Geht am Tag vor der Frist an die Zuständigen – rechtzeitig, um den '
+      + 'nächsten Tag einzuplanen.',
+    betreff: 'Morgen fällig – {projekt}: {aufgabe}',
+    text: [
+      'Diese Aufgabe ist morgen fällig:',
+      '',
+      '{aufgabe}',
+      '',
+      'Frist: {frist}',
+      'Projekt: {projekt}',
+      '',
+      'Ist sie schon erledigt, hak sie in der App ab – dann wird nicht noch '
+        + 'einmal erinnert.',
+      '',
+      '{link}',
+    ].join('\n'),
+    platzhalter: [
+      { name: '{projekt}', erklaerung: 'Name des Projekts' },
+      { name: '{aufgabe}', erklaerung: 'Text der Aufgabe' },
+      { name: '{frist}', erklaerung: 'Fälligkeitsdatum – also der morgige Tag' },
+      { name: '{link}', erklaerung: 'Adresse der App' },
+    ],
+  },
+  {
     schluessel: 'fristablauf',
     name: 'Erinnerung an eine Frist',
-    beschreibung: 'Geht raus, wenn eine Aufgabe fällig wird oder überfällig ist.',
+    beschreibung: 'Geht raus, sobald eine Frist überschritten ist.',
     betreff: '{projekt}: {aufgabe}',
     text: ['{aufgabe}', '', 'Frist: {frist}', 'Projekt: {projekt}', '', '{link}'].join(
       '\n',

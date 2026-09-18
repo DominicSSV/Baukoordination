@@ -134,6 +134,9 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     // Neue Frist heisst: neu mahnen. Sonst bliebe eine einmal verschickte Mahnung
     // für alle Zeiten das letzte Wort, auch wenn die Frist verschoben wurde.
     patch.overdue_notified_at = null;
+    // Und ebenso die Erinnerung: Für den neuen Termin soll am Vortag wieder
+    // eine hinausgehen.
+    patch.erinnert_am = null;
   }
 
   if (wantsContentChange) patch.edited_at = new Date().toISOString();

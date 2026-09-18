@@ -635,6 +635,41 @@ export async function assigneeRecipients(assignedTo: string): Promise<string[]> 
 }
 
 /** Dringende Mahnung, wenn eine Frist verstrichen ist. */
+/**
+ * Erinnerung am Vortag: "Das ist morgen fällig."
+ *
+ * Bewusst gelb und nicht rot. Rot ist die Mahnung – wer beides gleich einfärbt,
+ * nimmt der Mahnung ihre Wirkung, und nach zwei Wochen sieht niemand mehr
+ * hin. Hier ist noch nichts passiert; es geht nur darum, den morgigen Tag
+ * einzuplanen.
+ */
+export async function sendDueTomorrowNotice(params: {
+  to: string[];
+  todoText: string;
+  projectName: string;
+  dueLabel: string;
+}): Promise<void> {
+  const vorlage = await ladeVorlage('fristnah');
+  const werte = {
+    projekt: params.projectName,
+    aufgabe: params.todoText,
+    frist: params.dueLabel,
+    link: appBaseUrl(),
+  };
+
+  const subject = einsetzen(vorlage.betreff, werte);
+  const text = einsetzen(vorlage.text, werte);
+
+  const html = wrapHtml(
+    'Morgen fällig',
+    `<div style="background:#FFF0D9;border-radius:8px;padding:12px 14px;margin:0 0 16px;">
+      <strong style="color:#8A6116;font-size:14px;">Diese Aufgabe ist morgen fällig – am ${escapeHtml(params.dueLabel)}.</strong>
+    </div>` + textZuHtml(text),
+  );
+
+  await send({ to: params.to, subject, text, html });
+}
+
 export async function sendOverdueNotice(params: {
   to: string[];
   todoText: string;
@@ -767,6 +802,12 @@ const VORSCHAU_WERTE: Record<VorlagenSchluessel, Record<string, string>> = {
     ].join('\n'),
     link: appBaseUrl(),
   },
+  fristnah: {
+    projekt: 'Dietikon',
+    aufgabe: 'Zählerplatz freigeben',
+    frist: '12.08.2026',
+    link: appBaseUrl(),
+  },
   fristablauf: {
     projekt: 'Dietikon',
     aufgabe: 'Zählerplatz freigeben',
@@ -781,6 +822,7 @@ const VORSCHAU_TITEL: Record<VorlagenSchluessel, string> = {
   einladung: 'Zugriff auf die Baukoordination-App',
   benachrichtigung: 'Neue Aktivität in "Dietikon"',
   update: 'Update zu "Dietikon"',
+  fristnah: 'Morgen fällig',
   fristablauf: 'Frist überschritten',
 };
 
