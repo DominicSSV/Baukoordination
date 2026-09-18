@@ -18,6 +18,7 @@ export type VorlagenSchluessel =
   | 'benachrichtigung'
   | 'update'
   | 'fristnah'
+  | 'fristheute'
   | 'fristablauf';
 
 export type Vorlage = {
@@ -125,6 +126,33 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
       { name: '{projekt}', erklaerung: 'Name des Projekts' },
       { name: '{aufgabe}', erklaerung: 'Text der Aufgabe' },
       { name: '{frist}', erklaerung: 'Fälligkeitsdatum – also der morgige Tag' },
+      { name: '{link}', erklaerung: 'Adresse der App' },
+    ],
+  },
+  {
+    schluessel: 'fristheute',
+    name: 'Erinnerung am Tag der Frist',
+    beschreibung:
+      'Geht am Morgen des Fälligkeitstags an die Zuständigen – zwischen '
+      + 'gestern Abend und heute kommt viel dazwischen.',
+    betreff: 'Heute fällig – {projekt}: {aufgabe}',
+    text: [
+      'Diese Aufgabe ist heute fällig:',
+      '',
+      '{aufgabe}',
+      '',
+      'Frist: {frist}',
+      'Projekt: {projekt}',
+      '',
+      'Ist sie schon erledigt, hak sie in der App ab – dann kommt morgen keine '
+        + 'Mahnung.',
+      '',
+      '{link}',
+    ].join('\n'),
+    platzhalter: [
+      { name: '{projekt}', erklaerung: 'Name des Projekts' },
+      { name: '{aufgabe}', erklaerung: 'Text der Aufgabe' },
+      { name: '{frist}', erklaerung: 'Fälligkeitsdatum – also der heutige Tag' },
       { name: '{link}', erklaerung: 'Adresse der App' },
     ],
   },

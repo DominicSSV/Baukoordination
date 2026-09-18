@@ -4,7 +4,7 @@ import { serviceClient } from '@/lib/supabase/service';
 import {
   allAssigneeRecipients,
   mailEnabled,
-  sendDueTomorrowNotice,
+  sendFristErinnerung,
   sendOverdueNotice,
 } from '@/lib/email';
 import { fmtDueDate, heute } from '@/lib/due';
@@ -27,15 +27,16 @@ type FaelligeAufgabe = {
 };
 
 /**
- * Täglicher Prüflauf auf Fristen – zwei Durchgänge in einem Lauf.
+ * Täglicher Prüflauf auf Fristen – drei Stufen in einem Lauf.
  *
- * Erst die Erinnerung für morgen, dann die Mahnung für alles Überschrittene.
- * Zwei Vermerke halten auseinander, was schon hinausging: erinnert_am und
- * overdue_notified_at. Mit einem gemeinsamen Vermerk unterdrückte die eine
- * Meldung die andere – wer am Vortag erinnert wurde, bekäme keine Mahnung mehr.
+ * Erinnerung am Vortag, Erinnerung am Tag selbst, Mahnung für alles
+ * Überschrittene. Jede Stufe hat ihren eigenen Vermerk (erinnert_am,
+ * erinnert_heute_am, overdue_notified_at). Mit einem gemeinsamen unterdrückte
+ * die eine Meldung die anderen: Wer am Vortag erinnert wurde, bekäme am Tag
+ * selbst nichts mehr.
  *
- * Wird die Frist später verschoben, setzt die Aufgaben-Route beide zurück, und
- * für den neuen Termin wird erneut erinnert und gemahnt.
+ * Wird die Frist später verschoben, setzt die Aufgaben-Route alle drei zurück,
+ * und für den neuen Termin wird erneut erinnert und gemahnt.
  *
  * Wird von Vercel Cron aufgerufen (siehe vercel.json).
  */
@@ -58,10 +59,11 @@ export const GET = handler(async (request: Request) => {
   /**
    * Die Aufgaben eines Durchgangs.
    *
-   * "morgen" sucht nach genau dem morgigen Tag und einem leeren erinnert_am,
-   * "ueberfaellig" nach allem vor heute und einem leeren overdue_notified_at.
+   * "morgen" sucht den morgigen Tag, "heute" den heutigen, "ueberfaellig" alles
+   * davor – jede Stufe mit ihrem eigenen Vermerk, damit keine die andere
+   * unterdrückt.
    */
-  const abfrage = (spalten: string, art: 'morgen' | 'ueberfaellig') => {
+  const abfrage = (spalten: string, art: 'morgen' | 'heute' | 'ueberfaellig') => {
     const basis = db
       .from('todos')
       .select(spalten)
@@ -72,9 +74,11 @@ export const GET = handler(async (request: Request) => {
       .not('due_date', 'is', null)
       .limit(200);
 
-    return art === 'morgen'
-      ? basis.eq('due_date', morgen).is('erinnert_am', null)
-      : basis.lt('due_date', stichtag).is('overdue_notified_at', null);
+    if (art === 'morgen') return basis.eq('due_date', morgen).is('erinnert_am', null);
+    if (art === 'heute') {
+      return basis.eq('due_date', stichtag).is('erinnert_heute_am', null);
+    }
+    return basis.lt('due_date', stichtag).is('overdue_notified_at', null);
   };
 
   const spaltenNeu =
@@ -102,7 +106,8 @@ export const GET = handler(async (request: Request) => {
     return ok({
       ueberfaellig_geprueft: aufgaben.length,
       gemahnt: 0,
-      erinnert: 0,
+      morgen_erinnert: 0,
+      heute_erinnert: 0,
       hinweis: 'Mailversand ist nicht konfiguriert (RESEND_API_KEY fehlt).',
     });
   }
@@ -111,52 +116,61 @@ export const GET = handler(async (request: Request) => {
   const fehler: string[] = [];
 
   /**
-   * Erster Durchgang: Was morgen fällig ist.
-   *
-   * Schlägt die Abfrage fehl, fehlt Migration 0035 – dann bleibt es bei der
-   * Mahnung. Eine fehlende Erinnerung ist ärgerlich, ein abgebrochener
-   * Prüflauf wäre schlimmer: Danach ginge auch keine Mahnung mehr hinaus.
+   * Schlägt eine Erinnerungs-Abfrage fehl, fehlt Migration 0035 – dann bleibt
+   * es bei der Mahnung. Eine fehlende Erinnerung ist ärgerlich, ein
+   * abgebrochener Prüflauf wäre schlimmer: Danach ginge auch keine Mahnung
+   * mehr hinaus.
    */
-  const morgenRes = await abfrage(alteSpalten ? spaltenAlt : spaltenNeu, 'morgen');
-  const morgenAufgaben = morgenRes.error
-    ? []
-    : ((morgenRes.data ?? []) as unknown as FaelligeAufgabe[]);
+  const spalten = alteSpalten ? spaltenAlt : spaltenNeu;
 
-  let erinnert = 0;
+  /** Ein Erinnerungs-Durchgang: abfragen, verschicken, vermerken. */
+  const erinnern = async (wann: 'morgen' | 'heute', vermerk: string) => {
+    const res = await abfrage(spalten, wann);
+    const liste = res.error ? [] : ((res.data ?? []) as unknown as FaelligeAufgabe[]);
+    let versendet = 0;
 
-  for (const aufgabe of morgenAufgaben) {
-    try {
-      const empfaenger = await allAssigneeRecipients(
-        aufgabe.assignees,
-        aufgabe.assigned_to,
-      );
+    for (const aufgabe of liste) {
+      try {
+        const empfaenger = await allAssigneeRecipients(
+          aufgabe.assignees,
+          aufgabe.assigned_to,
+        );
 
-      if (empfaenger.length) {
-        await sendDueTomorrowNotice({
-          to: empfaenger,
-          todoText: aufgabe.text,
-          projectName: aufgabe.projects?.name ?? 'Projekt',
-          dueLabel: fmtDueDate(aufgabe.due_date),
-        });
-        erinnert += 1;
+        if (empfaenger.length) {
+          await sendFristErinnerung({
+            to: empfaenger,
+            todoText: aufgabe.text,
+            projectName: aufgabe.projects?.name ?? 'Projekt',
+            dueLabel: fmtDueDate(aufgabe.due_date),
+            wann,
+          });
+          versendet += 1;
+        }
+
+        // Auch ohne erreichbaren Empfänger vermerken, sonst läuft die Aufgabe
+        // jeden Tag erneut durch die Schleife.
+        await db
+          .from('todos')
+          .update({ [vermerk]: new Date().toISOString() })
+          .eq('id', aufgabe.id);
+      } catch (e) {
+        fehler.push(
+          `${aufgabe.text} (${wann}): ${e instanceof Error ? e.message : 'unbekannter Fehler'}`,
+        );
       }
-
-      // Auch ohne erreichbaren Empfänger vermerken, sonst läuft die Aufgabe
-      // jeden Tag erneut durch die Schleife.
-      await db
-        .from('todos')
-        .update({ erinnert_am: new Date().toISOString() })
-        .eq('id', aufgabe.id);
-    } catch (e) {
-      fehler.push(
-        `${aufgabe.text} (Erinnerung): ${e instanceof Error ? e.message : 'unbekannter Fehler'}`,
-      );
     }
-  }
 
-  // Die Erinnerung steht bewusst nicht im Protokoll: Sie meldet nichts
+    return { gefunden: liste.length, versendet, fehlgeschlagen: Boolean(res.error) };
+  };
+
+  // Erst der Vortag, dann der Tag selbst – in der Reihenfolge, in der sie im
+  // Postfach ankommen sollen.
+  const morgenLauf = await erinnern('morgen', 'erinnert_am');
+  const heuteLauf = await erinnern('heute', 'erinnert_heute_am');
+
+  // Die Erinnerungen stehen bewusst nicht im Protokoll: Sie melden nichts
   // Geschehenes, nur einen Termin, der ohnehin an der Aufgabe steht. Im
-  // Protokoll wäre sie täglich wiederkehrendes Rauschen.
+  // Protokoll wären sie täglich wiederkehrendes Rauschen.
 
   for (const aufgabe of aufgaben) {
     try {
@@ -219,12 +233,14 @@ export const GET = handler(async (request: Request) => {
   }
 
   return ok({
-    morgen_faellig: morgenAufgaben.length,
-    erinnert,
+    morgen_faellig: morgenLauf.gefunden,
+    morgen_erinnert: morgenLauf.versendet,
+    heute_faellig: heuteLauf.gefunden,
+    heute_erinnert: heuteLauf.versendet,
     ueberfaellig_geprueft: aufgaben.length,
     gemahnt,
-    ...(morgenRes.error
-      ? { hinweis: 'Erinnerung am Vortag braucht Migration 0035.' }
+    ...(morgenLauf.fehlgeschlagen || heuteLauf.fehlgeschlagen
+      ? { hinweis: 'Die Erinnerungen brauchen Migration 0035.' }
       : {}),
     fehler,
   });

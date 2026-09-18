@@ -636,20 +636,27 @@ export async function assigneeRecipients(assignedTo: string): Promise<string[]> 
 
 /** Dringende Mahnung, wenn eine Frist verstrichen ist. */
 /**
- * Erinnerung am Vortag: "Das ist morgen fällig."
+ * Erinnerung vor der Frist – am Vortag und am Tag selbst.
  *
- * Bewusst gelb und nicht rot. Rot ist die Mahnung – wer beides gleich einfärbt,
- * nimmt der Mahnung ihre Wirkung, und nach zwei Wochen sieht niemand mehr
- * hin. Hier ist noch nichts passiert; es geht nur darum, den morgigen Tag
- * einzuplanen.
+ * Bewusst gelb und nicht rot. Rot ist die Mahnung; wer beides gleich einfärbt,
+ * nimmt der Mahnung ihre Wirkung, und nach zwei Wochen sieht niemand mehr hin.
+ * Hier ist noch nichts passiert.
+ *
+ * Die Überschrift nennt Aufgabe und Projekt: "Morgen fällig" allein sagt im
+ * Postfach nichts, wenn drei solche Mails nebeneinander liegen.
  */
-export async function sendDueTomorrowNotice(params: {
+export async function sendFristErinnerung(params: {
   to: string[];
   todoText: string;
   projectName: string;
   dueLabel: string;
+  /** 'morgen' = Vortag, 'heute' = der Tag der Frist. */
+  wann: 'morgen' | 'heute';
 }): Promise<void> {
-  const vorlage = await ladeVorlage('fristnah');
+  const vorlage = await ladeVorlage(
+    params.wann === 'morgen' ? 'fristnah' : 'fristheute',
+  );
+
   const werte = {
     projekt: params.projectName,
     aufgabe: params.todoText,
@@ -660,10 +667,16 @@ export async function sendDueTomorrowNotice(params: {
   const subject = einsetzen(vorlage.betreff, werte);
   const text = einsetzen(vorlage.text, werte);
 
+  const kopf = params.wann === 'morgen' ? 'Morgen fällig' : 'Heute fällig';
+  const banner =
+    params.wann === 'morgen'
+      ? `Diese Aufgabe ist morgen fällig – am ${escapeHtml(params.dueLabel)}.`
+      : `Diese Aufgabe ist heute fällig – ${escapeHtml(params.dueLabel)}.`;
+
   const html = wrapHtml(
-    'Morgen fällig',
+    `${kopf} – ${params.todoText} – ${params.projectName}`,
     `<div style="background:#FFF0D9;border-radius:8px;padding:12px 14px;margin:0 0 16px;">
-      <strong style="color:#8A6116;font-size:14px;">Diese Aufgabe ist morgen fällig – am ${escapeHtml(params.dueLabel)}.</strong>
+      <strong style="color:#8A6116;font-size:14px;">${banner}</strong>
     </div>` + textZuHtml(text),
   );
 
@@ -808,6 +821,12 @@ const VORSCHAU_WERTE: Record<VorlagenSchluessel, Record<string, string>> = {
     frist: '12.08.2026',
     link: appBaseUrl(),
   },
+  fristheute: {
+    projekt: 'Dietikon',
+    aufgabe: 'Zählerplatz freigeben',
+    frist: '12.08.2026',
+    link: appBaseUrl(),
+  },
   fristablauf: {
     projekt: 'Dietikon',
     aufgabe: 'Zählerplatz freigeben',
@@ -823,6 +842,7 @@ const VORSCHAU_TITEL: Record<VorlagenSchluessel, string> = {
   benachrichtigung: 'Neue Aktivität in "Dietikon"',
   update: 'Update zu "Dietikon"',
   fristnah: 'Morgen fällig',
+  fristheute: 'Heute fällig',
   fristablauf: 'Frist überschritten',
 };
 
