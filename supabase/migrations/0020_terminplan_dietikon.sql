@@ -25,16 +25,36 @@ declare
   v_ort     text := 'Moosmattstrasse 24';
   v_projekt uuid;
   v_owner   text;
+  v_treffer int;
+  v_liste   text;
 begin
   -- Bestehendes Projekt suchen: erst über den Namen, dann über die Adresse.
-  -- So trifft es auch dann, wenn es in der App anders heisst.
+  --
+  -- SPERRE: Es muss genau eines passen. Die frühere Fassung nahm mit
+  -- "order by created_at limit 1" einfach das älteste Ergebnis – und genau so
+  -- ist beim Skript für Tägerwilen der Terminplan des falschen Projekts
+  -- gelöscht worden. Ein Ortsname ist nicht eindeutig: Dieselbe Liegenschaft
+  -- hat leicht zwei Projekte, etwa Photovoltaik und Speicher.
+  --
+  -- Passen mehrere, bricht das Skript ab und rührt nichts an.
+  select count(*), string_agg(name, ' | ' order by name)
+    into v_treffer, v_liste
+    from public.projects
+   where name ilike '%dietikon%'
+      or ort  ilike '%dietikon%'
+      or ort  ilike '%moosmatt%';
+
+  if v_treffer > 1 then
+    raise exception
+      'Abbruch: % Projekte passen auf Dietikon (%). Es wurde nichts geändert. Bitte den genauen Projektnamen in dieses Skript eintragen.',
+      v_treffer, v_liste;
+  end if;
+
   select id into v_projekt
     from public.projects
    where name ilike '%dietikon%'
       or ort  ilike '%dietikon%'
-      or ort  ilike '%moosmatt%'
-   order by created_at
-   limit 1;
+      or ort  ilike '%moosmatt%';
 
   if v_projekt is null then
     insert into public.projects (name, ort)

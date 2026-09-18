@@ -1,16 +1,26 @@
 -- =============================================================================
--- Baukoordination – 40: Terminplan BESS zurückholen
+-- Terminplan aus dem Protokoll rekonstruieren
 --
--- WAS PASSIERT IST: Skript 0039 suchte das Projekt über "%tägerwilen%" und nahm
--- das älteste Ergebnis. In Tägerwilen gibt es zwei Projekte, PVA und BESS –
--- getroffen wurde BESS. Dessen Terminplan wurde geleert und durch den PVA-Plan
--- ersetzt. Das war ein Fehler im Skript, nicht in der App.
+-- KEINE MIGRATION. Diese Datei liegt bewusst nicht bei den Migrationen: Sie ist
+-- ein Werkzeug fuer den Notfall und nichts, was man der Reihe nach ausfuehrt.
 --
--- WAS DIESE DATEI TUT: nichts. Sie liest nur. Kein delete, kein update, kein
--- insert. Nach dem Vorfall gehört zuerst nachgesehen, was noch da ist, bevor
--- wieder irgendetwas geschrieben wird.
+-- Sie LIEST NUR. Kein delete, kein update, kein insert.
 --
--- Im Supabase SQL-Editor ausführen und mir die Ergebnisse schicken.
+-- Wofuer: Wurden Arbeiten aus einem Terminplan geloescht, gibt es dafuer keinen
+-- Papierkorb - schedule_tasks kennt kein deleted_at, und die Rueckmeldungen
+-- haengen mit "on delete cascade" daran. Was bleibt, steht im Protokoll: Jede
+-- in der App angelegte oder geaenderte Arbeit hat dort einen Eintrag mit
+-- Bezeichnung UND Zeitraum hinterlassen, zum Beispiel
+--
+--   hat "Batterien anliefern" im Terminplan aufgenommen (12.10.-16.10.2026)
+--
+-- Daraus laesst sich der Plan von Hand wieder aufbauen.
+--
+-- Entstanden ist die Datei, nachdem ein Datenskript den Terminplan des
+-- falschen Projekts geloescht hatte. Der Anlass ist erledigt, das Werkzeug
+-- bleibt - beim naechsten Mal muss es niemand neu schreiben.
+--
+-- Im Supabase SQL-Editor ausfuehren. Den Projektnamen unten anpassen.
 -- =============================================================================
 
 
@@ -24,7 +34,7 @@ select p.name             as projekt,
        string_agg(t.label, ' | ' order by t.order_index) as inhalt
   from public.projects p
   left join public.schedule_tasks t on t.project_id = p.id
- where p.name ilike '%tägerwilen%' or p.name ilike '%taegerwilen%'
+ where p.name ilike '%tägerwilen%' or p.name ilike '%taegerwilen%'   -- <- Projektname
     or p.ort  ilike '%tägerwilen%' or p.ort  ilike '%taegerwilen%'
  group by p.id, p.name, p.ort, p.schedule_start, p.schedule_end
  order by p.name;
@@ -44,7 +54,7 @@ select a.created_at,
        a.text
   from public.activity a
   join public.projects p on p.id = a.project_id
- where (p.name ilike '%bess%')
+ where (p.name ilike '%bess%')   -- <- hier den Projektnamen eintragen
    and (a.text like '%Terminplan%')
  order by a.created_at;
 
