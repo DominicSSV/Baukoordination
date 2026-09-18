@@ -12,10 +12,40 @@
  * wird kein Byte grösser.
  */
 
+/**
+ * Der Hauptschalter – zurzeit aus.
+ *
+ * Die Töne sind abgeschaltet. Auf der Baustelle wird die App im Beisein von
+ * Kunden und Handwerkern benutzt; ein Münzgeräusch aus dem Telefon passt dort
+ * nicht, und wer zwanzig Aufgaben hintereinander abhakt, hört es ohnehin
+ * zwanzigmal.
+ *
+ * Bewusst ein Schalter und keine gelöschte Datei: Die Melodien stehen
+ * unverändert weiter unten. Sollen sie zurückkommen, wird hier true gesetzt –
+ * dann ist auch der Schalter im Profil wieder da, mit dem jede Person es für
+ * ihr eigenes Gerät entscheidet.
+ */
+const TOENE_AKTIV = false;
+
 /** Im Browser gemerkt, damit die Wahl das Gerät nicht verlässt. */
 const SCHALTER = 'bk-ton';
 
+/**
+ * Gibt es überhaupt etwas einzustellen?
+ *
+ * Das Profil blendet den Schalter aus, solange die Töne abgeschaltet sind. Ein
+ * Schalter, der nichts bewirkt, ist schlimmer als keiner: Wer ihn umlegt und
+ * nichts hört, sucht den Fehler bei seinem Telefon.
+ */
+export function toeneVerfuegbar(): boolean {
+  return TOENE_AKTIV;
+}
+
 export function tonAn(): boolean {
+  // Der Hauptschalter steht über der Einstellung im Profil. Sonst hörte
+  // weiterhin jeder etwas, der den Ton früher einmal ausdrücklich eingeschaltet
+  // hat – und genau die sollen jetzt auch Ruhe haben.
+  if (!TOENE_AKTIV) return false;
   if (typeof window === 'undefined') return false;
   try {
     // Standard ist an – wer es nicht mag, schaltet es im Profil aus.

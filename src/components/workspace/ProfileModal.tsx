@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import Avatar from '@/components/Avatar';
 import { useFeedback } from '@/components/Feedback';
 import { post } from '@/lib/client/api';
-import { setzeTon, spieleMuenze, tonAn } from '@/lib/client/ton';
+import { setzeTon, spieleMuenze, toeneVerfuegbar, tonAn } from '@/lib/client/ton';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import {
   APP_HERKUNFT,
@@ -122,7 +122,9 @@ export default function ProfileModal({
         </p>
 
         {/* Der Ton hängt am Gerät, nicht am Konto: Im Büro will man ihn
-            vielleicht, in der Sitzung nicht. */}
+            vielleicht, in der Sitzung nicht. Sind die Töne abgeschaltet, fehlt
+            der Schalter ganz – einer, der nichts bewirkt, verwirrt nur. */}
+        {toeneVerfuegbar() && (
         <label className="ton-schalter">
           <input
             type="checkbox"
@@ -141,6 +143,7 @@ export default function ProfileModal({
             </span>
           </span>
         </label>
+        )}
 
         <input
           ref={input}
