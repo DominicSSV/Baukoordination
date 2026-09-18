@@ -49,7 +49,16 @@ type FaelligeAufgabe = {
  * Wird die Frist später verschoben, setzt die Aufgaben-Route alle drei zurück,
  * und für den neuen Termin wird erneut erinnert und gemahnt.
  *
- * Wird von Vercel Cron aufgerufen (siehe vercel.json).
+ * Wird von Vercel Cron aufgerufen, eingetragen in vercel.json als "30 5 * * *".
+ *
+ * Diese Begründung steht hier und nicht dort: vercel.json ist reines JSON und
+ * kennt keine Kommentare. Ein Feld "comment" hineinzuschreiben, lässt Vercel
+ * den ganzen Bau abbrechen – so geschehen, einen halben Tag lang.
+ *
+ * Vercel rechnet in UTC und kennt keine Zeitzone. 05:30 UTC ist in der
+ * Sommerzeit 07:30 und in der Winterzeit 06:30 Schweizer Zeit. Bewusst die
+ * frühere Seite gewählt: Auf der Baustelle ist eine Erinnerung vor Arbeitsbeginn
+ * brauchbar, eine um halb neun nicht mehr.
  */
 export const GET = handler(async (request: Request) => {
   // Vercel schickt bei gesetztem CRON_SECRET einen Bearer-Token mit. Ist kein

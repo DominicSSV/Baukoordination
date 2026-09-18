@@ -3,7 +3,6 @@
   "crons": [
     {
       "path": "/api/cron/overdue",
-      "comment": "Vercel rechnet in UTC und kennt keine Zeitzone. 05:30 UTC ist in der Sommerzeit 07:30 und in der Winterzeit 06:30 Schweizer Zeit. Bewusst die frühere Seite gewählt: Auf der Baustelle ist eine Erinnerung vor Arbeitsbeginn brauchbar, eine um halb neun nicht mehr.",
       "schedule": "30 5 * * *"
     }
   ]
