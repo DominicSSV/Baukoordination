@@ -104,6 +104,18 @@ export type AdminProfile = {
   avatar_url?: string | null;
 };
 
+/**
+ * Ein Daumen hoch auf einen Kommentar – "gesehen, einverstanden".
+ *
+ * Bewusst nur der Daumen und keine Auswahl an Zeichen: Ein zweites Zeichen
+ * wirft sofort die Frage auf, was es bedeutet.
+ */
+export type Daumen = {
+  /** 'admin:<user_id>' oder 'supplier:<id>' – wie bei den Zuständigen. */
+  wer: string;
+  name: string;
+};
+
 export type TodoComment = {
   id: string;
   todo_id: string;
@@ -111,6 +123,8 @@ export type TodoComment = {
   author: string;
   author_supplier_id: string | null;
   created_at: string;
+  /** Wer zugestimmt hat. Leer, solange niemand geklickt hat. */
+  kudos: Daumen[];
 };
 
 export type Todo = {
@@ -154,6 +168,8 @@ export type FileComment = {
   author: string;
   author_supplier_id: string | null;
   created_at: string;
+  /** Wer zugestimmt hat. Leer, solange niemand geklickt hat. */
+  kudos: Daumen[];
 };
 
 export type ProjectFile = {

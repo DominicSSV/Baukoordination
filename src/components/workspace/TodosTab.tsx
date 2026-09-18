@@ -19,6 +19,7 @@ import AssigneePicker from '@/components/workspace/AssigneePicker';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { appLink, todoText, waNummer } from '@/lib/whatsapp';
 import Avatar from '@/components/Avatar';
+import DaumenKnopf from '@/components/workspace/DaumenKnopf';
 import { assigneePerson, findPerson, personLabel } from '@/lib/people';
 import { spieleMuenze, spieleSchade } from '@/lib/client/ton';
 import type { ProjectDetail, SessionInfo, Todo } from '@/types';
@@ -706,6 +707,15 @@ export default function TodosTab({
                                 size={16}
                               />
                               {personLabel(person)} · {fmtDate(c.created_at)}
+                              {/* "Gesehen, einverstanden" ohne eine Zeile zu
+                                  tippen – siehe DaumenKnopf. */}
+                              <DaumenKnopf
+                                commentId={c.id}
+                                art="todo"
+                                kudos={c.kudos}
+                                session={session}
+                                reload={reload}
+                              />
                               {(mine || isAdmin) && (
                                 <button
                                   type="button"

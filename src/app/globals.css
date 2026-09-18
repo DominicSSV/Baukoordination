@@ -5061,3 +5061,44 @@ button:disabled {
     max-width: 100%;
   }
 }
+
+/* --- Daumen hoch auf einen Kommentar ---------------------------------------
+   Klein und unauffällig, solange niemand geklickt hat: Das Zeichen soll den
+   Kommentar nicht überlagern. Wer zugestimmt hat, sieht seinen eigenen Daumen
+   hervorgehoben – sonst klickt man ihn ein zweites Mal, weil man nicht weiss,
+   ob der erste ankam. */
+.daumen {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  font-size: 11.5px;
+  line-height: 1.6;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.daumen:hover {
+  border-color: var(--accent);
+  filter: none;
+  opacity: 1;
+}
+
+.daumen.meiner {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  filter: none;
+  opacity: 1;
+}
+
+.daumen-zahl {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.daumen.meiner .daumen-zahl {
+  color: var(--accent);
+}

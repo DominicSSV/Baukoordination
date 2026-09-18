@@ -6,6 +6,7 @@ import { del, post } from '@/lib/client/api';
 import { fmtDate } from '@/lib/format';
 import { findPerson, personLabel } from '@/lib/people';
 import Avatar from '@/components/Avatar';
+import DaumenKnopf from '@/components/workspace/DaumenKnopf';
 import type { ProjectDetail, ProjectFile, SessionInfo } from '@/types';
 
 /**
@@ -81,6 +82,13 @@ export default function FileComments({
               <div className="offer-notiz-text">{k.text}</div>
               <div className="offer-notiz-meta">
                 {personLabel(wer)} · {fmtDate(k.created_at)}
+                <DaumenKnopf
+                  commentId={k.id}
+                  art="datei"
+                  kudos={k.kudos}
+                  session={session}
+                  reload={reload}
+                />
                 {(meins || isAdmin) && (
                   <button type="button" onClick={() => loeschen(k.id)}>
                     entfernen

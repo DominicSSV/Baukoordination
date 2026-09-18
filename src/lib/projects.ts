@@ -2,6 +2,7 @@ import 'server-only';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
 import { signAvatar, signAvatars } from '@/lib/avatars';
+import { ladeDaumen } from '@/lib/kudos';
 import type { Ctx } from '@/lib/auth/guards';
 
 import type {
@@ -304,10 +305,16 @@ export async function loadProjectDetail(
 
   if (commentsRes.error) throw new Error(`Kommentare: ${commentsRes.error.message}`);
 
+  const todoKommentare = (commentsRes.data ?? []) as TodoComment[];
+  const todoDaumen = await ladeDaumen(
+    'todo',
+    todoKommentare.map((c) => c.id),
+  );
+
   const commentsByTodo = new Map<string, TodoComment[]>();
-  for (const c of (commentsRes.data ?? []) as TodoComment[]) {
+  for (const c of todoKommentare) {
     const list = commentsByTodo.get(c.todo_id) ?? [];
-    list.push(c);
+    list.push({ ...c, kudos: todoDaumen.get(c.id) ?? [] });
     commentsByTodo.set(c.todo_id, list);
   }
 
@@ -344,10 +351,16 @@ export async function loadProjectDetail(
         .order('created_at', { ascending: true })
     : { data: [] as FileComment[], error: null };
 
+  const dateiKommentare = (kommentare.data ?? []) as FileComment[];
+  const dateiDaumen = await ladeDaumen(
+    'datei',
+    dateiKommentare.map((c) => c.id),
+  );
+
   const kommentareNachDatei = new Map<string, FileComment[]>();
-  for (const c of (kommentare.data ?? []) as FileComment[]) {
+  for (const c of dateiKommentare) {
     const liste = kommentareNachDatei.get(c.file_id) ?? [];
-    liste.push(c);
+    liste.push({ ...c, kudos: dateiDaumen.get(c.id) ?? [] });
     kommentareNachDatei.set(c.file_id, liste);
   }
 
