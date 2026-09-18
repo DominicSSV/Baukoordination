@@ -87,12 +87,22 @@ async function freigegebeneAdressen(): Promise<Set<string>> {
 /**
  * Adressen von uns, die für dieses Projekt Post bekommen sollen.
  *
- * Ist niemand zugeteilt, gehen die Nachrichten an alle – sonst würde ein neu
- * angelegtes Projekt still verstummen und niemand merkte es. Die Zuteilung ist
- * ein Filter für die Post, kein Zugriffsrecht: Gesehen wird überall alles.
+ * Wer dem Projekt zugeteilt ist, bekommt Post. Wer nicht, nicht – und ist
+ * niemand zugeteilt, bekommt auch niemand welche. Das ist der Sinn der
+ * Zuteilung: Sie soll die Post lenken und nicht bloss dann gelten, wenn ohnehin
+ * schon jemand eingetragen ist.
  *
- * Ohne Migration 0024 gibt es die Tabelle noch nicht; dann bleibt es beim
- * bisherigen Verhalten.
+ * Früher gingen die Nachrichten bei einem Projekt ohne Zuteilung an alle drei.
+ * Das war als Schutz vor einem still verstummenden Projekt gedacht, wirkte aber
+ * genau falsch herum: Ein frisch angelegtes Projekt, um das sich noch niemand
+ * kümmert, schüttete seine Meldungen über alle aus.
+ *
+ * Die Zuteilung bleibt ein Filter für die Post und kein Zugriffsrecht: Gesehen
+ * wird in der App weiterhin überall alles.
+ *
+ * Ohne Migration 0024 gibt es die Tabelle noch nicht. Dann lässt sich nicht
+ * feststellen, wer zuständig ist, und es bleibt beim alten Verhalten – sonst
+ * ginge nach einem unvollständigen Aufsetzen gar keine Post mehr hinaus.
  */
 async function unsereEmpfaenger(projectId?: string): Promise<string[]> {
   const db = serviceClient();
@@ -108,15 +118,18 @@ async function unsereEmpfaenger(projectId?: string): Promise<string[]> {
       .select('user_id')
       .eq('project_id', projectId);
 
-    const ids = zugeteilt.error
-      ? []
-      : ((zugeteilt.data ?? []) as Array<{ user_id: string }>).map((z) => z.user_id);
-
-    if (ids.length) {
-      return zeilen
-        .filter((a) => ids.includes(a.user_id) && a.email)
-        .map((a) => a.email!.trim());
+    // Nur wenn die Tabelle fehlt, gilt wieder "an alle" – siehe oben.
+    if (zugeteilt.error) {
+      return zeilen.filter((a) => a.email).map((a) => a.email!.trim());
     }
+
+    const ids = ((zugeteilt.data ?? []) as Array<{ user_id: string }>).map(
+      (z) => z.user_id,
+    );
+
+    return zeilen
+      .filter((a) => ids.includes(a.user_id) && a.email)
+      .map((a) => a.email!.trim());
   }
 
   return zeilen.filter((a) => a.email).map((a) => a.email!.trim());

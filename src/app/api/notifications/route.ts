@@ -154,11 +154,51 @@ export const GET = handler(async (request: Request) => {
   const alle = new URL(request.url).searchParams.get('alle') === '1';
   const anzahl = alle ? ANZAHL_ALLE : ANZAHL;
 
-  const { data, error } = await ctx.db
+  /**
+   * Bei uns zählt die Zuteilung – auch für die Glocke.
+   *
+   * Die Datenbank lässt uns jedes Projekt sehen, und genau das soll so bleiben:
+   * Wer nachschauen will, kommt überall hinein. Eine Meldung ist aber etwas
+   * anderes als ein Zugriffsrecht. Sie soll bei dem landen, der das Projekt
+   * betreut, und nicht bei allen dreien.
+   *
+   * Ist jemand keinem Projekt zugeteilt, bleibt die Glocke leer. Das ist
+   * Absicht und kein Fehler: Wer für nichts zuständig ist, muss auch nichts
+   * abarbeiten. Vorher kam in diesem Fall alles von überall.
+   *
+   * Für Lieferanten erledigt das die Datenbank von selbst, die sehen ohnehin
+   * nur ihre Projekte.
+   */
+  let meineProjekte: string[] | null = null;
+
+  if (ctx.session.kind === 'admin') {
+    const zugeteilt = await serviceClient()
+      .from('project_admins')
+      .select('project_id')
+      .eq('user_id', ctx.session.userId);
+
+    // Ohne Migration 0024 gibt es die Tabelle nicht. Dann lieber alles zeigen
+    // als eine Glocke, die nach einem unvollständigen Aufsetzen leer bleibt.
+    if (!zugeteilt.error) {
+      meineProjekte = ((zugeteilt.data ?? []) as Array<{ project_id: string }>).map(
+        (z) => z.project_id,
+      );
+    }
+  }
+
+  if (meineProjekte && !meineProjekte.length) {
+    return ok({ eintraege: [] as Benachrichtigung[] });
+  }
+
+  const abfrage = ctx.db
     .from('activity')
     .select('id, project_id, actor_name, text, icon, created_at')
     .order('created_at', { ascending: false })
     .limit(anzahl * 2);
+
+  const { data, error } = await (meineProjekte
+    ? abfrage.in('project_id', meineProjekte)
+    : abfrage);
 
   if (error) {
     throw new ApiError(`Benachrichtigungen: ${error.message}`, 500);

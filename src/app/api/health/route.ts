@@ -83,7 +83,10 @@ export async function GET() {
         terminvorschlag: 'nur wir – entschieden wird er ohnehin bei uns',
         vorschlag_abgelehnt: 'nur der Fragende und wir',
         terminplan_geaendert: 'alle am Projekt – auch ein übernommener Vorschlag',
-        wir: 'die dem Projekt zugeteilten; ist niemand zugeteilt, alle',
+        wir:
+          'nur die dem Projekt zugeteilten. Ist niemand zugeteilt, bekommt '
+          + 'auch niemand Post – und die Glocke bleibt leer. Sehen kann jeder '
+          + 'von uns weiterhin alles.',
         fristerinnerungen:
           'nur die zugewiesenen Personen – ist die Aufgabe uns zugewiesen, '
           + 'also uns; einem Lieferanten zugewiesen, nur ihm',
