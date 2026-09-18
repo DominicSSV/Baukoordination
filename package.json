@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sicherung": "node scripts/sicherung.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
