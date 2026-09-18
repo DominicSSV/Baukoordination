@@ -17,6 +17,7 @@ export type VorlagenSchluessel =
   | 'einladung'
   | 'benachrichtigung'
   | 'update'
+  | 'sammelmail'
   | 'fristnah'
   | 'fristheute'
   | 'fristablauf';
@@ -99,6 +100,30 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
       { name: '{projekt}', erklaerung: 'Name des Projekts' },
       { name: '{ort}', erklaerung: 'Ort des Projekts' },
       { name: '{eintraege}', erklaerung: 'Die Liste der Protokolleinträge' },
+      { name: '{link}', erklaerung: 'Adresse der App' },
+    ],
+  },
+  {
+    schluessel: 'sammelmail',
+    name: 'Sammelmail am Morgen',
+    beschreibung:
+      'Die Nachricht, die um halb acht an die Lieferanten geht – mit allem, '
+      + 'was seit der letzten aufgelaufen ist.',
+    betreff: 'Baukoordination: {anzahl} Neuigkeiten',
+    text: [
+      'Das ist seit gestern dazugekommen:',
+      '',
+      '{eintraege}',
+      '',
+      'In der App ansehen: {link}',
+    ].join('\n'),
+    platzhalter: [
+      { name: '{anzahl}', erklaerung: 'Wie viele Meldungen darin stehen' },
+      { name: '{projekte}', erklaerung: 'Wie viele Projekte betroffen sind' },
+      {
+        name: '{eintraege}',
+        erklaerung: 'Die Meldungen selbst, nach Projekten gegliedert',
+      },
       { name: '{link}', erklaerung: 'Adresse der App' },
     ],
   },

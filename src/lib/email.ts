@@ -764,6 +764,23 @@ export async function sendActivityNotification(params: {
       : await allProjectParties(params.projectId, eigeneAdresse);
   if (!to.length) return;
 
+  /**
+   * Wer sofort Post bekommt – und wer sie gesammelt bekommt.
+   *
+   * Die Lieferanten bekamen für jede Kleinigkeit eine eigene Mail: drei neue
+   * Aufgaben am Vormittag waren drei Mails. Wer so viel Post aus einem Werkzeug
+   * bekommt, liest nach zwei Wochen keine davon mehr – und dann ist auch die
+   * wichtige nichts mehr wert. Für sie wandert die Meldung deshalb in die
+   * Warteschlange und geht am nächsten Morgen um halb acht gebündelt hinaus.
+   *
+   * Bei uns bleibt es beim sofortigen Versand. Wer die Baustelle koordiniert,
+   * muss von der Rückfrage am Vormittag am Vormittag erfahren und nicht am
+   * nächsten Morgen. Soll auch das gesammelt werden, genügt es, hier nicht mehr
+   * zwischen innen und aussen zu unterscheiden.
+   */
+  const sofort = to.filter((a) => istIntern(a));
+  const spaeter = to.filter((a) => !istIntern(a));
+
   const vorlage = await ladeVorlage('benachrichtigung');
   const werte = {
     projekt: project.name,
@@ -772,11 +789,168 @@ export async function sendActivityNotification(params: {
     link: appBaseUrl(),
   };
 
-  const subject = einsetzen(vorlage.betreff, werte).slice(0, 120);
-  const text = einsetzen(vorlage.text, werte);
-  const html = wrapHtml(`Neue Aktivität in "${project.name}"`, textZuHtml(text));
+  if (sofort.length) {
+    const subject = einsetzen(vorlage.betreff, werte).slice(0, 120);
+    const text = einsetzen(vorlage.text, werte);
+    const html = wrapHtml(`Neue Aktivität in "${project.name}"`, textZuHtml(text));
+    await send({ to: sofort, subject, text, html });
+  }
 
-  await send({ to, subject, text, html });
+  if (spaeter.length) {
+    await sammeln({
+      empfaenger: spaeter,
+      projectId: project.id,
+      projektName: project.name,
+      text: `${params.actorName} ${params.text}`,
+    });
+  }
+}
+
+/**
+ * Eine Meldung in die Warteschlange für die Sammelmail legen.
+ *
+ * Denselben Filter wie beim sofortigen Versand: Wer nicht freigeschaltet ist,
+ * kommt gar nicht erst in die Schlange. Sonst stünde dort Post für Leute, die
+ * keine wollen, und sie bliebe für immer liegen.
+ *
+ * Fehlt Migration 0037, geht die Meldung wie früher sofort hinaus. Lieber eine
+ * Mail zu viel als eine verlorene.
+ */
+async function sammeln(params: {
+  empfaenger: string[];
+  projectId: string;
+  projektName: string;
+  text: string;
+}): Promise<void> {
+  let ziele = params.empfaenger;
+
+  if (!mailAnLieferanten()) {
+    const frei = await freigegebeneAdressen();
+    ziele = ziele.filter((a) => frei.has(a.trim().toLowerCase()));
+  }
+  if (!ziele.length) return;
+
+  const { error } = await serviceClient()
+    .from('mail_queue')
+    .insert(
+      ziele.map((empfaenger) => ({
+        empfaenger,
+        project_id: params.projectId,
+        projekt_name: params.projektName,
+        text: params.text,
+      })),
+    );
+
+  if (!error) return;
+
+  // Ohne die Tabelle bleibt es beim bisherigen Verhalten.
+  console.warn('[mail] Sammelmail nicht möglich, sende einzeln', error.message);
+  const html = wrapHtml(
+    `Neue Aktivität in "${params.projektName}"`,
+    textZuHtml(`${params.text}\n\nProjekt: ${params.projektName}\n${appBaseUrl()}`),
+  );
+  await send({
+    to: ziele,
+    subject: `${params.projektName}: ${params.text}`.slice(0, 120),
+    text: `${params.text}\n\nProjekt: ${params.projektName}\n${appBaseUrl()}`,
+    html,
+  });
+}
+
+/**
+ * Die morgendliche Sammelmail verschicken.
+ *
+ * Eine Nachricht je Person mit allem, was seit der letzten aufgelaufen ist,
+ * nach Projekten gegliedert. Gebündelt statt einzeln, damit die Post aus diesem
+ * Werkzeug gelesen wird und nicht überblättert.
+ *
+ * Gibt zurück, wie viele Personen erreicht wurden – für den Prüfbericht.
+ */
+export async function sendeSammelmails(): Promise<{
+  personen: number;
+  meldungen: number;
+  fehler: string[];
+}> {
+  const fehler: string[] = [];
+  if (!mailEnabled()) return { personen: 0, meldungen: 0, fehler };
+
+  const db = serviceClient();
+  const { data, error } = await db
+    .from('mail_queue')
+    .select('id, empfaenger, projekt_name, text, created_at')
+    .is('gesendet_am', null)
+    .order('created_at', { ascending: true })
+    .limit(2000);
+
+  if (error) return { personen: 0, meldungen: 0, fehler: [error.message] };
+
+  const offen = (data ?? []) as Array<{
+    id: string;
+    empfaenger: string;
+    projekt_name: string | null;
+    text: string;
+    created_at: string;
+  }>;
+  if (!offen.length) return { personen: 0, meldungen: 0, fehler };
+
+  // Je Person eine Mail, darin nach Projekt gegliedert.
+  const jePerson = new Map<string, typeof offen>();
+  for (const z of offen) {
+    const liste = jePerson.get(z.empfaenger) ?? [];
+    liste.push(z);
+    jePerson.set(z.empfaenger, liste);
+  }
+
+  const vorlage = await ladeVorlage('sammelmail');
+  let personen = 0;
+
+  for (const [empfaenger, eintraege] of jePerson) {
+    try {
+      const jeProjekt = new Map<string, string[]>();
+      for (const e of eintraege) {
+        const name = e.projekt_name ?? 'Projekt';
+        const liste = jeProjekt.get(name) ?? [];
+        liste.push(e.text);
+        jeProjekt.set(name, liste);
+      }
+
+      const bloecke = [...jeProjekt.entries()].map(
+        ([projekt, zeilen]) =>
+          `${projekt}:\n${zeilen.map((z) => `• ${z}`).join('\n')}`,
+      );
+
+      const werte = {
+        anzahl: String(eintraege.length),
+        projekte: String(jeProjekt.size),
+        eintraege: bloecke.join('\n\n'),
+        link: appBaseUrl(),
+      };
+
+      const subject = einsetzen(vorlage.betreff, werte).slice(0, 120);
+      const text = einsetzen(vorlage.text, werte);
+      const html = wrapHtml(
+        eintraege.length === 1 ? 'Eine Neuigkeit' : `${eintraege.length} Neuigkeiten`,
+        textZuHtml(text),
+      );
+
+      await send({ to: [empfaenger], subject, text, html, anLieferanten: true });
+      personen += 1;
+
+      await db
+        .from('mail_queue')
+        .update({ gesendet_am: new Date().toISOString() })
+        .in(
+          'id',
+          eintraege.map((e) => e.id),
+        );
+    } catch (e) {
+      fehler.push(
+        `${empfaenger}: ${e instanceof Error ? e.message : 'unbekannter Fehler'}`,
+      );
+    }
+  }
+
+  return { personen, meldungen: offen.length, fehler };
 }
 
 // ---------------------------------------------------------------------------
@@ -815,6 +989,17 @@ const VORSCHAU_WERTE: Record<VorlagenSchluessel, Record<string, string>> = {
     ].join('\n'),
     link: appBaseUrl(),
   },
+  sammelmail: {
+    anzahl: '3',
+    projekte: '2',
+    eintraege:
+      'Dietikon:\n'
+      + '• Reto Schmid hat To-Do "Zählerplatz freigeben" angelegt\n'
+      + '• Anna Frei hat zu To-Do "Gerüst stellen" kommentiert: "Kommt Montag"\n\n'
+      + 'Solothurn:\n'
+      + '• Peter Küng hat "Montage AC" im Terminplan geändert (12.–16.10.)',
+    link: appBaseUrl(),
+  },
   fristnah: {
     projekt: 'Dietikon',
     aufgabe: 'Zählerplatz freigeben',
@@ -841,6 +1026,7 @@ const VORSCHAU_TITEL: Record<VorlagenSchluessel, string> = {
   einladung: 'Zugriff auf die Baukoordination-App',
   benachrichtigung: 'Neue Aktivität in "Dietikon"',
   update: 'Update zu "Dietikon"',
+  sammelmail: '3 Neuigkeiten',
   fristnah: 'Morgen fällig',
   fristheute: 'Heute fällig',
   fristablauf: 'Frist überschritten',

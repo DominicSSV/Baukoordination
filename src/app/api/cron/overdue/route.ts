@@ -6,6 +6,7 @@ import {
   mailEnabled,
   sendFristErinnerung,
   sendOverdueNotice,
+  sendeSammelmails,
 } from '@/lib/email';
 import { fmtDueDate, heute } from '@/lib/due';
 import { tagPlus } from '@/lib/schedule';
@@ -27,7 +28,13 @@ type FaelligeAufgabe = {
 };
 
 /**
- * Täglicher Prüflauf auf Fristen – drei Stufen in einem Lauf.
+ * Der morgendliche Lauf: Sammelmail und Fristen.
+ *
+ * Zuerst geht an jeden Lieferanten eine Nachricht mit allem, was seit gestern
+ * aufgelaufen ist – statt für jede Kleinigkeit eine eigene. Danach die Fristen,
+ * die weiterhin einzeln kommen: Eine Mahnung im Sammelband würde überlesen.
+ *
+ * Die Fristen in drei Stufen:
  *
  * Erinnerung zwei Tage vorher, Erinnerung am Tag selbst, Mahnung am Tag danach.
  * Jede Stufe hat ihren eigenen Vermerk (erinnert_am, erinnert_heute_am,
@@ -116,6 +123,12 @@ export const GET = handler(async (request: Request) => {
 
   let gemahnt = 0;
   const fehler: string[] = [];
+
+  // Zuerst die Sammelmail mit allem, was gestern aufgelaufen ist, dann die
+  // Erinnerungen. In dieser Reihenfolge liegen die Fristen im Posteingang
+  // obenauf – und das ist das, was heute zu tun ist.
+  const sammel = await sendeSammelmails();
+  fehler.push(...sammel.fehler.map((f) => `Sammelmail: ${f}`));
 
   /**
    * Schlägt eine Erinnerungs-Abfrage fehl, fehlt Migration 0035 – dann bleibt
@@ -235,6 +248,8 @@ export const GET = handler(async (request: Request) => {
   }
 
   return ok({
+    sammelmail_personen: sammel.personen,
+    sammelmail_meldungen: sammel.meldungen,
     in_zwei_tagen_faellig: vorlaufLauf.gefunden,
     vorlauf_erinnert: vorlaufLauf.versendet,
     heute_faellig: heuteLauf.gefunden,
