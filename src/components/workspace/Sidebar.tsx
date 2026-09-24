@@ -1,11 +1,25 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { post } from '@/lib/client/api';
-import { PROJEKT_STATUS, type Project, type ProjektStatus } from '@/types';
+import { api, del, patch, post } from '@/lib/client/api';
+import {
+  PROJEKT_STATUS,
+  type Project,
+  type ProjektGruppe,
+  type ProjektStatus,
+} from '@/types';
 
 const STANDARD_STATUS: ProjektStatus = 'umsetzung';
+
+/**
+ * Schluessel fuer die Sammelstelle am Ende.
+ *
+ * Kein echter Datensatz: Projekte ohne Sparte landen hier, damit sie sichtbar
+ * bleiben. Eine Gliederung, die Projekte unsichtbar macht, richtet mehr
+ * Schaden an, als sie Ordnung bringt.
+ */
+const OHNE_SPARTE = '__ohne__';
 
 export default function Sidebar({
   projects,
@@ -44,10 +58,16 @@ export default function Sidebar({
 
   // Abgeschlossene Projekte sind standardmässig eingeklappt – sie stehen
   // im Alltag nur im Weg.
-  const [zu, setZu] = useState<Set<ProjektStatus>>(new Set(['abgeschlossen']));
+  // Schluessel ist "<sparte>:<phase>": Wer "Abgeschlossen" bei PVA zuklappt,
+  // will es bei BESS nicht auch zu haben.
+  const [zu, setZu] = useState<Set<string>>(new Set());
 
   const [gezogen, setGezogen] = useState<string | null>(null);
   const [ueber, setUeber] = useState<{ id: string; status: ProjektStatus } | null>(null);
+
+  /** Die Sparten aus der Datenbank – PVA, BESS, Heizung … */
+  const [gruppen, setGruppen] = useState<ProjektGruppe[]>([]);
+  const [sparteZu, setSparteZu] = useState<Set<string>>(new Set());
 
   /**
    * Auf dem Handy eingeklappt, sobald ein Projekt offen ist.
@@ -66,21 +86,80 @@ export default function Sidebar({
     ? null
     : (projects.find((p) => p.id === activeId) ?? null);
 
-  const gruppiert = useMemo(() => {
+  /** Eine Liste Projekte nach Phase aufteilen. */
+  function phasenVon(liste: Project[]) {
     const map = new Map<ProjektStatus, Project[]>();
-    for (const s of PROJEKT_STATUS) map.set(s.wert, []);
-    for (const p of projects) {
+    for (const st of PROJEKT_STATUS) map.set(st.wert, []);
+    for (const p of liste) {
       const status = (p.status ?? STANDARD_STATUS) as ProjektStatus;
       (map.get(status) ?? map.get(STANDARD_STATUS)!).push(p);
     }
     return map;
-  }, [projects]);
+  }
 
-  function klappen(status: ProjektStatus) {
+  /**
+   * Die Sparten in der Reihenfolge, in der sie stehen sollen – und am Ende
+   * "Ohne Gruppe", falls dort etwas liegt.
+   *
+   * Ein Projekt ohne Sparte verschwindet nicht, es sammelt sich sichtbar
+   * unten. Eine Gliederung, die Projekte unsichtbar macht, richtet mehr
+   * Schaden an, als sie Ordnung bringt.
+   */
+  const echteSparten = gruppen;
+
+  const nachSparte = useMemo(() => {
+    const map = new Map<string, Project[]>();
+    for (const g of gruppen) map.set(g.id, []);
+    map.set(OHNE_SPARTE, []);
+    for (const p of projects) {
+      const schluessel = p.group_id && map.has(p.group_id) ? p.group_id : OHNE_SPARTE;
+      map.get(schluessel)!.push(p);
+    }
+    return map;
+  }, [projects, gruppen]);
+
+  const sparten = useMemo(() => {
+    const liste: Array<{ id: string; name: string }> = gruppen.map((g) => ({
+      id: g.id,
+      name: g.name,
+    }));
+    // Gibt es gar keine Sparten, steht alles unter "Alle Projekte" – so sieht
+    // die Seitenleiste vor Migration 0043 aus wie bisher.
+    if (!gruppen.length) return [{ id: OHNE_SPARTE, name: 'Alle Projekte' }];
+    if ((nachSparte.get(OHNE_SPARTE) ?? []).length) {
+      liste.push({ id: OHNE_SPARTE, name: 'Ohne Gruppe' });
+    }
+    return liste;
+  }, [gruppen, nachSparte]);
+
+  const laden = useCallback(async () => {
+    try {
+      const { gruppen: geladen } = await api<{ gruppen: ProjektGruppe[] }>('/api/groups');
+      setGruppen(geladen ?? []);
+    } catch {
+      // Ohne Sparten bleibt es bei der bisherigen Gliederung nach Phase.
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => void laden(), 0);
+    return () => window.clearTimeout(t);
+  }, [laden]);
+
+  function klappen(schluessel: string) {
     setZu((current) => {
       const next = new Set(current);
-      if (next.has(status)) next.delete(status);
-      else next.add(status);
+      if (next.has(schluessel)) next.delete(schluessel);
+      else next.add(schluessel);
+      return next;
+    });
+  }
+
+  function sparteKlappen(id: string) {
+    setSparteZu((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -104,7 +183,11 @@ export default function Sidebar({
    * Ablegen: die gezogene Karte wird vor der Karte eingefügt, über der sie
    * losgelassen wurde – oder ans Ende der Gruppe, wenn auf die Überschrift.
    */
-  async function ablegen(zielStatus: ProjektStatus, zielId: string | null) {
+  async function ablegen(
+    zielStatus: ProjektStatus,
+    zielId: string | null,
+    zielSparte: string,
+  ) {
     const quelle = gezogen;
     setGezogen(null);
     setUeber(null);
@@ -114,32 +197,212 @@ export default function Sidebar({
     const bewegt = projects.find((p) => p.id === quelle);
     if (!bewegt) return;
 
-    const neuesProjekt: Project = { ...bewegt, status: zielStatus };
+    const neueGruppe = zielSparte === OHNE_SPARTE ? null : zielSparte;
+    const neuesProjekt: Project = {
+      ...bewegt,
+      status: zielStatus,
+      group_id: neueGruppe,
+    };
 
-    // Neue Gesamtliste in der Reihenfolge aufbauen, wie sie angezeigt wird.
+    // Neue Gesamtliste in der Reihenfolge aufbauen, wie sie angezeigt wird:
+    // erst nach Sparte, darin nach Phase.
     const sortiert: Project[] = [];
-    for (const s of PROJEKT_STATUS) {
-      const inGruppe = ohne.filter(
-        (p) => (p.status ?? STANDARD_STATUS) === s.wert,
-      );
-      if (s.wert === zielStatus) {
-        const index = zielId ? inGruppe.findIndex((p) => p.id === zielId) : -1;
-        if (index === -1) inGruppe.push(neuesProjekt);
-        else inGruppe.splice(index, 0, neuesProjekt);
+    const spartenFolge = [...gruppen.map((g) => g.id), OHNE_SPARTE];
+
+    for (const sparte of spartenFolge) {
+      for (const st of PROJEKT_STATUS) {
+        const inGruppe = ohne.filter(
+          (p) =>
+            (p.group_id ?? OHNE_SPARTE) === sparte &&
+            (p.status ?? STANDARD_STATUS) === st.wert,
+        );
+        if (sparte === zielSparte && st.wert === zielStatus) {
+          const index = zielId ? inGruppe.findIndex((p) => p.id === zielId) : -1;
+          if (index === -1) inGruppe.push(neuesProjekt);
+          else inGruppe.splice(index, 0, neuesProjekt);
+        }
+        sortiert.push(...inGruppe);
       }
-      sortiert.push(...inGruppe);
     }
 
     // Sofort umsortiert anzeigen, danach speichern.
     onReordered(sortiert);
 
     try {
+      // Erst die Sparte, dann die Reihenfolge: Beides zusammen ginge nur ueber
+      // eine eigene Route, und ein Projekt, das in der falschen Sparte landet,
+      // faellt mehr auf als eine Reihenfolge, die einen Wimpernschlag spaeter
+      // sitzt.
+      if ((bewegt.group_id ?? null) !== neueGruppe) {
+        await patch(`/api/projects/${quelle}`, { groupId: neueGruppe });
+      }
       await post('/api/projects/reorder', {
         order: sortiert.map((p) => p.id),
         status: { [quelle]: zielStatus },
       });
     } catch (error) {
       reportError(error, 'Reihenfolge konnte nicht gespeichert werden.');
+    }
+  }
+
+  /**
+   * Die Phasen innerhalb einer Sparte.
+   *
+   * Derselbe Block wie frueher, nur nicht mehr einmal fuer alle Projekte,
+   * sondern einmal je Sparte. Das Zuklappen wird deshalb je Sparte gemerkt:
+   * Wer "Abgeschlossen" bei PVA zuklappt, will es bei BESS nicht auch zu
+   * haben.
+   */
+  function phasenAnsicht(phasen: Map<ProjektStatus, Project[]>, sparteId: string) {
+    return PROJEKT_STATUS.map((s) => {
+      const inGruppe = phasen.get(s.wert) ?? [];
+      const eingeklappt = zu.has(`${sparteId}:${s.wert}`);
+
+          return (
+            <div className="projekt-gruppe" key={`${sparteId}:${s.wert}`}>
+              <button
+                type="button"
+                className="gruppe-kopf"
+                onClick={() => klappen(`${sparteId}:${s.wert}`)}
+                onDragOver={(e) => {
+                  if (isAdmin && gezogen) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void ablegen(s.wert, null, sparteId);
+                }}
+                aria-expanded={!eingeklappt}
+              >
+                <span className={`gruppe-pfeil ${eingeklappt ? 'zu' : ''}`}>▾</span>
+                {s.name}
+                <span className="gruppe-anzahl">{inGruppe.length}</span>
+              </button>
+
+              {!eingeklappt && (
+                <div className="gruppe-inhalt">
+                  {inGruppe.map((p) => (
+                    <div
+                      key={p.id}
+                      className={`project-item ${p.id === activeId ? 'active' : ''} ${
+                        gezogen === p.id ? 'zieht' : ''
+                      } ${ueber?.id === p.id ? 'ziel' : ''}`}
+                      draggable={isAdmin}
+                      onDragStart={() => setGezogen(p.id)}
+                      onDragEnd={() => {
+                        setGezogen(null);
+                        setUeber(null);
+                      }}
+                      onDragOver={(e) => {
+                        if (!isAdmin || !gezogen) return;
+                        e.preventDefault();
+                        setUeber({ id: p.id, status: s.wert });
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        void ablegen(s.wert, p.id, sparteId);
+                      }}
+                      onClick={() => waehlen(p.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') waehlen(p.id);
+                      }}
+                    >
+                      {isAdmin && <span className="zieh-griff" title="Verschieben">⠿</span>}
+                      <div className="dot" />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="pname">{p.name}</div>
+                        <div className="pmeta">{p.ort ?? ''}</div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {!inGruppe.length && (
+                    <div
+                      className="gruppe-leer"
+                      onDragOver={(e) => {
+                        if (isAdmin && gezogen) e.preventDefault();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        void ablegen(s.wert, null, sparteId);
+                      }}
+                    >
+                      {isAdmin ? 'Projekt hierher ziehen' : 'Keine Projekte'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+    });
+  }
+
+
+  // ------------------------------------------------------------- Sparten
+  /**
+   * Verschieben. Die ganze neue Abfolge geht an den Server und nicht "tausche
+   * diese beiden": Bricht ein Tausch auf halbem Weg ab, haetten zwei Sparten
+   * dieselbe Nummer und die Reihenfolge waere danach Zufall.
+   */
+  async function verschieben(id: string, richtung: -1 | 1) {
+    const index = gruppen.findIndex((g) => g.id === id);
+    const ziel = index + richtung;
+    if (index < 0 || ziel < 0 || ziel >= gruppen.length) return;
+
+    const neu = [...gruppen];
+    [neu[index], neu[ziel]] = [neu[ziel], neu[index]];
+    setGruppen(neu);
+
+    try {
+      await patch('/api/groups', { reihenfolge: neu.map((g) => g.id) });
+    } catch (error) {
+      reportError(error, 'Reihenfolge konnte nicht gespeichert werden.');
+      await laden();
+    }
+  }
+
+  async function gruppeAnlegen() {
+    const name = window.prompt('Name der neuen Gruppe, z.B. „Wärmepumpen“:');
+    if (!name?.trim()) return;
+
+    try {
+      await post('/api/groups', { name: name.trim() });
+      await laden();
+    } catch (error) {
+      reportError(error, 'Die Gruppe konnte nicht angelegt werden.');
+    }
+  }
+
+  async function umbenennen(sp: { id: string; name: string }) {
+    const name = window.prompt('Neuer Name:', sp.name);
+    if (!name?.trim() || name.trim() === sp.name) return;
+
+    try {
+      await patch('/api/groups', { id: sp.id, name: name.trim() });
+      await laden();
+    } catch (error) {
+      reportError(error, 'Die Gruppe konnte nicht umbenannt werden.');
+    }
+  }
+
+  /**
+   * Eine Gruppe entfernen. Die Projekte darin bleiben und rutschen unter
+   * "Ohne Gruppe" – das sagt die Rueckfrage auch ausdruecklich, damit niemand
+   * denkt, er loesche gerade seine Projekte.
+   */
+  async function gruppeEntfernen(sp: { id: string; name: string }) {
+    const drin = (nachSparte.get(sp.id) ?? []).length;
+    const text = drin
+      ? `Gruppe „${sp.name}" entfernen?\n\nDie ${drin} Projekte darin bleiben bestehen und stehen danach unter „Ohne Gruppe".`
+      : `Gruppe „${sp.name}" entfernen?`;
+    if (!window.confirm(text)) return;
+
+    try {
+      await del('/api/groups', { id: sp.id });
+      await laden();
+    } catch (error) {
+      reportError(error, 'Die Gruppe konnte nicht entfernt werden.');
     }
   }
 
@@ -189,88 +452,77 @@ export default function Sidebar({
       </button>
 
       <div className={`project-list ${listeOffen ? '' : 'zu'}`}>
-        {PROJEKT_STATUS.map((s) => {
-          const inGruppe = gruppiert.get(s.wert) ?? [];
-          const eingeklappt = zu.has(s.wert);
+        {sparten.map((sp) => {
+          const drin = nachSparte.get(sp.id) ?? [];
+          const zuS = sparteZu.has(sp.id);
 
           return (
-            <div className="projekt-gruppe" key={s.wert}>
-              <button
-                type="button"
-                className="gruppe-kopf"
-                onClick={() => klappen(s.wert)}
-                onDragOver={(e) => {
-                  if (isAdmin && gezogen) e.preventDefault();
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  void ablegen(s.wert, null);
-                }}
-                aria-expanded={!eingeklappt}
-              >
-                <span className={`gruppe-pfeil ${eingeklappt ? 'zu' : ''}`}>▾</span>
-                {s.name}
-                <span className="gruppe-anzahl">{inGruppe.length}</span>
-              </button>
-
-              {!eingeklappt && (
-                <div className="gruppe-inhalt">
-                  {inGruppe.map((p) => (
-                    <div
-                      key={p.id}
-                      className={`project-item ${p.id === activeId ? 'active' : ''} ${
-                        gezogen === p.id ? 'zieht' : ''
-                      } ${ueber?.id === p.id ? 'ziel' : ''}`}
-                      draggable={isAdmin}
-                      onDragStart={() => setGezogen(p.id)}
-                      onDragEnd={() => {
-                        setGezogen(null);
-                        setUeber(null);
-                      }}
-                      onDragOver={(e) => {
-                        if (!isAdmin || !gezogen) return;
-                        e.preventDefault();
-                        setUeber({ id: p.id, status: s.wert });
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        void ablegen(s.wert, p.id);
-                      }}
-                      onClick={() => waehlen(p.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') waehlen(p.id);
-                      }}
+            <div className="sparte" key={sp.id}>
+              <div className="sparte-kopf">
+                <button
+                  type="button"
+                  className="sparte-titel"
+                  onClick={() => sparteKlappen(sp.id)}
+                  aria-expanded={!zuS}
+                >
+                  <span className={`gruppe-pfeil ${zuS ? 'zu' : ''}`}>▾</span>
+                  {sp.name}
+                  <span className="gruppe-anzahl">{drin.length}</span>
+                </button>
+                {isAdmin && sp.id !== OHNE_SPARTE && (
+                  <span className="sparte-werkzeuge">
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Nach oben"
+                      onClick={() => void verschieben(sp.id, -1)}
+                      disabled={sparten[0]?.id === sp.id}
                     >
-                      {isAdmin && <span className="zieh-griff" title="Verschieben">⠿</span>}
-                      <div className="dot" />
-                      <div style={{ minWidth: 0 }}>
-                        <div className="pname">{p.name}</div>
-                        <div className="pmeta">{p.ort ?? ''}</div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {!inGruppe.length && (
-                    <div
-                      className="gruppe-leer"
-                      onDragOver={(e) => {
-                        if (isAdmin && gezogen) e.preventDefault();
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        void ablegen(s.wert, null);
-                      }}
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Nach unten"
+                      onClick={() => void verschieben(sp.id, 1)}
+                      disabled={echteSparten[echteSparten.length - 1]?.id === sp.id}
                     >
-                      {isAdmin ? 'Projekt hierher ziehen' : 'Keine Projekte'}
-                    </div>
-                  )}
+                      ▼
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Umbenennen"
+                      onClick={() => void umbenennen(sp)}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title="Gruppe entfernen"
+                      onClick={() => void gruppeEntfernen(sp)}
+                    >
+                      🗑️
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              {!zuS && (
+                <div className="sparte-inhalt">
+                  {phasenAnsicht(phasenVon(drin), sp.id)}
                 </div>
               )}
             </div>
           );
         })}
+
+        {isAdmin && (
+          <button type="button" className="sparte-neu" onClick={() => void gruppeAnlegen()}>
+            + Gruppe
+          </button>
+        )}
       </div>
 
       {isAdmin &&

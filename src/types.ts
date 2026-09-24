@@ -8,9 +8,11 @@ export type Project = {
   /** Zeitraum des Terminplans, JJJJ-MM-TT. Leer = aus den Arbeiten abgeleitet. */
   schedule_start?: string | null;
   schedule_end?: string | null;
-  /** Gruppe in der Seitenleiste. */
+  /** Phase in der Seitenleiste – die untere Gliederungsebene. */
   status?: ProjektStatus;
   order_index?: number;
+  /** Sparte (PVA, BESS …) – die obere Ebene. Null = noch keiner zugeteilt. */
+  group_id?: string | null;
   /**
    * Bild der Liegenschaft – kurzlebige Signatur, null = keines hinterlegt.
    * Gefüllt nur in der Projektansicht, nicht in der Liste der Seitenleiste.
@@ -19,6 +21,19 @@ export type Project = {
 };
 
 export type ProjektStatus = 'planung' | 'umsetzung' | 'abschluss' | 'abgeschlossen';
+
+/**
+ * Eine Sparte über den Projekten: PVA, BESS, Heizung …
+ *
+ * Die Reihenfolge steht in order_index und ist verschiebbar. Sie kommt aus der
+ * Datenbank und nicht aus einer festen Liste im Programm: Die nächste Sparte
+ * kommt bestimmt, und dafür soll niemand den Code anfassen müssen.
+ */
+export type ProjektGruppe = {
+  id: string;
+  name: string;
+  order_index: number;
+};
 
 export const PROJEKT_STATUS: Array<{ wert: ProjektStatus; name: string }> = [
   { wert: 'planung', name: 'In Planung' },

@@ -100,24 +100,34 @@ async function loadAdminProfiles(): Promise<AdminProfile[]> {
 
 /** Projekte, die der Aufrufer sehen darf. Für Lieferanten filtert bereits die RLS. */
 export async function listProjects(ctx: Ctx): Promise<Project[]> {
-  const mitStatus = await ctx.db
-    .from('projects')
-    .select('id, name, ort, created_at, status, order_index')
-    .order('order_index', { ascending: true })
-    .order('created_at', { ascending: true });
+  /**
+   * In Stufen, von der vollstaendigsten Spaltenliste abwaerts.
+   *
+   * group_id kommt mit 0043, status und order_index mit 0009. Fehlt eine
+   * Migration, faellt die Abfrage auf die naechstkleinere Fassung zurueck,
+   * statt die ganze Seitenleiste leer zu lassen.
+   */
+  const stufen = [
+    'id, name, ort, created_at, status, order_index, group_id',
+    'id, name, ort, created_at, status, order_index',
+    'id, name, ort, created_at',
+  ];
 
-  // status/order_index kommen erst mit Migration 0009.
-  const res = mitStatus.error
-    ? await ctx.db
-        .from('projects')
-        .select('id, name, ort, created_at')
-        .order('created_at', { ascending: true })
-    : mitStatus;
+  let res;
+  for (const spalten of stufen) {
+    res = await ctx.db
+      .from('projects')
+      .select(spalten)
+      .order('created_at', { ascending: true });
+    if (!res.error) break;
+  }
+  if (!res) throw new Error('Projekte konnten nicht geladen werden.');
 
   if (res.error) {
     throw new Error(`Projekte konnten nicht geladen werden: ${res.error.message}`);
   }
-  return (res.data ?? []) as Project[];
+  // Die Spaltenliste ist eine Variable, deshalb kennt Supabase den Typ nicht.
+  return (res.data ?? []) as unknown as Project[];
 }
 
 async function signedUrls(paths: string[]): Promise<Map<string, string>> {

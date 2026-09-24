@@ -35,6 +35,8 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     scheduleStart?: string | null;
     scheduleEnd?: string | null;
     status?: string;
+    /** Sparte (PVA, BESS …). Leerer String oder null = keine. */
+    groupId?: string | null;
   }>(request);
 
   const patch: Record<string, unknown> = {};
@@ -58,15 +60,28 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     }
     patch.status = body.status;
   }
+  if (body.groupId !== undefined) {
+    // Leer heisst ausdruecklich "keiner Sparte zugeteilt" – solche Projekte
+    // sammelt die Seitenleiste unter "Ohne Gruppe", sie verschwinden nicht.
+    patch.group_id = body.groupId ? String(body.groupId) : null;
+  }
 
   if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
 
-  const { data, error } = await ctx.db
-    .from('projects')
-    .update(patch)
-    .eq('id', id)
-    .select('id, name, ort, created_at, schedule_start, schedule_end, status, order_index')
-    .single();
+  const speichern = (spalten: string) =>
+    ctx.db.from('projects').update(patch).eq('id', id).select(spalten).single();
+
+  const mitGruppe = await speichern(
+    'id, name, ort, created_at, schedule_start, schedule_end, status, order_index, group_id',
+  );
+
+  // Ohne Migration 0043 gibt es group_id noch nicht. Dann ohne sie speichern –
+  // der Rest der Aenderung soll nicht an einer fehlenden Spalte scheitern.
+  const { data, error } = mitGruppe.error
+    ? await speichern(
+        'id, name, ort, created_at, schedule_start, schedule_end, status, order_index',
+      )
+    : mitGruppe;
 
   if (error) throw new ApiError(`Speichern fehlgeschlagen: ${error.message}`, 500);
 

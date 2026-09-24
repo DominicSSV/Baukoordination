@@ -5389,3 +5389,90 @@ button:disabled {
 .icon-btn-gefahr:hover {
   background: #FDECEA;
 }
+
+/* --- Sparten über den Projekten ------------------------------------------ */
+/* PVA, BESS, Heizung … Die Phasen (In Planung, In Umsetzung) stehen darin,
+   eingerückt – zwei Ebenen, damit man auf einen Blick sieht, was wozu gehört. */
+.sparte {
+  margin-bottom: 4px;
+}
+
+.sparte-kopf {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sparte-titel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-anton), sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sparte-titel:hover {
+  background: var(--bg);
+}
+
+/* Die Werkzeuge erscheinen erst beim Darüberfahren – sonst steht neben jeder
+   Gruppe eine Knopfreihe und die Namen gehen darin unter. */
+.sparte-werkzeuge {
+  display: flex;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.sparte-kopf:hover .sparte-werkzeuge,
+.sparte-kopf:focus-within .sparte-werkzeuge {
+  opacity: 1;
+}
+
+.sparte-werkzeuge .icon-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+
+/* Eingerückt, damit die Phase sichtbar unter der Sparte hängt. */
+.sparte-inhalt {
+  padding-left: 10px;
+  margin-left: 6px;
+  border-left: 2px solid var(--line);
+}
+
+.sparte-neu {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.sparte-neu:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  /* Ohne Maus gibt es kein Darüberfahren – dann stehen sie immer da. */
+  .sparte-werkzeuge {
+    opacity: 1;
+  }
+}
