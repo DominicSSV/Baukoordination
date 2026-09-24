@@ -37,6 +37,11 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     status?: string;
     /** Sparte (PVA, BESS …). Leerer String oder null = keine. */
     groupId?: string | null;
+    rechnungName?: string | null;
+    rechnungStrasse?: string | null;
+    rechnungPlz?: string | null;
+    rechnungOrt?: string | null;
+    rechnungVersand?: string | null;
   }>(request);
 
   const patch: Record<string, unknown> = {};
@@ -66,13 +71,30 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
     patch.group_id = body.groupId ? String(body.groupId) : null;
   }
 
+  // Rechnungsadresse. Jedes Feld einzeln, damit sich eines ändern lässt, ohne
+  // die anderen mitzuschicken – und ein leeres Feld heisst ausdrücklich "leer"
+  // und nicht "unverändert".
+  const felder = {
+    rechnungName: 'rechnung_name',
+    rechnungStrasse: 'rechnung_strasse',
+    rechnungPlz: 'rechnung_plz',
+    rechnungOrt: 'rechnung_ort',
+    rechnungVersand: 'rechnung_versand',
+  } as const;
+
+  for (const [aussen, spalte] of Object.entries(felder)) {
+    const wert = (body as Record<string, unknown>)[aussen];
+    if (wert === undefined) continue;
+    patch[spalte] = optionalString(wert, 300);
+  }
+
   if (!Object.keys(patch).length) throw new ApiError('Keine Änderung übergeben.');
 
   const speichern = (spalten: string) =>
     ctx.db.from('projects').update(patch).eq('id', id).select(spalten).single();
 
   const mitGruppe = await speichern(
-    'id, name, ort, created_at, schedule_start, schedule_end, status, order_index, group_id',
+    'id, name, ort, created_at, schedule_start, schedule_end, status, order_index, group_id, rechnung_name, rechnung_strasse, rechnung_plz, rechnung_ort, rechnung_versand',
   );
 
   // Ohne Migration 0043 gibt es group_id noch nicht. Dann ohne sie speichern –

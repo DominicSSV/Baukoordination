@@ -136,6 +136,52 @@ export default function ProjectInfoTab({
   const [bildLaeuft, setBildLaeuft] = useState(false);
   /** true = das Bild füllt den Bildschirm. */
   const [vollbild, setVollbild] = useState(false);
+
+  /**
+   * Rechnungsadresse – Entwurf, solange bearbeitet wird.
+   *
+   * Feste Felder und kein freier Text: Eine Rechnungsadresse hat feste
+   * Bestandteile. Als Fliesstext geschrieben steht bei einem Projekt
+   * "c/o Verwaltung" in der Strasse und beim naechsten im Namen.
+   */
+  const [rechnungAuf, setRechnungAuf] = useState(false);
+  const [rechnungBusy, setRechnungBusy] = useState(false);
+  const [rechnung, setRechnung] = useState(() => ({
+    name: detail.project.rechnung_name ?? '',
+    strasse: detail.project.rechnung_strasse ?? '',
+    plz: detail.project.rechnung_plz ?? '',
+    ort: detail.project.rechnung_ort ?? '',
+    versand: detail.project.rechnung_versand ?? '',
+  }));
+
+  async function rechnungSpeichern() {
+    setRechnungBusy(true);
+    try {
+      await patch(`/api/projects/${detail.project.id}`, {
+        rechnungName: rechnung.name.trim() || null,
+        rechnungStrasse: rechnung.strasse.trim() || null,
+        rechnungPlz: rechnung.plz.trim() || null,
+        rechnungOrt: rechnung.ort.trim() || null,
+        rechnungVersand: rechnung.versand.trim() || null,
+      });
+      setRechnungAuf(false);
+      await reload();
+      toast('✓ Rechnungsadresse gespeichert.');
+    } catch (error) {
+      reportError(error, 'Die Rechnungsadresse konnte nicht gespeichert werden.');
+    } finally {
+      setRechnungBusy(false);
+    }
+  }
+
+  const hatRechnung = Boolean(
+    detail.project.rechnung_name ||
+      detail.project.rechnung_strasse ||
+      detail.project.rechnung_plz ||
+      detail.project.rechnung_ort ||
+      detail.project.rechnung_versand,
+  );
+
   const bildWahl = useRef<HTMLInputElement>(null);
 
   const bildUrl = detail.project.bild_url ?? null;
@@ -725,6 +771,119 @@ export default function ProjectInfoTab({
         <p className="leer-hinweis">
           Für dieses Projekt ist noch niemand von uns zugeteilt.
           {isAdmin && ' Das stellst du im Register „Kontakte" ein.'}
+        </p>
+      )}
+
+      <h4 className="pkontakt-titel">Rechnungsadresse</h4>
+
+      {rechnungAuf ? (
+        <div className="pkontakt bearbeitet">
+          <div className="pkontakt-form">
+            <input
+              value={rechnung.name}
+              onChange={(e) => setRechnung({ ...rechnung, name: e.target.value })}
+              placeholder="Name oder Firma"
+              aria-label="Name oder Firma"
+            />
+            <input
+              value={rechnung.strasse}
+              onChange={(e) => setRechnung({ ...rechnung, strasse: e.target.value })}
+              placeholder="Strasse und Nummer"
+              aria-label="Strasse"
+            />
+            <div className="rechnung-ortzeile">
+              <input
+                value={rechnung.plz}
+                onChange={(e) => setRechnung({ ...rechnung, plz: e.target.value })}
+                placeholder="PLZ"
+                aria-label="Postleitzahl"
+                className="rechnung-plz"
+              />
+              <input
+                value={rechnung.ort}
+                onChange={(e) => setRechnung({ ...rechnung, ort: e.target.value })}
+                placeholder="Ort"
+                aria-label="Ort"
+              />
+            </div>
+            <input
+              value={rechnung.versand}
+              onChange={(e) => setRechnung({ ...rechnung, versand: e.target.value })}
+              placeholder="Rechnungsversand, z.B. Per Mail an buchhaltung@…"
+              aria-label="Rechnungsversand"
+            />
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-accent btn-sm"
+                onClick={() => void rechnungSpeichern()}
+                disabled={rechnungBusy}
+              >
+                {rechnungBusy ? 'Wird gespeichert…' : 'Speichern'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setRechnungAuf(false)}
+                disabled={rechnungBusy}
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : hatRechnung ? (
+        <div className="pkontakt">
+          <div className="pkontakt-person">
+            <div style={{ minWidth: 0 }}>
+              <div className="pkontakt-name">{detail.project.rechnung_name}</div>
+              <div className="pkontakt-wege">
+                {detail.project.rechnung_strasse && (
+                  <div>{detail.project.rechnung_strasse}</div>
+                )}
+                {(detail.project.rechnung_plz || detail.project.rechnung_ort) && (
+                  <div>
+                    {[detail.project.rechnung_plz, detail.project.rechnung_ort]
+                      .filter(Boolean)
+                      .join(' ')}
+                  </div>
+                )}
+                {detail.project.rechnung_versand && (
+                  <div className="pkontakt-notiz">
+                    Versand: {detail.project.rechnung_versand}
+                  </div>
+                )}
+              </div>
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                className="icon-btn"
+                title="Rechnungsadresse ändern"
+                onClick={() => setRechnungAuf(true)}
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <p className="pkontakt-erklaerung">
+          Noch keine Rechnungsadresse hinterlegt.
+          {isAdmin ? (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setRechnungAuf(true)}
+              >
+                Jetzt eintragen
+              </button>
+            </>
+          ) : (
+            ' Die Swiss Solar Ventures AG trägt sie ein.'
+          )}
         </p>
       )}
 

@@ -13,6 +13,13 @@ export type Project = {
   order_index?: number;
   /** Sparte (PVA, BESS …) – die obere Ebene. Null = noch keiner zugeteilt. */
   group_id?: string | null;
+  /** Wohin die Rechnung geht. Steht im Register "Projektinfos". */
+  rechnung_name?: string | null;
+  rechnung_strasse?: string | null;
+  rechnung_plz?: string | null;
+  rechnung_ort?: string | null;
+  /** Wie zugestellt wird, z.B. „Per Mail an buchhaltung@…". */
+  rechnung_versand?: string | null;
   /**
    * Bild der Liegenschaft – kurzlebige Signatur, null = keines hinterlegt.
    * Gefüllt nur in der Projektansicht, nicht in der Liste der Seitenleiste.

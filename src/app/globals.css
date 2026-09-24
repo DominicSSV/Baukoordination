@@ -5519,3 +5519,20 @@ button:disabled {
 .projekt-gruppe.leer > .gruppe-kopf:hover {
   opacity: 1;
 }
+
+/* PLZ und Ort stehen nebeneinander wie auf einem Briefumschlag. Die PLZ
+   braucht nur Platz für vier Ziffern; auf volle Breite gezogen sieht sie aus,
+   als gehörte noch etwas hinein. */
+.rechnung-ortzeile {
+  display: flex;
+  gap: 8px;
+}
+
+.rechnung-ortzeile input {
+  flex: 1;
+  min-width: 0;
+}
+
+.rechnung-plz {
+  flex: 0 0 90px;
+}

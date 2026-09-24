@@ -161,9 +161,12 @@ export async function loadProjectDetail(
   const db = ctx.db;
   const isAdmin = ctx.session.kind === 'admin';
 
-  // Von der vollständigen Fassung abwärts: ohne Migration 0034 fehlt das Bild
-  // der Liegenschaft, ohne 0006 der Zeitraum des Terminplans.
+  // Von der vollständigen Fassung abwärts: ohne Migration 0044 fehlt die
+  // Rechnungsadresse, ohne 0034 das Bild der Liegenschaft, ohne 0006 der
+  // Zeitraum des Terminplans.
   const projektStufen = [
+    'id, name, ort, created_at, schedule_start, schedule_end, bild_path, '
+      + 'rechnung_name, rechnung_strasse, rechnung_plz, rechnung_ort, rechnung_versand',
     'id, name, ort, created_at, schedule_start, schedule_end, bild_path',
     'id, name, ort, created_at, schedule_start, schedule_end',
     'id, name, ort, created_at',
