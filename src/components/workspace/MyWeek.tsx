@@ -105,10 +105,11 @@ function merken(schluessel: string, wert: boolean) {
  * Projekt.
  */
 export default function MyWeek({
-  admins,
-  suppliers,
+  admins: adminsStart,
+  suppliers: suppliersStart,
   onOpenProject,
 }: {
+  /** Ausgangsbestand; die Schnittstelle liefert die passenden Leute nach. */
   admins: AdminProfile[];
   suppliers: Supplier[];
   onOpenProject: (projectId: string) => void;
@@ -116,6 +117,16 @@ export default function MyWeek({
   const { reportError, toast } = useFeedback();
   const [aufgaben, setAufgaben] = useState<MeineAufgabe[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  /**
+   * Die Leute, die in diesen Aufgaben vorkommen.
+   *
+   * Frueher kamen sie aus dem gerade geoeffneten Projekt – und weil diese
+   * Uebersicht ueber ALLE Projekte geht, stand jeder aus einem anderen
+   * Projekt als "Unbekannt" da. Direkt nach dem Anmelden, wenn noch kein
+   * Projekt offen ist, galt das sogar fuer alle.
+   */
+  const [admins, setAlleAdmins] = useState<AdminProfile[]>(adminsStart);
+  const [suppliers, setAlleSuppliers] = useState<Supplier[]>(suppliersStart);
 
   // Beim ersten Aufbau lesen und nicht in einem Effekt nachziehen: Sonst
   // erschiene kurz die falsche Liste und spränge dann um.
@@ -137,10 +148,18 @@ export default function MyWeek({
   const laden = useCallback(
     async (erledigte: boolean) => {
       try {
-        const { aufgaben: neu } = await api<{ aufgaben: MeineAufgabe[] }>(
-          erledigte ? '/api/mytasks?erledigte=1' : '/api/mytasks',
-        );
-        setAufgaben(neu);
+        const antwort = await api<{
+          aufgaben: MeineAufgabe[];
+          admins?: AdminProfile[];
+          suppliers?: Supplier[];
+        }>(erledigte ? '/api/mytasks?erledigte=1' : '/api/mytasks');
+        setAufgaben(antwort.aufgaben);
+        // Die Uebersicht geht ueber alle Projekte; die Leute dazu kommen
+        // deshalb aus derselben Antwort und nicht aus dem gerade geoeffneten
+        // Projekt. Aeltere Fassungen der Schnittstelle liefern sie nicht –
+        // dann bleibt es bei dem, was von aussen hereingereicht wurde.
+        if (antwort.admins) setAlleAdmins(antwort.admins);
+        if (antwort.suppliers) setAlleSuppliers(antwort.suppliers);
       } catch (error) {
         reportError(error, 'Die Übersicht konnte nicht geladen werden.');
         setAufgaben([]);

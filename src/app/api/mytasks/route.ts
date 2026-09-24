@@ -1,6 +1,9 @@
 import { ApiError, handler, ok } from '@/lib/api';
 import { requireSession } from '@/lib/auth/guards';
 import { adminAssignee, parseAssignee, supplierAssignee } from '@/lib/assignee';
+import { serviceClient } from '@/lib/supabase/service';
+import { signAvatars } from '@/lib/avatars';
+import type { AdminProfile, Supplier } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,5 +153,80 @@ export const GET = handler(async (request: Request) => {
     };
   });
 
-  return ok({ aufgaben });
+  /**
+   * Die Personen, die in diesen Aufgaben vorkommen – mitgeliefert.
+   *
+   * Die Uebersicht geht ueber ALLE Projekte, bekam aber bisher nur die Leute
+   * des gerade geoeffneten. Wer aus einem anderen Projekt zustaendig war,
+   * stand als "Unbekannt" da – und direkt nach dem Anmelden, wenn noch kein
+   * Projekt offen ist, galt das fuer alle.
+   *
+   * Gelesen wird mit dem Dienstschluessel und einer festen Spaltenauswahl.
+   * Namen, Firma und Bild stehen ohnehin in jeder Aufgabenliste; Adressen,
+   * Telefonnummern und Passwoerter verlassen diese Abfrage nie.
+   */
+  const gebraucht = new Set<string>();
+  for (const a of aufgaben) for (const w of a.assignees) gebraucht.add(w);
+
+  const adminIds = new Set<string>();
+  const supplierIds = new Set<string>();
+  for (const w of gebraucht) {
+    const ziel = parseAssignee(w);
+    if (ziel.kind === 'admin') adminIds.add(ziel.id);
+    if (ziel.kind === 'supplier') supplierIds.add(ziel.id);
+  }
+
+  const dienst = serviceClient();
+  const [adminRes, supplierRes] = await Promise.all([
+    adminIds.size
+      ? dienst
+          .from('admins')
+          .select('user_id, name, firma, funktion, avatar_path')
+          .in('user_id', Array.from(adminIds))
+      : Promise.resolve({ data: [], error: null }),
+    supplierIds.size
+      ? dienst
+          .from('suppliers')
+          .select('id, name, firma, gewerk, avatar_path')
+          .in('id', Array.from(supplierIds))
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const adminZeilen = (adminRes.error ? [] : (adminRes.data ?? [])) as Array<{
+    user_id: string;
+    name: string | null;
+    firma: string | null;
+    funktion: string | null;
+    avatar_path: string | null;
+  }>;
+  const supplierZeilen = (supplierRes.error ? [] : (supplierRes.data ?? [])) as Array<{
+    id: string;
+    name: string | null;
+    firma: string | null;
+    gewerk: string | null;
+    avatar_path: string | null;
+  }>;
+
+  const bilder = await signAvatars([
+    ...adminZeilen.map((a) => a.avatar_path),
+    ...supplierZeilen.map((z) => z.avatar_path),
+  ]);
+
+  const admins: AdminProfile[] = adminZeilen.map((a) => ({
+    user_id: a.user_id,
+    name: a.name ?? '',
+    firma: a.firma ?? '',
+    funktion: a.funktion,
+    avatar_url: a.avatar_path ? (bilder.get(a.avatar_path) ?? null) : null,
+  }));
+
+  const suppliers = supplierZeilen.map((z) => ({
+    id: z.id,
+    name: z.name ?? '',
+    firma: z.firma ?? '',
+    gewerk: z.gewerk ?? '',
+    avatar_url: z.avatar_path ? (bilder.get(z.avatar_path) ?? null) : null,
+  })) as unknown as Supplier[];
+
+  return ok({ aufgaben, admins, suppliers });
 });
