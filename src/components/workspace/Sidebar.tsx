@@ -119,18 +119,28 @@ export default function Sidebar({
   }, [projects, gruppen]);
 
   const sparten = useMemo(() => {
-    const liste: Array<{ id: string; name: string }> = gruppen.map((g) => ({
-      id: g.id,
-      name: g.name,
-    }));
     // Gibt es gar keine Sparten, steht alles unter "Alle Projekte" – so sieht
     // die Seitenleiste vor Migration 0043 aus wie bisher.
     if (!gruppen.length) return [{ id: OHNE_SPARTE, name: 'Alle Projekte' }];
+
+    /**
+     * Leere Sparten sehen nur wir.
+     *
+     * Ein Lieferant, der nichts bei den Heizungen macht, soll die Ueberschrift
+     * "Heizung" gar nicht erst sehen – sie sagt ihm nichts und verraet
+     * nebenbei, woran wir sonst noch arbeiten. Fuer uns bleiben sie stehen:
+     * Ohne sichtbare leere Sparte liesse sich kein Projekt hineinziehen, und
+     * eine neu angelegte Gruppe waere im selben Moment wieder verschwunden.
+     */
+    const liste: Array<{ id: string; name: string }> = gruppen
+      .filter((g) => isAdmin || (nachSparte.get(g.id) ?? []).length > 0)
+      .map((g) => ({ id: g.id, name: g.name }));
+
     if ((nachSparte.get(OHNE_SPARTE) ?? []).length) {
       liste.push({ id: OHNE_SPARTE, name: 'Ohne Gruppe' });
     }
     return liste;
-  }, [gruppen, nachSparte]);
+  }, [gruppen, nachSparte, isAdmin]);
 
   const laden = useCallback(async () => {
     try {
