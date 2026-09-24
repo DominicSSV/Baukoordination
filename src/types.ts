@@ -382,3 +382,26 @@ export type ProjectDetail = {
   /** Balkenplan des Projekts. */
   schedule: ScheduleTask[];
 };
+
+/**
+ * Ein Eintrag der Zeiterfassung.
+ *
+ * Name und Firma stehen als Text darin und nicht nur als Verweis: Wird jemand
+ * später umbenannt oder wechselt die Firma, muss eine abgeschlossene
+ * Abrechnung trotzdem dasselbe sagen wie am Tag der Erfassung.
+ */
+export type Zeiteintrag = {
+  id: string;
+  project_id: string;
+  supplier_id: string | null;
+  admin_user_id: string | null;
+  wer: string;
+  firma: string | null;
+  datum: string;
+  stunden: number;
+  /** CHF pro Stunde, exkl. MWST. Null = noch nicht vereinbart. */
+  stundensatz: number | null;
+  beschreibung: string | null;
+  erfasst_von: string | null;
+  created_at: string;
+};

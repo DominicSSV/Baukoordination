@@ -26,6 +26,7 @@ import MailTemplatesModal from '@/components/workspace/MailTemplatesModal';
 import ProjectInfoTab from '@/components/workspace/ProjectInfoTab';
 import MilestonesModal from '@/components/workspace/MilestonesModal';
 import SearchModal from '@/components/workspace/SearchModal';
+import TimeTab from '@/components/workspace/TimeTab';
 import Avatar from '@/components/Avatar';
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
@@ -40,7 +41,8 @@ export type TabKey =
   | 'offerten'
   | 'dokumente'
   | 'dateien'
-  | 'aktivitaet';
+  | 'aktivitaet'
+  | 'zeiten';
 
 const REGISTER: TabKey[] = [
   'lieferanten',
@@ -51,6 +53,7 @@ const REGISTER: TabKey[] = [
   'dokumente',
   'dateien',
   'aktivitaet',
+  'zeiten',
 ];
 
 /**
@@ -570,6 +573,16 @@ function WorkspaceInner({
                 >
                   Aktivität <span className="tab-count">{detail.activity.length}</span>
                 </button>
+                {/* Zuletzt und nur bei uns – siehe Begründung beim Inhalt. */}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className={`tab-btn ${tab === 'zeiten' ? 'active' : ''}`}
+                    onClick={() => setTab('zeiten')}
+                  >
+                    Zeiterfassung
+                  </button>
+                )}
               </div>
 
               {tab === 'lieferanten' && isAdmin && (
@@ -632,6 +645,13 @@ function WorkspaceInner({
                   reload={reload}
                   onMessage={setMessage}
                 />
+              )}
+              {/* Zeiterfassung steht zuunterst und nur bei uns: Hier stehen die
+                  Stundensaetze aller Firmen beieinander. Die Route weist
+                  Lieferanten zusaetzlich ab - ein ausgeblendetes Register ist
+                  kein Schloss. */}
+              {tab === 'zeiten' && isAdmin && (
+                <TimeTab detail={detail} reload={reload} />
               )}
             </>
           )}
