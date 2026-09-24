@@ -35,6 +35,40 @@ export async function darfOfferteSehen(
 }
 
 /**
+ * Darf diese Sitzung ein Dokument aus dem Register
+ * "Auftragsbestätigungen & Nachträge" sehen?
+ *
+ * Die Regel, in dieser Reihenfolge:
+ *   1. Wir sehen alles. Wer die Baustelle koordiniert, muss jedes Papier
+ *      nachschlagen können.
+ *   2. Selbst hochgeladen heisst immer sichtbar – niemand soll die eigene
+ *      Einreichung verlieren, weil er sich beim Zuweisen vergessen hat.
+ *   3. Gibt es keine Zuweisung (Altbestand aus der Zeit vor Migration 0042),
+ *      gilt die frühere Regel über die Firma des Einreichers.
+ *   4. Sonst: nur wer ausdrücklich zugewiesen wurde. Eine leere Liste heisst
+ *      "nur wir" und nicht "alle" – beim Zuweisen etwas zu vergessen darf
+ *      nicht dazu führen, dass ein Vertrag offen herumliegt.
+ *
+ * Dieselbe Regel steckt als Datenbankfunktion in Migration 0042; hier steht
+ * sie für die Wege, die bewusst mit dem Dienstschlüssel lesen.
+ */
+export async function darfDokumentSehen(
+  session: Session,
+  sichtbarFuer: string[] | null | undefined,
+  uploaderId: string | null,
+): Promise<boolean> {
+  if (session.kind === 'admin') return true;
+  if (uploaderId && uploaderId === session.supplierId) return true;
+
+  // Altbestand ohne Zuweisung: die frühere Regel.
+  if (sichtbarFuer === null || sichtbarFuer === undefined) {
+    return darfOfferteSehen(session, uploaderId);
+  }
+
+  return sichtbarFuer.includes(session.supplierId);
+}
+
+/**
  * Alle Lieferanten derselben Firma – für Benachrichtigungen und für die Frage,
  * wessen Einreichungen zusammengehören.
  */

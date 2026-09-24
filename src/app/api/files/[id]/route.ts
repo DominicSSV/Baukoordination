@@ -1,6 +1,6 @@
 import { ApiError, forbidden, handler, ok, readJson } from '@/lib/api';
 import { requireProjectAccess, requireSession } from '@/lib/auth/guards';
-import { darfOfferteSehen } from '@/lib/auth/offerAccess';
+import { darfDokumentSehen } from '@/lib/auth/offerAccess';
 import { logActivity } from '@/lib/activity';
 import { ordnerName } from '@/lib/offers';
 import { STORAGE_BUCKET } from '@/lib/env';
@@ -21,6 +21,7 @@ type Datei = {
   thumb_path: string | null;
   uploaded_by_supplier_id: string | null;
   offer_folder: string | null;
+  sichtbar_fuer: string[] | null;
 };
 
 type Sitzung = Awaited<ReturnType<typeof requireSession>>;
@@ -29,12 +30,28 @@ async function loadFile(id: string): Promise<Datei> {
   const { data } = await serviceClient()
     .from('files')
     .select(
-      'id, project_id, name, mime_type, storage_path, thumb_path, uploaded_by_supplier_id, offer_folder',
+      'id, project_id, name, mime_type, storage_path, thumb_path, uploaded_by_supplier_id, offer_folder, sichtbar_fuer',
     )
     .eq('id', id)
     .maybeSingle();
 
   if (data) return data as Datei;
+
+  // Ohne Migration 0042 gibt es die Zuweisungsspalte noch nicht. Dann gilt
+  // sichtbar_fuer als unbekannt, und darfDokumentSehen faellt auf die
+  // fruehere Regel ueber die Firma zurueck – so bleibt der Altbestand
+  // erreichbar, statt fuer alle zu verschwinden.
+  const { data: ohneZuweisung } = await serviceClient()
+    .from('files')
+    .select(
+      'id, project_id, name, mime_type, storage_path, thumb_path, uploaded_by_supplier_id, offer_folder',
+    )
+    .eq('id', id)
+    .maybeSingle();
+
+  if (ohneZuweisung) {
+    return { ...(ohneZuweisung as Omit<Datei, 'sichtbar_fuer'>), sichtbar_fuer: null };
+  }
 
   // Ohne Migration 0012 gibt es die Ordnerspalte noch nicht.
   const { data: ohneOrdner } = await serviceClient()
@@ -46,7 +63,11 @@ async function loadFile(id: string): Promise<Datei> {
     .maybeSingle();
 
   if (!ohneOrdner) throw new ApiError('Datei nicht gefunden.', 404);
-  return { ...(ohneOrdner as Omit<Datei, 'offer_folder'>), offer_folder: null };
+  return {
+    ...(ohneOrdner as Omit<Datei, 'offer_folder' | 'sichtbar_fuer'>),
+    offer_folder: null,
+    sichtbar_fuer: null,
+  };
 }
 
 /**
@@ -56,7 +77,7 @@ async function loadFile(id: string): Promise<Datei> {
  */
 async function pruefeOffertenzugriff(ctx: Sitzung, file: Datei) {
   if (!file.offer_folder) return;
-  if (await darfOfferteSehen(ctx.session, file.uploaded_by_supplier_id)) return;
+  if (await darfDokumentSehen(ctx.session, file.sichtbar_fuer, file.uploaded_by_supplier_id)) return;
   throw new ApiError('Datei nicht gefunden.', 404);
 }
 

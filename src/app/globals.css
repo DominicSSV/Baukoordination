@@ -5194,3 +5194,82 @@ button:disabled {
     box-shadow: inset 3px 0 0 #E5A93B;
   }
 }
+
+/* --- Auftragsbestätigungen & Nachträge ------------------------------------ */
+/* Der volle Registername braucht Platz. Auf dem Handy steht die Kurzform –
+   ein Reiter, der umbricht, schiebt die ganze Leiste auseinander. */
+.tab-kurz {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .tab-lang {
+    display: none;
+  }
+
+  .tab-kurz {
+    display: inline;
+  }
+}
+
+/* Frühere Gliederung: Der Ordner bleibt lesbar, nimmt aber nichts mehr an. */
+.offer-frueher {
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  background: var(--bg);
+}
+
+/* Wer darf das Dokument sehen – im Hochlade-Dialog. */
+.zuweisen-block {
+  margin: 14px 0 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  /* Bei vielen Firmen wird die Liste lang; der Dialog soll nicht wachsen,
+     bis die Knöpfe unten aus dem Fenster rutschen. */
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.zuweisen-titel {
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.zuweisen-hinweis {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.zuweisen-gruppe {
+  margin: 10px 0 3px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+}
+
+.zuweisen-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.zuweisen-person input {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+}

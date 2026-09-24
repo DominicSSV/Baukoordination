@@ -154,6 +154,8 @@ export async function uploadFiles(params: {
   todoId?: string | null;
   /** Ordner im Register "Offerten"; leer = gewöhnliche Datei. */
   offerFolder?: string | null;
+  /** Kennungen der Lieferanten, die das Dokument sehen duerfen. */
+  sichtbarFuer?: string[];
   /** Ordner im Register "Dokumente"; leer = gewöhnliche Datei. */
   documentFolder?: string | null;
   files: FileList | File[];
@@ -245,6 +247,9 @@ export async function uploadFiles(params: {
           thumbPath,
           todoId: params.todoId ?? undefined,
           offerFolder: params.offerFolder ?? undefined,
+          // Wer das Dokument sehen darf – gilt nur fuer die Ordner des
+          // Registers "Auftragsbestaetigungen & Nachtraege".
+          sichtbarFuer: params.sichtbarFuer,
           documentFolder: params.documentFolder ?? undefined,
           betrag: params.betraege?.[index] ?? undefined,
         },

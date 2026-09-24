@@ -582,7 +582,11 @@ function WorkspaceInner({
                   className={`tab-btn ${tab === 'offerten' ? 'active' : ''}`}
                   onClick={() => setTab('offerten')}
                 >
-                  Offerten <span className="tab-count">{offerten}</span>
+                  {/* Der Name ist lang; auf dem Handy kuerzt ihn das CSS auf
+                      "Auftragsbest. & Nachtr." statt umzubrechen. */}
+                  <span className="tab-lang">Auftragsbestätigungen &amp; Nachträge</span>
+                  <span className="tab-kurz">Aufträge &amp; Nachträge</span>{' '}
+                  <span className="tab-count">{offerten}</span>
                 </button>
                 <button
                   type="button"

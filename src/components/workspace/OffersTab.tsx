@@ -8,7 +8,10 @@ import { fmtSize, fmtDate } from '@/lib/format';
 import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import { findPerson, personLabel } from '@/lib/people';
-import { OFFERTEN_ORDNER, ordnerName } from '@/lib/offers';
+import { FRUEHERE_ORDNER, OFFERTEN_ORDNER, ordnerName } from '@/lib/offers';
+import { nachFirmen } from '@/lib/people';
+import { supplierAssignee } from '@/lib/assignee';
+import { supplierLabel } from '@/lib/format';
 import UploadNamesModal from '@/components/workspace/UploadNamesModal';
 import FileComments from '@/components/workspace/FileComments';
 import { OFFERTEN_STAENDE, type OffertenStand } from '@/types';
@@ -57,6 +60,7 @@ export default function OffersTab({
   const nachOrdner = useMemo(() => {
     const map = new Map<string, ProjectFile[]>();
     for (const o of OFFERTEN_ORDNER) map.set(o.wert, []);
+    for (const o of FRUEHERE_ORDNER) map.set(o.wert, []);
     for (const f of detail.files) {
       if (f.offer_folder && map.has(f.offer_folder)) {
         map.get(f.offer_folder)!.push(f);
@@ -65,12 +69,49 @@ export default function OffersTab({
     return map;
   }, [detail.files]);
 
+  /**
+   * Welche Ordner angezeigt werden: die beiden aktiven immer, ein frueherer
+   * nur, solange noch etwas darin liegt.
+   *
+   * Ein Dokument verschwinden zu lassen, weil wir die Gliederung geaendert
+   * haben, waere das Schlimmste: Wer es sucht, findet es nie wieder und weiss
+   * nicht einmal, dass es das gab.
+   */
+  const ordnerListe = useMemo(
+    () => [
+      ...OFFERTEN_ORDNER.map((o) => ({ ...o, frueher: false })),
+      ...FRUEHERE_ORDNER.filter((o) => (nachOrdner.get(o.wert) ?? []).length > 0).map(
+        (o) => ({ ...o, hinweis: 'Wird nicht mehr entgegengenommen.', frueher: true }),
+      ),
+    ],
+    [nachOrdner],
+  );
+
+  /** Wer beim Hochladen zugewiesen werden kann – nach Firmen gegliedert. */
+  const zuweisen = useMemo(() => {
+    const gruppen = nachFirmen(detail.suppliers, (sup) => sup.firma);
+    return {
+      gruppen: gruppen.map((g) => g.firma),
+      personen: gruppen.flatMap((g) =>
+        g.leute.map((sup) => ({
+          wert: supplierAssignee(sup.id),
+          name: supplierLabel(sup),
+          gruppe: g.firma,
+        })),
+      ),
+    };
+  }, [detail.suppliers]);
+
   function auswaehlen(ordner: string, files: FileList | File[] | null) {
     if (!files || !('length' in files) || !files.length) return;
     setWartend({ ordner, files: Array.from(files) });
   }
 
-  async function hochladen(namen: string[], betraegeVonHand: Array<number | null>) {
+  async function hochladen(
+    namen: string[],
+    betraegeVonHand: Array<number | null>,
+    sichtbarFuer: string[],
+  ) {
     const auftrag = wartend;
     setWartend(null);
     if (!auftrag) return;
@@ -84,6 +125,9 @@ export default function OffersTab({
         files: auftrag.files,
         namen,
         betraege: betraegeVonHand,
+        // Die Kennungen kommen im Zuweisungsformat; die Datenbank haelt die
+        // blosse Lieferantenkennung fest.
+        sichtbarFuer: sichtbarFuer.map((w) => w.replace(/^supplier:/, '')),
       });
       await reload();
 
@@ -166,6 +210,7 @@ export default function OffersTab({
           titel={`Einreichen unter „${ordnerName(wartend.ordner)}“`}
           mitBetrag
           onAbbrechen={() => setWartend(null)}
+          zuweisen={zuweisen}
           onBestaetigen={hochladen}
         />
       )}
@@ -182,7 +227,7 @@ export default function OffersTab({
             : 'Deine Unterlagen sieht nur die Swiss Solar Ventures AG – andere Lieferanten sehen sie nicht.'}
       </p>
 
-      {OFFERTEN_ORDNER.map((ordner) => {
+      {ordnerListe.map((ordner) => {
         const dateien = nachOrdner.get(ordner.wert) ?? [];
         const eingeklappt = zu.has(ordner.wert);
         const laedt = uploadIn === ordner.wert;
@@ -216,6 +261,14 @@ export default function OffersTab({
 
             {!eingeklappt && (
               <div className="offer-inhalt">
+                {/* In einen frueheren Ordner wird nichts mehr eingereicht. Er
+                    steht hier nur, damit das Bestehende auffindbar bleibt. */}
+                {ordner.frueher ? (
+                  <p className="offer-frueher">
+                    Frühere Gliederung – hier lässt sich nichts mehr einreichen.
+                    Das Bestehende bleibt erreichbar.
+                  </p>
+                ) : (
                 <div
                   className={`offer-dropzone ${ziehtUeber === ordner.wert ? 'drag' : ''}`}
                   onDragOver={(e) => {
@@ -258,6 +311,7 @@ export default function OffersTab({
                     }}
                   />
                 </div>
+                )}
 
                 {dateien.length ? (
                   <div className="offer-liste">

@@ -31,6 +31,8 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     thumbPath?: string;
     todoId?: string;
     offerFolder?: string;
+    /** Kennungen der Lieferanten, die das Dokument sehen duerfen. */
+    sichtbarFuer?: string[];
     documentFolder?: string;
     betrag?: number | null;
   }>(request);
@@ -41,6 +43,29 @@ export const POST = handler(async (request: Request, { params }: Params) => {
   const thumbPath = optionalString(body.thumbPath, 500);
   const todoId = optionalString(body.todoId, 64);
   const offerFolder = pruefeOrdner(body.offerFolder);
+
+  /**
+   * Wer das Dokument sehen darf.
+   *
+   * Nur fuer die Ordner dieses Registers. Eine leere Liste heisst ausdruecklich
+   * "nur wir" und nicht "alle": Beim Zuweisen etwas zu vergessen darf nicht
+   * dazu fuehren, dass ein Vertrag offen herumliegt.
+   *
+   * Der Hochladende kommt immer dazu, auch wenn er sich selbst vergessen hat –
+   * niemand soll die eigene Einreichung verlieren.
+   */
+  const sichtbarFuer = offerFolder
+    ? Array.from(
+        new Set(
+          [
+            ...(Array.isArray(body.sichtbarFuer) ? body.sichtbarFuer : []),
+            ...(ctx.session.kind === 'supplier' ? [ctx.session.supplierId] : []),
+          ]
+            .filter((w): w is string => typeof w === 'string' && w.trim().length > 0)
+            .map((w) => w.trim()),
+        ),
+      )
+    : null;
   const documentFolder = optionalString(body.documentFolder, 64);
 
   if (body.offerFolder !== undefined && body.offerFolder !== null && !offerFolder) {
@@ -107,6 +132,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       ...(offerFolder
         ? {
             offer_folder: offerFolder,
+            sichtbar_fuer: sichtbarFuer,
             offer_status: 'eingereicht',
             ...(typeof body.betrag === 'number' && body.betrag >= 0
               ? { offer_amount: Math.round(body.betrag * 100) / 100 }
@@ -117,13 +143,27 @@ export const POST = handler(async (request: Request, { params }: Params) => {
 
   const erster = await einfuegen(neueZeile);
 
-  // Ohne Migration 0017 gibt es die Statusspalte noch nicht.
-  const { data, error } = erster.error
-    ? await einfuegen({ ...neueZeile, offer_status: undefined })
-    : erster;
+  // Ohne Migration 0017 gibt es die Statusspalte noch nicht, ohne 0042 die
+  // Spalte fuer die Zuweisung. In beiden Faellen lieber ohne die Spalte
+  // speichern als die Datei verlieren – hochgeladen ist sie ja schon.
+  let { data, error } = erster;
 
   if (error) {
-    throw new ApiError(`Datei konnte nicht gespeichert werden: ${error.message}`, 500);
+    ({ data, error } = await einfuegen({ ...neueZeile, offer_status: undefined }));
+  }
+  if (error) {
+    ({ data, error } = await einfuegen({
+      ...neueZeile,
+      offer_status: undefined,
+      sichtbar_fuer: undefined,
+    }));
+  }
+
+  if (error || !data) {
+    throw new ApiError(
+      `Datei konnte nicht gespeichert werden: ${error?.message ?? 'keine Antwort'}`,
+      500,
+    );
   }
 
   const isImage = (body.mimeType ?? '').startsWith('image/');
@@ -166,12 +206,18 @@ export const POST = handler(async (request: Request, { params }: Params) => {
         ? `hat "${name}" unter Dokumente / ${dokumentOrdner} abgelegt`
         : `hat ${isImage ? 'Bild' : 'Dokument'} "${name}"${where} hinzugefügt`,
     icon: offerFolder ? '📑' : dokumentOrdner ? '🗂️' : isImage ? '📷' : '📄',
+    // Der Protokolleintrag folgt derselben Zuweisung wie das Dokument: Sonst
+    // stuende dort fuer Firmen lesbar, dass es eine Auftragsbestaetigung gibt,
+    // die sie nicht oeffnen duerfen – und das ist schon die halbe Auskunft.
     nurFuerSupplierIds: offerFolder
-      ? [
-          ...(data.uploaded_by_supplier_id
-            ? [data.uploaded_by_supplier_id as string]
-            : []),
-        ]
+      ? Array.from(
+          new Set([
+            ...(sichtbarFuer ?? []),
+            ...(data.uploaded_by_supplier_id
+              ? [data.uploaded_by_supplier_id as string]
+              : []),
+          ]),
+        )
       : vertraulicheAufgabe,
   });
 

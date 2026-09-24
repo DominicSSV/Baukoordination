@@ -27,6 +27,7 @@ export default function UploadNamesModal({
   files,
   titel,
   mitBetrag = false,
+  zuweisen,
   onAbbrechen,
   onBestaetigen,
 }: {
@@ -34,9 +35,25 @@ export default function UploadNamesModal({
   titel: string;
   /** Zeigt zusätzlich ein Feld für den Betrag – beim Einreichen von Offerten. */
   mitBetrag?: boolean;
+  /**
+   * Wer das Dokument sehen darf – zur Auswahl gestellt, wenn gesetzt.
+   *
+   * Die Zuweisung gilt für alle Dateien dieses Vorgangs gemeinsam. Wer drei
+   * Nachträge zu einem Auftrag hochlädt, will sie nicht dreimal einzeln
+   * zuweisen; für getrennte Empfänger lädt man getrennt hoch.
+   */
+  zuweisen?: {
+    gruppen: string[];
+    personen: Array<{ wert: string; name: string; gruppe: string }>;
+  };
   onAbbrechen: () => void;
-  onBestaetigen: (namen: string[], betraege: Array<number | null>) => void;
+  onBestaetigen: (
+    namen: string[],
+    betraege: Array<number | null>,
+    sichtbarFuer: string[],
+  ) => void;
 }) {
+  const [sichtbarFuer, setSichtbarFuer] = useState<string[]>([]);
   const [namen, setNamen] = useState<string[]>(() =>
     files.map((f) => ohneEndung(f.name)),
   );
@@ -61,6 +78,7 @@ export default function UploadNamesModal({
     onBestaetigen(
       namen.map((n, i) => `${n.trim()}${endung(files[i].name)}`),
       betraege.map(alsZahl),
+      sichtbarFuer,
     );
   }
 
@@ -128,6 +146,39 @@ export default function UploadNamesModal({
             )}
           </div>
         ))}
+
+        {zuweisen && (
+          <div className="zuweisen-block">
+            <div className="zuweisen-titel">Wer darf das sehen?</div>
+            <p className="zuweisen-hinweis">
+              Wir sehen es immer. Wählst du niemanden, bleibt es bei uns – ein
+              nicht zugewiesener Vertrag liegt lieber zu eng als zu offen.
+            </p>
+            {zuweisen.gruppen.map((g) => (
+              <div key={g}>
+                <div className="zuweisen-gruppe">{g}</div>
+                {zuweisen.personen
+                  .filter((pp) => pp.gruppe === g)
+                  .map((pp) => (
+                    <label key={pp.wert} className="zuweisen-person">
+                      <input
+                        type="checkbox"
+                        checked={sichtbarFuer.includes(pp.wert)}
+                        onChange={() =>
+                          setSichtbarFuer((aktuell) =>
+                            aktuell.includes(pp.wert)
+                              ? aktuell.filter((w) => w !== pp.wert)
+                              : [...aktuell, pp.wert],
+                          )
+                        }
+                      />
+                      <span>{pp.name}</span>
+                    </label>
+                  ))}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
           <button type="button" className="btn btn-ghost" onClick={onAbbrechen}>
