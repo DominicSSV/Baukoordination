@@ -102,6 +102,17 @@ export async function GET() {
           + 'erinnert dafür an alles, was bis Dienstag fällig ist.',
       },
       interne_domain: process.env.MAIL_INTERNE_DOMAIN || 'swiss-sv.ch',
+      pruueflauf: {
+        pfad: '/api/cron/overdue',
+        zeitplan: '30 5 * * * (UTC) = 07:30 Sommerzeit, 06:30 Winterzeit',
+        // Ist ein Secret gesetzt, laesst sich der Lauf nicht einfach im
+        // Browser aufrufen - dann braucht es den Bearer-Token. Das zu wissen
+        // spart die Suche nach einem Fehler, der keiner ist.
+        secret_gesetzt: Boolean(process.env.CRON_SECRET),
+        hinweis: process.env.CRON_SECRET
+          ? 'Von Hand nur mit Authorization: Bearer <CRON_SECRET> aufrufbar.'
+          : 'Kein CRON_SECRET gesetzt - der Lauf laesst sich im Browser aufrufen.',
+      },
       hinweis: process.env.RESEND_API_KEY
         ? undefined
         : 'RESEND_API_KEY fehlt – es wird nichts verschickt. In Vercel eintragen ' +
@@ -377,7 +388,7 @@ export async function GET() {
         db.from('projects').select('bild_path').limit(1),
         db.from('todos').select('erinnert_am, erinnert_heute_am').limit(1),
         db.from('comment_kudos').select('id').limit(1),
-        db.from('mail_queue').select('id').is('gesendet_am', null).limit(500),
+        db.from('mail_queue').select('id, created_at').is('gesendet_am', null).limit(500),
       ]);
 
       report.migration_0034 = {
@@ -404,11 +415,41 @@ export async function GET() {
           : undefined,
       };
 
+      /**
+       * Wie alt ist das Aelteste in der Warteschlange?
+       *
+       * Eine wachsende Schlange ist das deutlichste Zeichen dafuer, dass der
+       * Pruueflauf nicht laeuft oder der Versand scheitert. Ohne das Datum
+       * sieht man nur eine Zahl und weiss nicht, ob sie von heute Morgen
+       * stammt oder seit einer Woche steht.
+       */
+      const offenSeit = warteschlange.error
+        ? null
+        : ((warteschlange.data ?? []) as Array<{ created_at?: string }>)
+            .map((z) => z.created_at)
+            .filter((d): d is string => Boolean(d))
+            .sort()[0] ?? null;
+
+      const tageOffen = offenSeit
+        ? Math.floor((Date.now() - Date.parse(offenSeit)) / 86_400_000)
+        : null;
+
       report.migration_0037 = {
         sammelmail: !warteschlange.error,
         wartet_auf_versand: warteschlange.error
           ? undefined
           : (warteschlange.data ?? []).length,
+        aeltester_eintrag: offenSeit ?? undefined,
+        seit_tagen: tageOffen ?? undefined,
+        ...(tageOffen !== null && tageOffen >= 1
+          ? {
+              warnung:
+                'Die Warteschlange wird nicht geleert. Entweder laeuft der '
+                + 'Pruueflauf nicht (Vercel: Settings - Cron Jobs) oder der '
+                + 'Versand scheitert. Pruefen: /api/cron/overdue von Hand '
+                + 'aufrufen und die Antwort ansehen.',
+            }
+          : {}),
         hinweis: warteschlange.error
           ? 'Migration 0037 fehlt. Jede Meldung geht wie früher einzeln hinaus, '
             + 'statt am Morgen gebündelt.'
@@ -431,6 +472,39 @@ export async function GET() {
               + 'ist zwar da, bewirkt aber nichts.'
             : 'Der Knopf steht im Projekt zwischen der Projektkarte und den '
               + 'Registern – nicht in der Startansicht "Meine Woche".',
+      };
+
+      const [zuweisung, gruppen, rechnung] = await Promise.all([
+        db.from('files').select('sichtbar_fuer').limit(1),
+        db.from('project_groups').select('id, name').order('order_index'),
+        db.from('projects').select('rechnung_name').limit(1),
+      ]);
+
+      report.migration_0042 = {
+        dokumente_zuweisen: !zuweisung.error,
+        hinweis: zuweisung.error
+          ? 'Migration 0042 fehlt. Beim Hochladen laesst sich nicht bestimmen, '
+            + 'wer eine Auftragsbestaetigung sehen darf.'
+          : undefined,
+      };
+
+      report.migration_0043 = {
+        projektgruppen: !gruppen.error,
+        gruppen: gruppen.error
+          ? undefined
+          : ((gruppen.data ?? []) as Array<{ name: string }>).map((g) => g.name),
+        hinweis: gruppen.error
+          ? 'Migration 0043 fehlt. Die Seitenleiste gliedert nur nach Phase, '
+            + 'ohne Sparten darueber.'
+          : undefined,
+      };
+
+      report.migration_0044 = {
+        rechnungsadresse: !rechnung.error,
+        hinweis: rechnung.error
+          ? 'Migration 0044 fehlt. Bei den Projektinfos gibt es keine '
+            + 'Rechnungsadresse.'
+          : undefined,
       };
 
       const bilder = await db.from('admins').select('avatar_path').limit(1);
