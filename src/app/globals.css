@@ -5273,3 +5273,119 @@ button:disabled {
   margin: 0;
   flex-shrink: 0;
 }
+
+/* --- Lieferant endgültig löschen ----------------------------------------- */
+/* Der folgenreichste Handgriff der App. Er sieht bewusst anders aus als alles
+   andere: rot umrandet, mit Warnzeichen, in drei Schritten. Wer hier landet,
+   soll merken, dass er nicht im Alltagsbetrieb ist. */
+.loesch-modal {
+  max-width: 480px;
+  border: 2px solid #C0392B;
+}
+
+.loesch-kopf {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.loesch-zeichen {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.loesch-kopf h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #C0392B;
+}
+
+.loesch-schritt {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.loesch-name {
+  padding: 9px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #FDECEA;
+  font-size: 15px;
+  font-weight: 700;
+  color: #7B241C;
+  /* Lange Firmennamen dürfen umbrechen – abgeschnitten wäre hier fatal. */
+  overflow-wrap: anywhere;
+}
+
+.loesch-warnung {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.loesch-liste {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.loesch-hinweis {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.loesch-karte {
+  padding: 11px 13px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.loesch-projekte {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.loesch-modal code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* Gelb für "weiter", rot erst für den Handgriff selbst. Wer schon beim ersten
+   Knopf Rot sieht, gewöhnt sich bis zum dritten daran. */
+.btn-warnung {
+  background: #E5A93B;
+  border-color: #E5A93B;
+  color: #3A2A05;
+}
+
+.btn-gefahr {
+  background: #C0392B;
+  border-color: #C0392B;
+  color: #fff;
+}
+
+.btn-gefahr:disabled {
+  background: var(--line);
+  border-color: var(--line);
+  color: var(--ink-faint);
+}
+
+.icon-btn-gefahr:hover {
+  background: #FDECEA;
+}

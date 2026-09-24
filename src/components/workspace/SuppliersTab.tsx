@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import type { MessageDraft } from '@/components/workspace/MessageModal';
-import { del, patch, post } from '@/lib/client/api';
+import { patch, post } from '@/lib/client/api';
 import { supplierLabel } from '@/lib/format';
 import Avatar from '@/components/Avatar';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
@@ -44,7 +44,7 @@ export default function SuppliersTab({
   reload: () => Promise<void>;
   onMessage: (draft: MessageDraft) => void;
 }) {
-  const { toast, reportError, confirm } = useFeedback();
+  const { toast, reportError } = useFeedback();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [newSupplier, setNewSupplier] = useState<Draft>(emptyDraft);
@@ -105,16 +105,18 @@ export default function SuppliersTab({
       toast(grant ? '✓ Zugriff erteilt.' : '✓ Zugriff für dieses Projekt entzogen.');
     }, 'Zugriffsrechte konnten nicht geändert werden.');
 
-  function deleteSupplier(s: Supplier) {
-    confirm(
-      `„${supplierLabel(s)}“ wirklich komplett löschen?\n\nDie Anmeldung wird ungültig und der Zugriff auf ALLE Projekte geht verloren – nicht nur auf das aktuelle.`,
-      async () => {
-        await del(`/api/suppliers/${s.id}`);
-        await reload();
-        toast(`🗑️ „${supplierLabel(s)}“ gelöscht.`);
-      },
-    );
-  }
+  /*
+   * Hier wird kein Lieferant mehr geloescht.
+   *
+   * Der Knopf stand zwischen "Zugriff entziehen" und den uebrigen Symbolen -
+   * zwei Handgriffe nebeneinander, von denen der eine das aktuelle Projekt
+   * betrifft und der andere saemtliche. Wer sich vertippt, nimmt einer Firma
+   * den Zugang zu allem, und die Anmeldedaten sind weg.
+   *
+   * Geloescht wird nur noch in den Kontakten, mit dreifacher Bestaetigung.
+   * Zugriff fuer dieses eine Projekt entziehen geht hier weiterhin - das ist
+   * die Handlung, die man im Projekt wirklich braucht.
+   */
 
   const invite = (s: Supplier) =>
     run(async () => {
@@ -371,14 +373,6 @@ export default function SuppliersTab({
                   >
                     ✕
                   </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => deleteSupplier(s)}
-                    title="Lieferant komplett löschen (alle Projekte)"
-                  >
-                    🗑️
-                  </button>
                 </div>
               </div>
             ),
@@ -466,14 +460,6 @@ export default function SuppliersTab({
                   disabled={busy}
                 >
                   + Zugriff geben
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => deleteSupplier(s)}
-                  title="Lieferant komplett löschen (alle Projekte)"
-                >
-                  🗑️
                 </button>
                 </div>
               </div>

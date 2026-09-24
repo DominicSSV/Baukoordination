@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
-import { api, patch, post } from '@/lib/client/api';
+import { api, del, patch, post } from '@/lib/client/api';
 import { removeAvatar, uploadAvatar } from '@/lib/client/avatarUpload';
 import Avatar from '@/components/Avatar';
 import Spinner from '@/components/Spinner';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
 import { nachFirmen } from '@/lib/people';
+import LieferantLoeschen from '@/components/workspace/LieferantLoeschen';
 import type { Kontakt } from '@/types';
 
 type Entwurf = {
@@ -51,6 +52,15 @@ export default function ContactsModal({
   const [suche, setSuche] = useState('');
   /** Entwurf für ein neu vergebenes Passwort, je Person. */
   const [passwort, setPasswort] = useState<Record<string, string>>({});
+  /**
+   * Welcher Lieferant gerade zum Loeschen aussteht.
+   *
+   * Geloescht wird ausschliesslich hier und nirgends sonst: In der
+   * Projektansicht stand der Knopf frueher direkt neben "Zugriff entziehen" -
+   * zwei Handgriffe nebeneinander, von denen der eine ein Projekt betrifft und
+   * der andere saemtliche.
+   */
+  const [loeschen, setLoeschen] = useState<Kontakt | null>(null);
   const bildWahl = useRef<Record<string, HTMLInputElement | null>>({});
 
   const laden = useCallback(async () => {
@@ -220,6 +230,22 @@ export default function ContactsModal({
       await onChanged();
     } catch (error) {
       reportError(error, 'Bild konnte nicht entfernt werden.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Endgueltig loeschen – erst nach den drei Schritten im Dialog. */
+  async function endgueltigLoeschen(k: Kontakt) {
+    setBusy(true);
+    try {
+      await del(`/api/suppliers/${k.id}`);
+      setLoeschen(null);
+      await laden();
+      await onChanged();
+      toast(`🗑️ „${k.name || k.firma}" wurde gelöscht.`);
+    } catch (error) {
+      reportError(error, 'Der Lieferant konnte nicht gelöscht werden.');
     } finally {
       setBusy(false);
     }
@@ -512,8 +538,32 @@ export default function ContactsModal({
               ✕
             </button>
           )}
+          {/* Nur bei Lieferanten, und nur hier in den Kontakten. */}
+          {k.art === 'lieferant' && (
+            <button
+              type="button"
+              className="icon-btn icon-btn-gefahr"
+              title="Lieferant endgültig löschen"
+              onClick={() => setLoeschen(k)}
+              disabled={busy}
+            >
+              🗑️
+            </button>
+          )}
         </div>
       </div>
+    );
+  }
+
+  if (loeschen) {
+    return (
+      <LieferantLoeschen
+        kontakt={loeschen}
+        projektNamen={loeschen.projekte.map(projektName).filter(Boolean)}
+        busy={busy}
+        onAbbrechen={() => setLoeschen(null)}
+        onLoeschen={() => endgueltigLoeschen(loeschen)}
+      />
     );
   }
 
