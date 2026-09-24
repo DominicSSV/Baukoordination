@@ -87,47 +87,78 @@ gleich gut, und deine Zugangsdaten zur Cloud liegen nirgends im Programm.
 
 ### Einrichten auf Windows – einmalig
 
-**1. Node.js installieren**
-[nodejs.org](https://nodejs.org) → die **LTS**-Fassung → durchklicken, alles
-auf Standard lassen. Danach den Rechner einmal neu starten.
+Aufwand: **rund eine halbe Stunde**, davon die Hälfte Warten. Nichts davon
+verlangt Programmierkenntnisse – es ist Herunterladen, Doppelklicken und
+zweimal etwas Kopieren.
 
-**2. Den Programmcode auf den Rechner holen**
+#### Schritt 1 – Node.js installieren (5 Minuten)
 
-Mit Git (empfohlen, dann lassen sich Änderungen später mit einem Befehl
-nachziehen):
+Node.js ist das Programm, das JavaScript ausserhalb eines Browsers ausführen
+kann. Es ist quelloffen, wird von der OpenJS Foundation (Teil der Linux
+Foundation) gepflegt und gehört zu den meistbenutzten Werkzeugen der
+Softwarewelt – die Baukoordination selbst läuft bei Vercel darauf.
 
-```cmd
-cd %USERPROFILE%\Documents
-git clone https://github.com/DominicSSV/Baukoordination.git
+1. **https://nodejs.org** aufrufen – die Adresse von Hand eintippen, nicht
+   über eine Suchmaschine. Bei „node js download" stehen oben bezahlte
+   Anzeigen, und darunter waren schon gefälschte Seiten.
+2. Den grossen grünen Knopf mit **„LTS"** anklicken (LTS heisst: die
+   Fassung mit Langzeitunterstützung, nicht die neueste Bastelversion).
+3. Die heruntergeladene `.msi`-Datei ausführen.
+4. Alles auf Standard lassen, nur die Lizenz bestätigen und auf „Weiter"
+   klicken. Das Häkchen „Automatically install the necessary tools" kann
+   **weg** – es wird nicht gebraucht.
+5. **Rechner neu starten.** Ohne das findet Windows den Befehl `node` nicht.
+
+#### Schritt 2 – Programmcode herunterladen (5 Minuten)
+
+1. **https://github.com/DominicSSV/Baukoordination** öffnen
+2. Oben rechts den grünen Knopf **„Code"** → **„Download ZIP"**
+3. Die ZIP-Datei im Explorer suchen, **Rechtsklick → Alle extrahieren**
+4. Als Ziel `C:\Users\DominicMaag\Documents` wählen
+5. Der entpackte Ordner heisst `Baukoordination-claude-...`. **Umbenennen
+   in `Baukoordination`** – kürzer und die Anleitung passt dann.
+
+> **NICHT in den OneDrive-Ordner legen.** Gleich kommt der Schlüssel zur
+> Datenbank in diesen Ordner. Läge er in `Liegenschaften - Dokumente`, hätte
+> ihn jeder, der auf diese Bibliothek Zugriff hat – und damit Zugriff auf
+> sämtliche Projekte, Dateien und Kontakte.
+>
+> `Dokumente` auf dem Rechner ist richtig. Nur die **Sicherung** geht nach
+> OneDrive, nicht der Code.
+
+#### Schritt 3 – Einrichtung starten (10 Minuten, meist Warten)
+
+Im Ordner `Baukoordination\scripts` die Datei **`einrichten-windows.cmd`
+doppelklicken**.
+
+Sie fragt nach zwei Werten. Die holst du so:
+
+1. **vercel.com** öffnen → dein Projekt anklicken
+2. Oben **„Settings"** → links **„Environment Variables"**
+3. Dort stehen `NEXT_PUBLIC_SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY`.
+   Auf das **Auge** klicken, um den Wert sichtbar zu machen, dann markieren
+   und mit `Strg+C` kopieren.
+4. Im schwarzen Fenster mit **Rechtsklick** einfügen (`Strg+V` geht dort oft
+   nicht) und **Enter** drücken.
+
+Danach lädt sie ein paar Minuten die benötigten Bausteine und macht gleich
+die erste Sicherung. Am Ende steht „Geschafft".
+
+Beim ersten Mal erscheint vielleicht die Meldung **„Der Computer wurde durch
+Windows geschützt"**. Das ist die Standardwarnung für jede nicht signierte
+Datei. Auf **„Weitere Informationen"** → **„Trotzdem ausführen"**.
+
+#### Schritt 4 – prüfen
+
+Im Explorer nach
+
+```
+C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Solar Ventures AG\7. Baukoordination\2. Backup
 ```
 
-Ohne Git: auf GitHub oben rechts **Code → Download ZIP**, danach nach
-`Dokumente\Baukoordination` entpacken.
-
-> **Wichtig: NICHT in den OneDrive-Ordner legen.** Der Programmordner enthält
-> gleich den Dienstschlüssel zur Datenbank. Läge er in
-> `Liegenschaften - Dokumente`, hätte ihn jeder, der auf diese
-> Dokumentenbibliothek Zugriff hat – und damit vollen Zugriff auf sämtliche
-> Projekte, Dateien und Kontakte. `Dokumente` auf dem Rechner ist richtig.
-
-**3. Die Schlüssel hinterlegen**
-
-Im Projektordner eine Datei `.env.local` anlegen (Editor → Speichern unter →
-Dateityp „Alle Dateien", Name `.env.local`) mit genau zwei Zeilen:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://....supabase.co
-SUPABASE_SERVICE_ROLE_KEY=...
-```
-
-Beide stehen in **Vercel → Settings → Environment Variables**.
-
-**4. Einmal ausprobieren**
-
-Im Explorer nach `Baukoordination\scripts` und **`sicherung-windows.cmd`
-doppelklicken**. Beim ersten Mal dauert es ein paar Minuten, weil die
-benötigten Bausteine nachgeladen werden. Danach steht im Backup-Ordner ein
-Ordner `Baukoordination-JJJJ-MM-TT`.
+Dort muss ein Ordner `Baukoordination-JJJJ-MM-TT` liegen, darin je Projekt
+ein Unterordner und eine `LIESMICH.md`. OneDrive lädt ihn von selbst hoch –
+erkennbar am grünen Häkchen neben dem Ordner.
 
 ### Täglich automatisch
 
