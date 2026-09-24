@@ -17,9 +17,15 @@
  * Für das vollständige Zurückspielen der Datenbank gibt es daneben pg_dump –
  * siehe scripts/SICHERUNG.md.
  *
+ * Einmal pro Tag genuegt: Wurde heute schon gesichert, endet das Skript
+ * sofort wieder. Deshalb darf es bei jeder Anmeldung starten – wer den
+ * Rechner dreimal am Tag hochfaehrt, bekommt trotzdem eine Sicherung und
+ * nicht drei.
+ *
  * Aufruf:
  *   node scripts/sicherung.mjs
  *   node scripts/sicherung.mjs --ziel "/Users/dominic/OneDrive/Baukoordination"
+ *   node scripts/sicherung.mjs --erzwingen        (auch wenn heute schon)
  *
  * Nötig sind NEXT_PUBLIC_SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY. Sie
  * werden aus .env.local gelesen, wenn sie nicht in der Umgebung stehen.
@@ -285,8 +291,45 @@ async function main() {
 
   const zielIndex = process.argv.indexOf('--ziel');
   const basis = zielIndex > -1 ? process.argv[zielIndex + 1] : 'sicherung';
-  const stempel = new Date().toISOString().slice(0, 10);
+  // Ortszeit und nicht UTC: Um halb neun abends waere in UTC schon der
+  // naechste Tag, und die Sicherung von Dienstagabend hiesse Mittwoch.
+  const heute = new Date();
+  const stempel = [
+    heute.getFullYear(),
+    String(heute.getMonth() + 1).padStart(2, '0'),
+    String(heute.getDate()).padStart(2, '0'),
+  ].join('-');
+
   const ordner = resolve(process.cwd(), basis, `Baukoordination-${stempel}`);
+
+  /**
+   * Schon heute gesichert? Dann nichts tun.
+   *
+   * Damit darf das Skript bei jeder Anmeldung starten: Wer den Rechner
+   * dreimal am Tag hochfaehrt, bekommt trotzdem eine Sicherung und nicht
+   * drei. Und wer ihn tagelang nicht einschaltet, bekommt die Sicherung beim
+   * naechsten Einschalten – ohne dass jemand daran denken muss.
+   *
+   * Mit --erzwingen laesst es sich uebergehen, etwa um nach einer grossen
+   * Aenderung sofort noch einmal zu sichern.
+   */
+  const erzwingen = process.argv.includes('--erzwingen');
+  if (!erzwingen) {
+    try {
+      const bericht = JSON.parse(await readFile(join(ordner, 'bericht.json'), 'utf8'));
+      if (bericht?.erstellt) {
+        console.log(
+          `Heute wurde bereits gesichert (${new Date(bericht.erstellt).toLocaleString('de-CH')}).`,
+        );
+        console.log(`  ${ordner}`);
+        console.log('Nochmals sichern: --erzwingen anhaengen.');
+        return;
+      }
+    } catch {
+      // Kein Bericht, kein Ordner, unlesbar – dann eben sichern. Im Zweifel
+      // lieber eine Sicherung zu viel als eine ausgelassene.
+    }
+  }
 
   const db = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },

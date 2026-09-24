@@ -131,22 +131,52 @@ Ordner `Baukoordination-JJJJ-MM-TT`.
 
 ### Täglich automatisch
 
-**Windows-Taste → „Aufgabenplanung" → Einfache Aufgabe erstellen**
+**Bedingung: Der Rechner muss laufen.** Die App muss **nicht** offen sein – das
+Skript holt die Daten selbst aus der Datenbank. Eine Internetverbindung
+braucht es, sonst nichts.
 
-| Feld | Eintrag |
+Das Skript sichert **höchstens einmal pro Tag**. Wurde heute schon gesichert,
+endet es sofort wieder. Deshalb darf es bei jeder Anmeldung starten – wer den
+Rechner dreimal am Tag hochfährt, bekommt trotzdem eine Sicherung und nicht
+drei.
+
+Damit lässt sich einrichten, was man eigentlich will: **gesichert wird, wenn
+der Rechner das erste Mal an ist.**
+
+**Windows-Taste → „Aufgabenplanung" → Aufgabe erstellen** (nicht „Einfache
+Aufgabe" – dort fehlen die beiden Häkchen weiter unten)
+
+| Reiter | Eintrag |
 |---|---|
-| Name | `Baukoordination Sicherung` |
-| Trigger | **Täglich**, Uhrzeit **19:00** |
-| Aktion | **Programm starten** |
-| Programm/Skript | `C:\Users\DominicMaag\Documents\Baukoordination\scripts\sicherung-windows.cmd` |
-| Starten in | `C:\Users\DominicMaag\Documents\Baukoordination` |
+| Allgemein | Name `Baukoordination Sicherung` |
+| Trigger → Neu | **Bei Anmeldung**, „Aufgabe verzögern um: **2 Minuten**" |
+| Trigger → Neu (zweiter) | **Täglich**, 19:00 |
+| Aktionen → Neu | Programm starten: `C:\Users\DominicMaag\Documents\Baukoordination\scripts\sicherung-windows.cmd` |
+| | Starten in: `C:\Users\DominicMaag\Documents\Baukoordination` |
+| Bedingungen | Häkchen bei **„Nur starten, wenn folgende Netzwerkverbindung verfügbar ist: Beliebige Verbindung"** |
+| Einstellungen | Häkchen bei **„Aufgabe so schnell wie möglich nach einem verpassten Start ausführen"** |
 
-Danach in den Eigenschaften der Aufgabe noch **„Unabhängig von der
-Benutzeranmeldung ausführen"** wählen, wenn sie auch laufen soll, während
-niemand angemeldet ist.
+Die zwei Minuten Verzögerung bei der Anmeldung sind wichtig: Direkt nach dem
+Hochfahren ist oft noch kein Netz da.
 
-**Der Rechner muss zur eingestellten Zeit laufen.** Nimm eine Zeit, zu der er
-ohnehin an ist – 19:00 ist besser als 03:00.
+Was dabei herauskommt:
+
+| Situation | Was passiert |
+|---|---|
+| Rechner läuft um 19:00 | Sicherung um 19:00 |
+| Rechner war um 19:00 aus | Sicherung beim nächsten Hochfahren |
+| Mehrmals am Tag angemeldet | Nur die erste Anmeldung sichert, danach nichts |
+| Eine Woche nicht eingeschaltet | Sicherung beim nächsten Einschalten |
+| Kein Internet | Kein Lauf, Nachholung beim nächsten Mal |
+
+Nach einer grossen Änderung sofort nochmals sichern: `sicherung-windows.cmd`
+doppelklicken geht nicht (heute ist ja schon gesichert), dafür in der
+Eingabeaufforderung:
+
+```cmd
+cd %USERPROFILE%\Documents\Baukoordination
+node scripts\sicherung.mjs --ziel "C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Solar Ventures AG\7. Baukoordination\2. Backup" --erzwingen
+```
 
 ### Auf dem Mac
 
