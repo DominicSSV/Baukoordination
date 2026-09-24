@@ -5158,3 +5158,39 @@ button:disabled {
   font-weight: 600;
   color: var(--ink);
 }
+
+/* Aus einer Benachrichtigung heraus: Die gemeinte Zeile leuchtet kurz auf.
+   Gelb und nicht grün: Grün heisst in dieser App erledigt, und eine Aufgabe,
+   auf die man gerade hingewiesen wurde, ist meistens das Gegenteil.
+
+   Nach vier Sekunden endet es von selbst. Eine Markierung, die stehen bleibt,
+   ist beim nächsten Blick auf die Liste nur noch verwirrend. */
+@keyframes todo-aufleuchten {
+  0% {
+    background: #FFE9B8;
+    box-shadow: inset 3px 0 0 #E5A93B;
+  }
+  70% {
+    background: #FFF6E6;
+    box-shadow: inset 3px 0 0 #E5A93B;
+  }
+  100% {
+    background: transparent;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+}
+
+.todo-row.leuchtet {
+  animation: todo-aufleuchten 4s ease-out forwards;
+  border-radius: 8px;
+}
+
+/* Wer das Blinken nicht sehen will oder darf, bekommt die Markierung ruhig –
+   sichtbar bleibt sie trotzdem, sonst fände er die Zeile gar nicht. */
+@media (prefers-reduced-motion: reduce) {
+  .todo-row.leuchtet {
+    animation: none;
+    background: #FFF6E6;
+    box-shadow: inset 3px 0 0 #E5A93B;
+  }
+}

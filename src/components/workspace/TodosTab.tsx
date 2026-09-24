@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { del, patch, post } from '@/lib/client/api';
 import { uploadFiles } from '@/lib/client/upload';
@@ -28,15 +28,31 @@ export default function TodosTab({
   detail,
   reload,
   onOpenFile,
+  hervorheben,
+  onHervorgehoben,
 }: {
   session: SessionInfo;
   detail: ProjectDetail;
   reload: () => Promise<void>;
   onOpenFile: (fileId: string) => void;
+  /** Text der Aufgabe, die aus einer Benachrichtigung heraus gesucht wird. */
+  hervorheben?: string | null;
+  /** Wird gerufen, wenn das Aufleuchten vorbei ist. */
+  onHervorgehoben?: () => void;
 }) {
   const { toast, reportError, confirm } = useFeedback();
   const isAdmin = session.kind === 'admin';
   const projectId = detail.project.id;
+
+  /**
+   * Welche Zeile gerade aufleuchtet – die Kennung, nicht der Text.
+   *
+   * Gesucht wird ueber den Text, weil das Protokoll keine Kennung der Aufgabe
+   * festhaelt. Gefunden wird die erste, die genau so heisst. Heissen zwei
+   * gleich, leuchtet die obere – das ist harmlos, denn Hervorheben aendert
+   * nichts, es zeigt nur hin.
+   */
+  const [leuchtet, setLeuchtet] = useState<string | null>(null);
 
   const [newText, setNewText] = useState('');
   const [newAssignees, setNewAssignees] = useState<string[]>([]);
@@ -97,6 +113,47 @@ export default function TodosTab({
     () => (nachFristSortieren ? nachFrist(detail.todos) : detail.todos),
     [detail.todos, nachFristSortieren],
   );
+
+  /**
+   * Aus einer Benachrichtigung heraus: die gemeinte Zeile suchen, hinscrollen
+   * und kurz aufleuchten lassen.
+   *
+   * Nach vier Sekunden ist Schluss. Eine Markierung, die stehen bleibt, ist
+   * beim naechsten Blick auf die Liste nur noch verwirrend – dann fragt man
+   * sich, was an dieser Zeile besonders sein soll.
+   */
+  useEffect(() => {
+    if (!hervorheben) return;
+
+    const gesucht = hervorheben.trim().toLowerCase();
+    const treffer = detail.todos.find((t) => t.text.trim().toLowerCase() === gesucht);
+    if (!treffer) {
+      onHervorgehoben?.();
+      return;
+    }
+
+    // Ueber einen Timer, nicht direkt im Effekt: Ein setState im Effektrumpf
+    // loest eine Folge von Neuzeichnungen aus, die React zu Recht anmahnt.
+    const an = window.setTimeout(() => setLeuchtet(treffer.id), 0);
+
+    // Erst nach dem Zeichnen suchen: Vorher gibt es das Element noch nicht.
+    const hin = window.setTimeout(() => {
+      document
+        .querySelector(`[data-todo="${treffer.id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+
+    const aus = window.setTimeout(() => {
+      setLeuchtet(null);
+      onHervorgehoben?.();
+    }, 4000);
+
+    return () => {
+      window.clearTimeout(an);
+      window.clearTimeout(hin);
+      window.clearTimeout(aus);
+    };
+  }, [hervorheben, detail.todos, onHervorgehoben]);
 
   const [openComments, setOpenComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -557,9 +614,10 @@ export default function TodosTab({
             zwischenzeile,
             <div
               key={todo.id}
+              data-todo={todo.id}
               className={`todo-row ${todo.meilenstein ? 'meilenstein' : ''} ${
                 auswahlModus && gewaehlt.has(todo.id) ? 'gewaehlt' : ''
-              }`}
+              } ${leuchtet === todo.id ? 'leuchtet' : ''}`}
             >
               {auswahlModus && (
                 <input

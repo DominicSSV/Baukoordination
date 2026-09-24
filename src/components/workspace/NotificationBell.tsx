@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { betreffAusText } from '@/lib/betreff';
 import { api, del, post } from '@/lib/client/api';
 import { useFeedback } from '@/components/Feedback';
 import { fmtDate } from '@/lib/format';
@@ -69,7 +70,8 @@ export default function NotificationBell({
   werBinIch: string;
   /** Nur wir dürfen die Glocke anderer leeren. */
   istAdmin: boolean;
-  onOpenProject: (projectId: string, ziel: Ziel) => void;
+  /** Der dritte Wert ist der Betreff – damit die Zeile drueben kurz aufleuchtet. */
+  onOpenProject: (projectId: string, ziel: Ziel, betreff?: string | null) => void;
 }) {
   const { toast, reportError, confirm } = useFeedback();
   const [offen, setOffen] = useState(false);
@@ -386,7 +388,7 @@ export default function NotificationBell({
                     type="button"
                     className="glocke-eintrag"
                     onClick={() => {
-                      onOpenProject(e.projectId, e.ziel);
+                      onOpenProject(e.projectId, e.ziel, betreffAusText(e.text));
                       setOffen(false);
                     }}
                   >

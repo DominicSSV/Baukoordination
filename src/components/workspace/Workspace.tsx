@@ -72,6 +72,27 @@ function ausLink(projekte: Project[]): { id: string; tab: TabKey } | null {
   return { id, tab: tab ?? 'todos' };
 }
 
+/**
+ * Die Adresse an die aktuelle Ansicht angleichen.
+ *
+ * Damit ist ein Neuladen kein Verlust mehr: Wer im Terminplan von Dietikon
+ * steht und die Seite neu laedt, steht danach wieder dort. Vorher landete man
+ * jedes Mal in der Wochenuebersicht und musste sich zurueckklicken - auf der
+ * Baustelle laedt man bei schlechtem Empfang oft neu.
+ *
+ * replaceState und nicht pushState: Jeder Registerwechsel als eigener Schritt
+ * in der Chronik wuerde den Zurueck-Knopf unbrauchbar machen. Man will damit
+ * aus der App heraus, nicht durch zwanzig Reiter.
+ */
+function merkeAnsicht(projektId: string | null, tab: TabKey, woche: boolean) {
+  if (typeof window === 'undefined') return;
+
+  const ziel = woche || !projektId ? '/app' : `/app?p=${projektId}&t=${tab}`;
+  if (window.location.pathname + window.location.search !== ziel) {
+    window.history.replaceState(null, '', ziel);
+  }
+}
+
 export default function Workspace(props: {
   session: SessionInfo;
   initialProjects: Project[];
@@ -121,6 +142,8 @@ function WorkspaceInner({
   // sechs Symbole und der Titel passen nebeneinander nicht auf den Schirm.
   const [werkzeugeOffen, setWerkzeugeOffen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(session.avatarUrl);
+  /** Betreff aus einer angetippten Benachrichtigung – die Zeile leuchtet kurz auf. */
+  const [hervorheben, setHervorheben] = useState<string | null>(null);
 
   // Solange ein Projekt gewählt ist, aber noch keine Daten da sind und kein Fehler
   // vorliegt, läuft der Ladezustand – ein eigener State dafür wäre nur redundant.
@@ -177,10 +200,14 @@ function WorkspaceInner({
     };
   }, [activeId]);
 
-  // Geteilter Link: erst nach dem ersten Aufbau auswerten, sonst wichen Server-
-  // und Browserfassung voneinander ab (auf dem Server gibt es keine Adresszeile).
-  // Danach die Parameter aus der Adresse nehmen, damit ein späteres Neuladen
-  // nicht wieder zurückspringt.
+  // Geteilter Link und Wiederkehr nach dem Neuladen: erst nach dem ersten
+  // Aufbau auswerten, sonst wichen Server- und Browserfassung voneinander ab
+  // (auf dem Server gibt es keine Adresszeile).
+  //
+  // Die Parameter bleiben jetzt bewusst stehen. Frueher wurden sie geleert,
+  // damit ein spaeteres Neuladen nicht zurueckspringt - genau das Zurueck-
+  // springen ist aber erwuenscht: Wer neu laedt, will da weitermachen, wo er
+  // war.
   useEffect(() => {
     const sprung = ausLink(initialProjects);
     if (!sprung) return;
@@ -189,10 +216,14 @@ function WorkspaceInner({
       setZeigeWoche(false);
       setActiveId(sprung.id);
       setTab(sprung.tab);
-      window.history.replaceState(null, '', '/app');
     }, 0);
     return () => clearTimeout(id);
   }, [initialProjects]);
+
+  // Ab jetzt die Adresse mitfuehren, damit sie jederzeit die Ansicht abbildet.
+  useEffect(() => {
+    merkeAnsicht(activeId, tab, zeigeWoche);
+  }, [activeId, tab, zeigeWoche]);
 
   const reload = useCallback(async () => {
     if (activeId) await loadDetail(activeId, true);
@@ -222,7 +253,7 @@ function WorkspaceInner({
    * zeigen, in dem der Vorgang steht. Ohne das landete man auf der Startseite
    * des Projekts und müsste selbst suchen.
    */
-  function openFromNotification(id: string, ziel: TabKey) {
+  function openFromNotification(id: string, ziel: TabKey, betreff?: string | null) {
     setZeigeWoche(false);
     if (id !== activeId) {
       setActiveId(id);
@@ -230,6 +261,10 @@ function WorkspaceInner({
       setDetailError(null);
     }
     setTab(ziel);
+    // Die Aufgabe kurz aufleuchten lassen. Ohne das landet man zwar im
+    // richtigen Register, sucht aber in einer Liste von dreissig Zeilen die
+    // eine, um die es ging.
+    setHervorheben(betreff ?? null);
   }
 
   /** Nach dem Umbenennen: Liste und geöffnetes Projekt gleichziehen. */
@@ -581,6 +616,8 @@ function WorkspaceInner({
               )}
               {tab === 'todos' && (
                 <TodosTab
+                  hervorheben={hervorheben}
+                  onHervorgehoben={() => setHervorheben(null)}
                   session={session}
                   detail={detail}
                   reload={reload}
