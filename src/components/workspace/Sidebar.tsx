@@ -58,9 +58,31 @@ export default function Sidebar({
 
   // Abgeschlossene Projekte sind standardmässig eingeklappt – sie stehen
   // im Alltag nur im Weg.
-  // Schluessel ist "<sparte>:<phase>": Wer "Abgeschlossen" bei PVA zuklappt,
-  // will es bei BESS nicht auch zu haben.
-  const [zu, setZu] = useState<Set<string>>(new Set());
+  /**
+   * Was von Hand auf- oder zugeklappt wurde. Schluessel ist "<sparte>:<phase>":
+   * Wer "Abgeschlossen" bei PVA zuklappt, will es bei BESS nicht auch zu haben.
+   *
+   * Nur die bewussten Entscheidungen stehen hier. Alles andere ergibt sich aus
+   * dem Inhalt – siehe istEingeklappt.
+   */
+  const [zu, setZu] = useState<Map<string, boolean>>(new Map());
+
+  /**
+   * Ist diese Phase eingeklappt?
+   *
+   * Von Hand entschieden schlaegt alles. Sonst gilt: Eine leere Phase ist zu.
+   * Ist bei PVA nichts in Planung, soll die Ueberschrift nicht mit einer leeren
+   * Flaeche darunter den halben Bildschirm fuellen – bei fuenf Sparten waeren
+   * das zwanzig Ueberschriften fuer nichts.
+   *
+   * "Abgeschlossen" bleibt ebenfalls zu, auch wenn etwas darin liegt: Im Alltag
+   * steht es nur im Weg, und wer nachsehen will, klappt es auf.
+   */
+  function istEingeklappt(schluessel: string, phase: ProjektStatus, anzahl: number) {
+    const vonHand = zu.get(schluessel);
+    if (vonHand !== undefined) return vonHand;
+    return anzahl === 0 || phase === 'abgeschlossen';
+  }
 
   const [gezogen, setGezogen] = useState<string | null>(null);
   const [ueber, setUeber] = useState<{ id: string; status: ProjektStatus } | null>(null);
@@ -167,13 +189,8 @@ export default function Sidebar({
     return () => window.clearTimeout(t);
   }, [laden]);
 
-  function klappen(schluessel: string) {
-    setZu((current) => {
-      const next = new Set(current);
-      if (next.has(schluessel)) next.delete(schluessel);
-      else next.add(schluessel);
-      return next;
-    });
+  function klappen(schluessel: string, istZu: boolean) {
+    setZu((current) => new Map(current).set(schluessel, !istZu));
   }
 
   function sparteKlappen(id: string) {
@@ -277,14 +294,22 @@ export default function Sidebar({
   function phasenAnsicht(phasen: Map<ProjektStatus, Project[]>, sparteId: string) {
     return PROJEKT_STATUS.map((s) => {
       const inGruppe = phasen.get(s.wert) ?? [];
-      const eingeklappt = zu.has(`${sparteId}:${s.wert}`);
+      const schluessel = `${sparteId}:${s.wert}`;
+      const eingeklappt = istEingeklappt(schluessel, s.wert, inGruppe.length);
+
+      // Eine leere Phase sieht nur, wer sie brauchen kann: Wir schieben dort
+      // Projekte hinein, ein Lieferant nicht. Fuer ihn faellt sie ganz weg.
+      if (!inGruppe.length && !isAdmin) return null;
 
           return (
-            <div className="projekt-gruppe" key={`${sparteId}:${s.wert}`}>
+            <div
+              className={`projekt-gruppe ${!inGruppe.length ? 'leer' : ''}`}
+              key={schluessel}
+            >
               <button
                 type="button"
                 className="gruppe-kopf"
-                onClick={() => klappen(`${sparteId}:${s.wert}`)}
+                onClick={() => klappen(schluessel, eingeklappt)}
                 onDragOver={(e) => {
                   if (isAdmin && gezogen) e.preventDefault();
                 }}

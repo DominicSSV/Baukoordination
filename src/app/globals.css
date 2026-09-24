@@ -5504,3 +5504,18 @@ button:disabled {
   font-size: 13px;
   letter-spacing: 0.02em;
 }
+
+/* Eine leere Phase ist zugeklappt und nimmt nur noch eine schmale Zeile ein.
+   Sie bleibt sichtbar, weil wir Projekte dort hineinziehen – aber sie soll
+   nicht denselben Platz beanspruchen wie eine Phase mit Inhalt. Bei fünf
+   Sparten wären das sonst zwanzig Überschriften für nichts. */
+.projekt-gruppe.leer > .gruppe-kopf {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  font-size: 10.5px;
+  opacity: 0.5;
+}
+
+.projekt-gruppe.leer > .gruppe-kopf:hover {
+  opacity: 1;
+}
