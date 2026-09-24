@@ -82,24 +82,79 @@ weg – sonst füllt sich die Cloud mit fünfzig Kopien derselben Fotos.
 
 Das Skript weiss nichts von einer Cloud, und das ist Absicht: Es schreibt in
 einen Ordner, und den Rest macht der Synchronisierungsdienst, den du ohnehin
-hast. Damit funktioniert es mit OneDrive, Dropbox, kDrive und jedem anderen
+hast. Damit funktioniert es mit OneDrive, SharePoint, Dropbox und kDrive
 gleich gut, und deine Zugangsdaten zur Cloud liegen nirgends im Programm.
 
-**Auf dem Mac** (läuft, sobald der Rechner an ist):
+### Einrichten auf Windows – einmalig
 
-```bash
-# Einmalig einrichten
-crontab -e
-# Diese Zeile einfügen – jeden Tag um 19:00:
-0 19 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
+**1. Node.js installieren**
+[nodejs.org](https://nodejs.org) → die **LTS**-Fassung → durchklicken, alles
+auf Standard lassen. Danach den Rechner einmal neu starten.
+
+**2. Den Programmcode auf den Rechner holen**
+
+Mit Git (empfohlen, dann lassen sich Änderungen später mit einem Befehl
+nachziehen):
+
+```cmd
+cd %USERPROFILE%\Documents
+git clone https://github.com/DominicSSV/Baukoordination.git
 ```
 
-**Auf Windows**: Aufgabenplanung → Einfache Aufgabe erstellen → Täglich →
-Programm `node`, Argumente `scripts\sicherung.mjs --ziel "%USERPROFILE%\OneDrive\Baukoordination"`,
-Starten in: der Projektordner.
+Ohne Git: auf GitHub oben rechts **Code → Download ZIP**, danach nach
+`Dokumente\Baukoordination` entpacken.
 
-Wichtig: Der Rechner muss zur eingestellten Zeit laufen. Wähle eine Zeit, zu
-der er ohnehin an ist – 19:00 ist besser als 03:00.
+> **Wichtig: NICHT in den OneDrive-Ordner legen.** Der Programmordner enthält
+> gleich den Dienstschlüssel zur Datenbank. Läge er in
+> `Liegenschaften - Dokumente`, hätte ihn jeder, der auf diese
+> Dokumentenbibliothek Zugriff hat – und damit vollen Zugriff auf sämtliche
+> Projekte, Dateien und Kontakte. `Dokumente` auf dem Rechner ist richtig.
+
+**3. Die Schlüssel hinterlegen**
+
+Im Projektordner eine Datei `.env.local` anlegen (Editor → Speichern unter →
+Dateityp „Alle Dateien", Name `.env.local`) mit genau zwei Zeilen:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://....supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Beide stehen in **Vercel → Settings → Environment Variables**.
+
+**4. Einmal ausprobieren**
+
+Im Explorer nach `Baukoordination\scripts` und **`sicherung-windows.cmd`
+doppelklicken**. Beim ersten Mal dauert es ein paar Minuten, weil die
+benötigten Bausteine nachgeladen werden. Danach steht im Backup-Ordner ein
+Ordner `Baukoordination-JJJJ-MM-TT`.
+
+### Täglich automatisch
+
+**Windows-Taste → „Aufgabenplanung" → Einfache Aufgabe erstellen**
+
+| Feld | Eintrag |
+|---|---|
+| Name | `Baukoordination Sicherung` |
+| Trigger | **Täglich**, Uhrzeit **19:00** |
+| Aktion | **Programm starten** |
+| Programm/Skript | `C:\Users\DominicMaag\Documents\Baukoordination\scripts\sicherung-windows.cmd` |
+| Starten in | `C:\Users\DominicMaag\Documents\Baukoordination` |
+
+Danach in den Eigenschaften der Aufgabe noch **„Unabhängig von der
+Benutzeranmeldung ausführen"** wählen, wenn sie auch laufen soll, während
+niemand angemeldet ist.
+
+**Der Rechner muss zur eingestellten Zeit laufen.** Nimm eine Zeit, zu der er
+ohnehin an ist – 19:00 ist besser als 03:00.
+
+### Auf dem Mac
+
+```bash
+crontab -e
+# Jeden Tag um 19:00:
+0 19 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
+```
 
 ## Vollständige Sicherung der Datenbank
 
