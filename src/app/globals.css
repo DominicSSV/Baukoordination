@@ -5426,12 +5426,17 @@ button:disabled {
   background: var(--bg);
 }
 
-/* Die Werkzeuge erscheinen erst beim Darüberfahren – sonst steht neben jeder
-   Gruppe eine Knopfreihe und die Namen gehen darin unter. */
+/* Die Werkzeuge stehen immer da, nur blass – beim Darüberfahren treten sie
+   hervor.
+
+   Vorher waren sie ganz unsichtbar und erschienen erst beim Darüberfahren.
+   Das hielt die Leiste ruhig, hatte aber einen Preis: Wer nicht zufällig mit
+   der Maus über eine Gruppe fährt, erfährt nie, dass sich Gruppen umbenennen
+   und verschieben lassen. Ein Knopf, den man nicht findet, ist keiner. */
 .sparte-werkzeuge {
   display: flex;
   gap: 1px;
-  opacity: 0;
+  opacity: 0.45;
   transition: opacity 0.12s;
 }
 
@@ -5471,8 +5476,31 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
-  /* Ohne Maus gibt es kein Darüberfahren – dann stehen sie immer da. */
+  /* Ohne Maus gibt es kein Darüberfahren – dann voll sichtbar, und etwas
+     grösser, damit der Daumen trifft. */
   .sparte-werkzeuge {
     opacity: 1;
   }
+
+  .sparte-werkzeuge .icon-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+}
+
+/* Eingabefeld beim Umbenennen einer Gruppe und beim Anlegen einer neuen.
+   Sitzt an derselben Stelle wie die Überschrift, damit der Name nicht springt,
+   wenn man vom Lesen ins Schreiben wechselt. */
+.sparte-eingabe {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 6px 8px;
+  margin: 0;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  letter-spacing: 0.02em;
 }

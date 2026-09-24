@@ -50,7 +50,7 @@ export default function Sidebar({
   /** Öffnet die Texte der verschickten Mails – nur für uns sichtbar. */
   onNachrichten: () => void;
 }) {
-  const { reportError } = useFeedback();
+  const { reportError, confirm } = useFeedback();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [ort, setOrt] = useState('');
@@ -68,6 +68,17 @@ export default function Sidebar({
   /** Die Sparten aus der Datenbank – PVA, BESS, Heizung … */
   const [gruppen, setGruppen] = useState<ProjektGruppe[]>([]);
   const [sparteZu, setSparteZu] = useState<Set<string>>(new Set());
+  /**
+   * Welche Sparte gerade umbenannt wird, und der Entwurf dazu.
+   *
+   * An Ort und Stelle und nicht ueber window.prompt: Der Rest der App benutzt
+   * eigene Dialoge, damit das Aussehen zusammenpasst - und auf dem Handy wird
+   * ein prompt je nach Browser gar nicht oder als haessliche Systemleiste
+   * angezeigt.
+   */
+  const [benennt, setBenennt] = useState<string | null>(null);
+  const [entwurf, setEntwurf] = useState('');
+  const [neueGruppe, setNeueGruppe] = useState<string | null>(null);
 
   /**
    * Auf dem Handy eingeklappt, sobald ein Projekt offen ist.
@@ -372,10 +383,9 @@ export default function Sidebar({
     }
   }
 
-  async function gruppeAnlegen() {
-    const name = window.prompt('Name der neuen Gruppe, z.B. „Wärmepumpen“:');
-    if (!name?.trim()) return;
-
+  async function gruppeAnlegen(name: string) {
+    if (!name.trim()) return;
+    setNeueGruppe(null);
     try {
       await post('/api/groups', { name: name.trim() });
       await laden();
@@ -384,12 +394,14 @@ export default function Sidebar({
     }
   }
 
-  async function umbenennen(sp: { id: string; name: string }) {
-    const name = window.prompt('Neuer Name:', sp.name);
-    if (!name?.trim() || name.trim() === sp.name) return;
+  /** Den Entwurf speichern – leer oder unveraendert heisst: nichts tun. */
+  async function umbenennenSpeichern(id: string, alterName: string) {
+    const name = entwurf.trim();
+    setBenennt(null);
+    if (!name || name === alterName) return;
 
     try {
-      await patch('/api/groups', { id: sp.id, name: name.trim() });
+      await patch('/api/groups', { id, name });
       await laden();
     } catch (error) {
       reportError(error, 'Die Gruppe konnte nicht umbenannt werden.');
@@ -401,19 +413,24 @@ export default function Sidebar({
    * "Ohne Gruppe" – das sagt die Rueckfrage auch ausdruecklich, damit niemand
    * denkt, er loesche gerade seine Projekte.
    */
-  async function gruppeEntfernen(sp: { id: string; name: string }) {
+  function gruppeEntfernen(sp: { id: string; name: string }) {
     const drin = (nachSparte.get(sp.id) ?? []).length;
     const text = drin
-      ? `Gruppe „${sp.name}" entfernen?\n\nDie ${drin} Projekte darin bleiben bestehen und stehen danach unter „Ohne Gruppe".`
+      ? `Gruppe „${sp.name}" entfernen?\n\nDie ${drin} Projekte darin bleiben bestehen und stehen danach unter „Ohne Gruppe" – sie werden NICHT gelöscht.`
       : `Gruppe „${sp.name}" entfernen?`;
-    if (!window.confirm(text)) return;
 
-    try {
-      await del('/api/groups', { id: sp.id });
-      await laden();
-    } catch (error) {
-      reportError(error, 'Die Gruppe konnte nicht entfernt werden.');
-    }
+    confirm(
+      text,
+      async () => {
+        try {
+          await del('/api/groups', { id: sp.id });
+          await laden();
+        } catch (error) {
+          reportError(error, 'Die Gruppe konnte nicht entfernt werden.');
+        }
+      },
+      'Entfernen',
+    );
   }
 
   /** Auf dem Handy nach der Wahl zuklappen – der Inhalt soll sofort dastehen. */
@@ -469,16 +486,31 @@ export default function Sidebar({
           return (
             <div className="sparte" key={sp.id}>
               <div className="sparte-kopf">
-                <button
-                  type="button"
-                  className="sparte-titel"
-                  onClick={() => sparteKlappen(sp.id)}
-                  aria-expanded={!zuS}
-                >
-                  <span className={`gruppe-pfeil ${zuS ? 'zu' : ''}`}>▾</span>
-                  {sp.name}
-                  <span className="gruppe-anzahl">{drin.length}</span>
-                </button>
+                {benennt === sp.id ? (
+                  <input
+                    className="sparte-eingabe"
+                    value={entwurf}
+                    autoFocus
+                    onChange={(e) => setEntwurf(e.target.value)}
+                    onBlur={() => void umbenennenSpeichern(sp.id, sp.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void umbenennenSpeichern(sp.id, sp.name);
+                      if (e.key === 'Escape') setBenennt(null);
+                    }}
+                    aria-label="Name der Gruppe"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="sparte-titel"
+                    onClick={() => sparteKlappen(sp.id)}
+                    aria-expanded={!zuS}
+                  >
+                    <span className={`gruppe-pfeil ${zuS ? 'zu' : ''}`}>▾</span>
+                    {sp.name}
+                    <span className="gruppe-anzahl">{drin.length}</span>
+                  </button>
+                )}
                 {isAdmin && sp.id !== OHNE_SPARTE && (
                   <span className="sparte-werkzeuge">
                     <button
@@ -503,7 +535,10 @@ export default function Sidebar({
                       type="button"
                       className="icon-btn"
                       title="Umbenennen"
-                      onClick={() => void umbenennen(sp)}
+                      onClick={() => {
+                        setEntwurf(sp.name);
+                        setBenennt(sp.id);
+                      }}
                     >
                       ✏️
                     </button>
@@ -511,7 +546,7 @@ export default function Sidebar({
                       type="button"
                       className="icon-btn"
                       title="Gruppe entfernen"
-                      onClick={() => void gruppeEntfernen(sp)}
+                      onClick={() => gruppeEntfernen(sp)}
                     >
                       🗑️
                     </button>
@@ -528,11 +563,26 @@ export default function Sidebar({
           );
         })}
 
-        {isAdmin && (
-          <button type="button" className="sparte-neu" onClick={() => void gruppeAnlegen()}>
-            + Gruppe
-          </button>
-        )}
+        {isAdmin &&
+          (neueGruppe === null ? (
+            <button type="button" className="sparte-neu" onClick={() => setNeueGruppe('')}>
+              + Gruppe
+            </button>
+          ) : (
+            <input
+              className="sparte-eingabe"
+              value={neueGruppe}
+              autoFocus
+              placeholder="Name der Gruppe, z.B. Wärmepumpen"
+              onChange={(e) => setNeueGruppe(e.target.value)}
+              onBlur={() => void gruppeAnlegen(neueGruppe)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void gruppeAnlegen(neueGruppe);
+                if (e.key === 'Escape') setNeueGruppe(null);
+              }}
+              aria-label="Name der neuen Gruppe"
+            />
+          ))}
       </div>
 
       {isAdmin &&
