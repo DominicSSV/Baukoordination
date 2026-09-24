@@ -5536,3 +5536,61 @@ button:disabled {
 .rechnung-plz {
   flex: 0 0 90px;
 }
+
+/* Bild der Liegenschaft und Rechnungsadresse nebeneinander.
+   Das Foto ist quadratisch und knapp 400 Pixel breit – daneben blieb auf dem
+   Rechner die halbe Breite leer. Genau dort steht jetzt, wohin die Rechnung
+   geht: zwei Angaben, die man beim ersten Blick aufs Projekt zusammen
+   braucht. */
+.liegenschaft-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+/* Feste Breite statt "so breit wie der Inhalt": Das Bild darin ist auf
+   width:100% gesetzt und haette sonst keinen Bezug, an dem es sich messen
+   kann – es fiele auf die Breite des Platzhalters zusammen. */
+.liegenschaft-zeile > .liegenschaft {
+  flex: 0 0 400px;
+  max-width: 400px;
+  margin-bottom: 0;
+}
+
+.liegenschaft-neben {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Die Überschrift daneben soll auf derselben Höhe beginnen wie das Bild –
+   der übliche Abstand nach oben würde sie tiefer setzen. */
+.liegenschaft-neben > .pkontakt-titel:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  /* Schon vor der Handybreite umbrechen: Bei 760 bis 900 Pixeln bliebe neben
+     dem Bild eine Spalte, in der eine Adresse in jeder Zeile umbricht. */
+  .liegenschaft-zeile {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .liegenschaft-zeile > .liegenschaft {
+    width: 100%;
+  }
+}
+
+/* Die Rechnungsadresse untereinander wie auf einem Briefumschlag.
+   Nicht .pkontakt-wege benutzen: Das ist eine Reihe für Telefon und Mail und
+   setzt Strasse, Ort und Versand nebeneinander in eine Zeile. */
+.rechnung-zeilen {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.rechnung-zeilen > div {
+  display: block;
+}

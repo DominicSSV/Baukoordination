@@ -491,79 +491,199 @@ export default function ProjectInfoTab({
           als drei Zeilen Adresse – Flachdach oder Schrägdach, Gerüst nötig oder
           nicht, wo der Lieferwagen hinkommt. Wer zum ersten Mal hinfährt,
           erkennt daran, ob er richtig ist. */}
-      <div className="liegenschaft">
-        {bildUrl ? (
-          <>
-            {/* Anklickbar, weil auf einem Luftbild die Einzelheiten zählen –
-                wo der Kran hinkommt, wie die Module liegen. In der Kachel
-                erkennt man das nicht, im Vollbild schon. */}
-            <button
-              type="button"
-              className="liegenschaft-link"
-              onClick={() => setVollbild(true)}
-              title="Gross ansehen"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="liegenschaft-bild"
-                src={bildUrl}
-                alt={detail.project.name}
-              />
-            </button>
-            <div className="liegenschaft-knoepfe">
+      {/* Bild und Rechnungsadresse nebeneinander: Das Foto ist quadratisch,
+          daneben blieb bisher die halbe Breite leer. Auf dem Handy stehen sie
+          untereinander – dort ist keine Spalte uebrig. */}
+      <div className="liegenschaft-zeile">
+        <div className="liegenschaft">
+          {bildUrl ? (
+            <>
+              {/* Anklickbar, weil auf einem Luftbild die Einzelheiten zählen –
+                  wo der Kran hinkommt, wie die Module liegen. In der Kachel
+                  erkennt man das nicht, im Vollbild schon. */}
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => bildWahl.current?.click()}
-                disabled={bildLaeuft}
+                className="liegenschaft-link"
+                onClick={() => setVollbild(true)}
+                title="Gross ansehen"
               >
-                {bildLaeuft ? 'Wird geladen…' : '📷 Bild austauschen'}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="liegenschaft-bild"
+                  src={bildUrl}
+                  alt={detail.project.name}
+                />
               </button>
-              {isAdmin && (
+              <div className="liegenschaft-knoepfe">
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={bildEntfernen}
+                  onClick={() => bildWahl.current?.click()}
                   disabled={bildLaeuft}
                 >
-                  🗑️ Entfernen
+                  {bildLaeuft ? 'Wird geladen…' : '📷 Bild austauschen'}
                 </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="liegenschaft-leer"
-            onClick={() => bildWahl.current?.click()}
-            disabled={bildLaeuft}
-          >
-            <span className="liegenschaft-zeichen">📷</span>
-            <span>
-              {bildLaeuft
-                ? 'Wird geladen…'
-                : 'Bild der Liegenschaft hinzufügen'}
-            </span>
-            <span className="liegenschaft-hinweis">
-              Ein Foto von aussen genügt – daran erkennt man beim ersten Mal, ob
-              man richtig ist.
-            </span>
-          </button>
-        )}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={bildEntfernen}
+                    disabled={bildLaeuft}
+                  >
+                    🗑️ Entfernen
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="liegenschaft-leer"
+              onClick={() => bildWahl.current?.click()}
+              disabled={bildLaeuft}
+            >
+              <span className="liegenschaft-zeichen">📷</span>
+              <span>
+                {bildLaeuft
+                  ? 'Wird geladen…'
+                  : 'Bild der Liegenschaft hinzufügen'}
+              </span>
+              <span className="liegenschaft-hinweis">
+                Ein Foto von aussen genügt – daran erkennt man beim ersten Mal, ob
+                man richtig ist.
+              </span>
+            </button>
+          )}
 
-        {/* Bewusst ohne capture: Auf dem Handy bietet die Auswahl dann sowohl
-            die Kamera als auch die Galerie an. Mit capture ginge nur noch die
-            Kamera – und das Foto vom letzten Besuch liegt schon im Telefon. */}
-        <input
-          ref={bildWahl}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            void bildSetzen(e.target.files?.[0] ?? null);
-            e.target.value = '';
-          }}
-        />
+          {/* Bewusst ohne capture: Auf dem Handy bietet die Auswahl dann sowohl
+              die Kamera als auch die Galerie an. Mit capture ginge nur noch die
+              Kamera – und das Foto vom letzten Besuch liegt schon im Telefon. */}
+          <input
+            ref={bildWahl}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              void bildSetzen(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
+          />
+        </div>
+
+        <div className="liegenschaft-neben">
+          <h4 className="pkontakt-titel">Rechnungsadresse</h4>
+
+          {rechnungAuf ? (
+            <div className="pkontakt bearbeitet">
+              <div className="pkontakt-form">
+                <input
+                  value={rechnung.name}
+                  onChange={(e) => setRechnung({ ...rechnung, name: e.target.value })}
+                  placeholder="Name oder Firma"
+                  aria-label="Name oder Firma"
+                />
+                <input
+                  value={rechnung.strasse}
+                  onChange={(e) => setRechnung({ ...rechnung, strasse: e.target.value })}
+                  placeholder="Strasse und Nummer"
+                  aria-label="Strasse"
+                />
+                <div className="rechnung-ortzeile">
+                  <input
+                    value={rechnung.plz}
+                    onChange={(e) => setRechnung({ ...rechnung, plz: e.target.value })}
+                    placeholder="PLZ"
+                    aria-label="Postleitzahl"
+                    className="rechnung-plz"
+                  />
+                  <input
+                    value={rechnung.ort}
+                    onChange={(e) => setRechnung({ ...rechnung, ort: e.target.value })}
+                    placeholder="Ort"
+                    aria-label="Ort"
+                  />
+                </div>
+                <input
+                  value={rechnung.versand}
+                  onChange={(e) => setRechnung({ ...rechnung, versand: e.target.value })}
+                  placeholder="Rechnungsversand, z.B. Per Mail an buchhaltung@…"
+                  aria-label="Rechnungsversand"
+                />
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="btn btn-accent btn-sm"
+                    onClick={() => void rechnungSpeichern()}
+                    disabled={rechnungBusy}
+                  >
+                    {rechnungBusy ? 'Wird gespeichert…' : 'Speichern'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setRechnungAuf(false)}
+                    disabled={rechnungBusy}
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : hatRechnung ? (
+            <div className="pkontakt">
+              <div className="pkontakt-person">
+                <div style={{ minWidth: 0 }}>
+                  <div className="pkontakt-name">{detail.project.rechnung_name}</div>
+                  <div className="rechnung-zeilen">
+                    {detail.project.rechnung_strasse && (
+                      <div>{detail.project.rechnung_strasse}</div>
+                    )}
+                    {(detail.project.rechnung_plz || detail.project.rechnung_ort) && (
+                      <div>
+                        {[detail.project.rechnung_plz, detail.project.rechnung_ort]
+                          .filter(Boolean)
+                          .join(' ')}
+                      </div>
+                    )}
+                    {detail.project.rechnung_versand && (
+                      <div className="pkontakt-notiz">
+                        Versand: {detail.project.rechnung_versand}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Rechnungsadresse ändern"
+                    onClick={() => setRechnungAuf(true)}
+                  >
+                    ✏️
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="pkontakt-erklaerung">
+              Noch keine Rechnungsadresse hinterlegt.
+              {isAdmin ? (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => setRechnungAuf(true)}
+                  >
+                    Jetzt eintragen
+                  </button>
+                </>
+              ) : (
+                ' Die Swiss Solar Ventures AG trägt sie ein.'
+              )}
+            </p>
+          )}
+        </div>
       </div>
 
       <h4 className="pkontakt-titel">Angaben zum Objekt</h4>
@@ -771,119 +891,6 @@ export default function ProjectInfoTab({
         <p className="leer-hinweis">
           Für dieses Projekt ist noch niemand von uns zugeteilt.
           {isAdmin && ' Das stellst du im Register „Kontakte" ein.'}
-        </p>
-      )}
-
-      <h4 className="pkontakt-titel">Rechnungsadresse</h4>
-
-      {rechnungAuf ? (
-        <div className="pkontakt bearbeitet">
-          <div className="pkontakt-form">
-            <input
-              value={rechnung.name}
-              onChange={(e) => setRechnung({ ...rechnung, name: e.target.value })}
-              placeholder="Name oder Firma"
-              aria-label="Name oder Firma"
-            />
-            <input
-              value={rechnung.strasse}
-              onChange={(e) => setRechnung({ ...rechnung, strasse: e.target.value })}
-              placeholder="Strasse und Nummer"
-              aria-label="Strasse"
-            />
-            <div className="rechnung-ortzeile">
-              <input
-                value={rechnung.plz}
-                onChange={(e) => setRechnung({ ...rechnung, plz: e.target.value })}
-                placeholder="PLZ"
-                aria-label="Postleitzahl"
-                className="rechnung-plz"
-              />
-              <input
-                value={rechnung.ort}
-                onChange={(e) => setRechnung({ ...rechnung, ort: e.target.value })}
-                placeholder="Ort"
-                aria-label="Ort"
-              />
-            </div>
-            <input
-              value={rechnung.versand}
-              onChange={(e) => setRechnung({ ...rechnung, versand: e.target.value })}
-              placeholder="Rechnungsversand, z.B. Per Mail an buchhaltung@…"
-              aria-label="Rechnungsversand"
-            />
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn btn-accent btn-sm"
-                onClick={() => void rechnungSpeichern()}
-                disabled={rechnungBusy}
-              >
-                {rechnungBusy ? 'Wird gespeichert…' : 'Speichern'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setRechnungAuf(false)}
-                disabled={rechnungBusy}
-              >
-                Abbrechen
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : hatRechnung ? (
-        <div className="pkontakt">
-          <div className="pkontakt-person">
-            <div style={{ minWidth: 0 }}>
-              <div className="pkontakt-name">{detail.project.rechnung_name}</div>
-              <div className="pkontakt-wege">
-                {detail.project.rechnung_strasse && (
-                  <div>{detail.project.rechnung_strasse}</div>
-                )}
-                {(detail.project.rechnung_plz || detail.project.rechnung_ort) && (
-                  <div>
-                    {[detail.project.rechnung_plz, detail.project.rechnung_ort]
-                      .filter(Boolean)
-                      .join(' ')}
-                  </div>
-                )}
-                {detail.project.rechnung_versand && (
-                  <div className="pkontakt-notiz">
-                    Versand: {detail.project.rechnung_versand}
-                  </div>
-                )}
-              </div>
-            </div>
-            {isAdmin && (
-              <button
-                type="button"
-                className="icon-btn"
-                title="Rechnungsadresse ändern"
-                onClick={() => setRechnungAuf(true)}
-              >
-                ✏️
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <p className="pkontakt-erklaerung">
-          Noch keine Rechnungsadresse hinterlegt.
-          {isAdmin ? (
-            <>
-              {' '}
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => setRechnungAuf(true)}
-              >
-                Jetzt eintragen
-              </button>
-            </>
-          ) : (
-            ' Die Swiss Solar Ventures AG trägt sie ein.'
-          )}
         </p>
       )}
 
