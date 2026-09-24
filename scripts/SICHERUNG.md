@@ -36,33 +36,70 @@ nicht auf die Annahme, dass beides dasselbe ist.
 ## Die eigene Kopie
 
 ```bash
-node scripts/sicherung.mjs
-node scripts/sicherung.mjs --ziel /Volumes/Stick/baukoordination
+npm run sicherung
+npm run sicherung -- --ziel "/Users/dominic/OneDrive/Baukoordination"
 ```
 
 Das Skript braucht `NEXT_PUBLIC_SUPABASE_URL` und `SUPABASE_SERVICE_ROLE_KEY`.
 Stehen sie nicht in der Umgebung, liest es sie aus `.env.local`. Beide findest
 du in Vercel unter Settings → Environment Variables.
 
-Es entsteht ein Ordner mit dem Zeitstempel:
+Es entsteht eine **lesbare Ordnerstruktur** – je Projekt ein Ordner:
 
 ```
-sicherung/2026-09-18-07-30-00/
-  dateien/
-    project-files/<projekt-id>/<datei>       alle Fotos, Pläne, Offerten
-    avatars/                                  Profil- und Liegenschaftsbilder
-  datenbank/
-    projects.json  todos.json  files.json  …  jede Tabelle einzeln
-  bericht.json                                was gesichert wurde, was fehlte
+Baukoordination-2026-09-24/
+  LIESMICH.md
+  Tägerwilen - PVA/
+    Projektinfos.md      Objektangaben, Kontakte vor Ort, Firmen
+    To-Dos.md            alle Aufgaben mit Frist, Zuständigen, Kommentaren
+    Terminplan.md        Balkenplan als Tabelle, mit Rückmeldungen
+    Protokoll.md         was wann von wem geschehen ist
+    Auftragsbestätigungen/
+    Nachträge/
+    Dokumente/<Ordner>/<Unterordner>/
+    Fotos/
+    Dateien/
+  _Datenbank/            alle Tabellen als JSON
+  _Bilder/               Profilbilder
 ```
 
-Die Dateien liegen danach als **richtige Dateien** auf der Platte. Du kannst
-sie öffnen, ohne irgendetwas wiederherzustellen – das ist der Sinn: Im
-schlimmsten Fall brauchst du die Pläne, nicht die App.
+Die Dateien tragen **ihren Namen aus der App**, nicht die Kennung aus dem
+Speicher. Wer die Sicherung öffnet, findet sich ohne Erklärung zurecht – das
+ist der Punkt: Im Ernstfall braucht man die Pläne und die Abmachungen, nicht
+die App.
+
+Die `.md`-Dateien sind Text und lassen sich mit jedem Editor öffnen; in Word
+oder einem Markdown-Programm sehen sie formatiert aus.
 
 Bricht das Skript mit einem Fehler ab, ist die Sicherung **unvollständig**.
 Das ist Absicht. Eine halbe Sicherung, die sich als ganze ausgibt, ist
 gefährlicher als gar keine.
+
+Die letzten **14** Sicherungen bleiben liegen, ältere räumt das Skript selbst
+weg – sonst füllt sich die Cloud mit fünfzig Kopien derselben Fotos.
+
+## Täglich und von selbst
+
+Das Skript weiss nichts von einer Cloud, und das ist Absicht: Es schreibt in
+einen Ordner, und den Rest macht der Synchronisierungsdienst, den du ohnehin
+hast. Damit funktioniert es mit OneDrive, Dropbox, kDrive und jedem anderen
+gleich gut, und deine Zugangsdaten zur Cloud liegen nirgends im Programm.
+
+**Auf dem Mac** (läuft, sobald der Rechner an ist):
+
+```bash
+# Einmalig einrichten
+crontab -e
+# Diese Zeile einfügen – jeden Tag um 19:00:
+0 19 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
+```
+
+**Auf Windows**: Aufgabenplanung → Einfache Aufgabe erstellen → Täglich →
+Programm `node`, Argumente `scripts\sicherung.mjs --ziel "%USERPROFILE%\OneDrive\Baukoordination"`,
+Starten in: der Projektordner.
+
+Wichtig: Der Rechner muss zur eingestellten Zeit laufen. Wähle eine Zeit, zu
+der er ohnehin an ist – 19:00 ist besser als 03:00.
 
 ## Vollständige Sicherung der Datenbank
 
