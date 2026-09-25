@@ -60,6 +60,23 @@ if not exist "node_modules\@supabase\supabase-js" (
   )
 )
 
+rem --- Zielordner pruefen ----------------------------------------------------
+rem  Das Skript wuerde ihn selbst anlegen. Genau das ist hier aber gefaehrlich:
+rem  Ist der OneDrive-Pfad falsch geschrieben, entstuende stillschweigend ein
+rem  zweiter Ordner irgendwo, und die Sicherung laege monatelang am falschen
+rem  Ort, ohne je in die Cloud zu kommen.
+if not exist "%ZIEL%" (
+  echo.
+  echo FEHLER: Der Zielordner existiert nicht:
+  echo   %ZIEL%
+  echo.
+  echo   Bitte im Explorer nachsehen, ob der Pfad stimmt, und ihn
+  echo   gegebenenfalls oben in dieser Datei anpassen ^(Zeile mit "set ZIEL"^).
+  echo.
+  set FEHLER=1
+  goto ende
+)
+
 rem --- Sichern ---------------------------------------------------------------
 echo.
 echo Sicherung nach:

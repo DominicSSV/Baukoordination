@@ -167,28 +167,23 @@ Skript holt die Daten selbst aus der Datenbank. Eine Internetverbindung
 braucht es, sonst nichts.
 
 Das Skript sichert **höchstens einmal pro Tag**. Wurde heute schon gesichert,
-endet es sofort wieder. Deshalb darf es bei jeder Anmeldung starten – wer den
-Rechner dreimal am Tag hochfährt, bekommt trotzdem eine Sicherung und nicht
-drei.
+endet es sofort wieder. Deshalb darf es bei jeder Anmeldung starten.
 
-Damit lässt sich einrichten, was man eigentlich will: **gesichert wird, wenn
-der Rechner das erste Mal an ist.**
+**Einrichten: `scripts\automatik-einrichten.cmd` doppelklicken.** Das ist
+alles. Die Datei trägt den Auftrag selbst in die Windows-Aufgabenplanung ein –
+kein Klicken durch acht Dialoge, keine Verwaltungsrechte nötig.
 
-**Windows-Taste → „Aufgabenplanung" → Aufgabe erstellen** (nicht „Einfache
-Aufgabe" – dort fehlen die beiden Häkchen weiter unten)
+Eingetragen werden zwei Auslöser in einem Auftrag:
 
-| Reiter | Eintrag |
+| Auslöser | wofür |
 |---|---|
-| Allgemein | Name `Baukoordination Sicherung` |
-| Trigger → Neu | **Bei Anmeldung**, „Aufgabe verzögern um: **2 Minuten**" |
-| Trigger → Neu (zweiter) | **Täglich**, 19:00 |
-| Aktionen → Neu | Programm starten: `C:\Users\DominicMaag\Documents\Baukoordination\scripts\sicherung-windows.cmd` |
-| | Starten in: `C:\Users\DominicMaag\Documents\Baukoordination` |
-| Bedingungen | Häkchen bei **„Nur starten, wenn folgende Netzwerkverbindung verfügbar ist: Beliebige Verbindung"** |
-| Einstellungen | Häkchen bei **„Aufgabe so schnell wie möglich nach einem verpassten Start ausführen"** |
+| **Täglich 19:00** | der Normalfall |
+| **Bei Anmeldung, +2 Minuten** | falls der Rechner um 19:00 aus war |
 
-Die zwei Minuten Verzögerung bei der Anmeldung sind wichtig: Direkt nach dem
-Hochfahren ist oft noch kein Netz da.
+Dazu zwei Einstellungen, die man in der „Einfachen Aufgabe" nicht bekommt:
+**Nachholen nach verpasstem Start** und **nur starten, wenn Netz da ist**. Die
+zwei Minuten Verzögerung sind nötig, weil direkt nach dem Hochfahren oft noch
+keine Verbindung steht.
 
 Was dabei herauskommt:
 
@@ -196,18 +191,36 @@ Was dabei herauskommt:
 |---|---|
 | Rechner läuft um 19:00 | Sicherung um 19:00 |
 | Rechner war um 19:00 aus | Sicherung beim nächsten Hochfahren |
-| Mehrmals am Tag angemeldet | Nur die erste Anmeldung sichert, danach nichts |
-| Eine Woche nicht eingeschaltet | Sicherung beim nächsten Einschalten |
+| Mehrmals am Tag angemeldet | Nur beim ersten Mal |
+| Eine Woche nicht eingeschaltet | Beim nächsten Einschalten |
 | Kein Internet | Kein Lauf, Nachholung beim nächsten Mal |
 
-Nach einer grossen Änderung sofort nochmals sichern: `sicherung-windows.cmd`
-doppelklicken geht nicht (heute ist ja schon gesichert), dafür in der
-Eingabeaufforderung:
+**Nachsehen und von Hand auslösen:** Windows-Taste → „Aufgabenplanung" →
+links „Aufgabenplanungsbibliothek" → **Baukoordination Sicherung**. Dort steht
+auch, wann sie zuletzt lief und ob es geklappt hat. Rechtsklick →
+**„Ausführen"** startet sie sofort.
+
+**Wieder entfernen:** in der Aufgabenplanung Rechtsklick → „Löschen". Oder in
+der Eingabeaufforderung:
 
 ```cmd
-cd %USERPROFILE%\Documents\Baukoordination
-node scripts\sicherung.mjs --ziel "C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Solar Ventures AG\7. Baukoordination\2. Backup" --erzwingen
+schtasks /delete /tn "Baukoordination Sicherung" /f
 ```
+
+### Wenn die Sicherung am falschen Ort landet
+
+Landet sie im Projektordner unter `sicherung\`, wurde das Skript **ohne
+`--ziel`** gestartet – dann ist der Projektordner der Standard. Benutze
+`sicherung-windows.cmd` (dort steht der Zielpfad drin) statt
+`node scripts\sicherung.mjs` von Hand.
+
+Den falsch abgelegten Ordner `Baukoordination\sicherung` kannst du einfach
+löschen.
+
+Stimmt der Zielpfad nicht mehr, steht er an genau einer Stelle: oben in
+`scripts\sicherung-windows.cmd`, in der Zeile mit `set "ZIEL=..."`. Existiert
+der Ordner nicht, bricht das Skript jetzt mit einer Meldung ab, statt
+stillschweigend einen zweiten anzulegen.
 
 ### Auf dem Mac
 
