@@ -77,6 +77,42 @@ export default function TrashModal({
     );
   }
 
+  /**
+   * Den ganzen Papierkorb auf einmal leeren.
+   *
+   * Die Anzahl geht mit: Der Server vergleicht sie mit dem, was gerade
+   * drinliegt, und bricht ab, wenn sie nicht mehr stimmt. So wird nichts
+   * mitgeloescht, das jemand anders in der Zwischenzeit hineingelegt hat.
+   */
+  function alleEntfernen() {
+    const anzahl = (eintraege ?? []).length;
+    if (!anzahl) return;
+
+    confirm(
+      `Alle ${anzahl} Eintraege endgueltig entfernen?\n\n`
+        + 'Das laesst sich nicht rueckgaengig machen - danach ist nichts mehr '
+        + 'zurueckzuholen. Einzelne Eintraege, die du behalten willst, vorher '
+        + 'zurueckholen.',
+      async () => {
+        setBusy('alle');
+        try {
+          const res = await post<{ entfernt: number }>('/api/trash/leeren', {
+            erwartet: anzahl,
+          });
+          setEintraege([]);
+          await onChanged();
+          toast(`🗑️ ${res.entfernt} Eintraege endgueltig entfernt.`);
+        } catch (error) {
+          reportError(error, 'Der Papierkorb konnte nicht geleert werden.');
+          await laden();
+        } finally {
+          setBusy(null);
+        }
+      },
+      'Alle entfernen',
+    );
+  }
+
   return (
     <div
       className="modal-overlay"
@@ -94,9 +130,25 @@ export default function TrashModal({
           }}
         >
           <h3 style={{ fontSize: 19 }}>Papierkorb</h3>
-          <button type="button" className="icon-btn" onClick={onClose}>
-            ✕
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Nur anbieten, wenn etwas drin ist – ein Knopf, der nichts tut,
+                laesst einen zweimal hinsehen. */}
+            {Boolean(eintraege?.length) && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={alleEntfernen}
+                disabled={busy !== null}
+              >
+                {busy === 'alle'
+                  ? 'Wird geleert…'
+                  : `🗑️ Alle ${eintraege?.length} entfernen`}
+              </button>
+            )}
+            <button type="button" className="icon-btn" onClick={onClose}>
+              ✕
+            </button>
+          </div>
         </div>
 
         <p style={{ fontSize: 12.5 }}>
