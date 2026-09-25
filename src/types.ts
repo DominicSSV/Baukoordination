@@ -40,6 +40,8 @@ export type ProjektGruppe = {
   id: string;
   name: string;
   order_index: number;
+  /** Farbe in der Seitenleiste, #RRGGBB. Null = aus dem Namen abgeleitet. */
+  farbe?: string | null;
 };
 
 export const PROJEKT_STATUS: Array<{ wert: ProjektStatus; name: string }> = [

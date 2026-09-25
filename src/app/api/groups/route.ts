@@ -17,13 +17,24 @@ export const GET = handler(async () => {
 
   const { data, error } = await serviceClient()
     .from('project_groups')
-    .select('id, name, order_index')
+    .select('id, name, order_index, farbe')
     .order('order_index', { ascending: true })
     .order('created_at', { ascending: true });
 
-  // Ohne Migration 0043 gibt es die Tabelle noch nicht. Dann bleibt die
-  // Seitenleiste bei der bisherigen Gliederung nach Phase – kein Fehler.
-  if (error) return ok({ gruppen: [], ohneTabelle: true });
+  if (error) {
+    // Ohne Migration 0045 fehlt nur die Farbspalte – dann ohne sie lesen und
+    // die Farbe in der Anzeige aus dem Namen ableiten.
+    const ohneFarbe = await serviceClient()
+      .from('project_groups')
+      .select('id, name, order_index')
+      .order('order_index', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    // Ohne Migration 0043 gibt es die Tabelle gar nicht. Dann bleibt die
+    // Seitenleiste bei der bisherigen Gliederung nach Phase – kein Fehler.
+    if (ohneFarbe.error) return ok({ gruppen: [], ohneTabelle: true });
+    return ok({ gruppen: (ohneFarbe.data ?? []) as ProjektGruppe[], ohneFarben: true });
+  }
 
   return ok({ gruppen: (data ?? []) as ProjektGruppe[] });
 });
@@ -49,14 +60,26 @@ export const POST = handler(async (request: Request) => {
   const { data, error } = await db
     .from('project_groups')
     .insert({ name, order_index: naechste })
-    .select('id, name, order_index')
+    .select('id, name, order_index, farbe')
     .single();
 
   if (error) {
-    throw new ApiError(
-      `Die Gruppe konnte nicht angelegt werden: ${error.message}. Fehlt Migration 0043?`,
-      500,
-    );
+    // Ohne Migration 0045 fehlt nur die Farbspalte – daran soll das Anlegen
+    // einer Gruppe nicht scheitern.
+    const ohneFarbe = await db
+      .from('project_groups')
+      .insert({ name, order_index: naechste })
+      .select('id, name, order_index')
+      .single();
+
+    if (ohneFarbe.error) {
+      throw new ApiError(
+        `Die Gruppe konnte nicht angelegt werden: ${ohneFarbe.error.message}. Fehlt Migration 0043?`,
+        500,
+      );
+    }
+
+    return ok({ gruppe: ohneFarbe.data as ProjektGruppe }, { status: 201 });
   }
 
   return ok({ gruppe: data as ProjektGruppe }, { status: 201 });
@@ -73,9 +96,12 @@ export const POST = handler(async (request: Request) => {
 export const PATCH = handler(async (request: Request) => {
   await requireAdmin();
 
-  const body = await readJson<{ id?: string; name?: string; reihenfolge?: string[] }>(
-    request,
-  );
+  const body = await readJson<{
+    id?: string;
+    name?: string;
+    farbe?: string;
+    reihenfolge?: string[];
+  }>(request);
   const db = serviceClient();
 
   if (Array.isArray(body.reihenfolge)) {
@@ -88,16 +114,45 @@ export const PATCH = handler(async (request: Request) => {
   }
 
   const id = requireString(body.id, 'Gruppe', 64);
-  const name = requireString(body.name, 'Name der Gruppe', 80);
+
+  // Name und Farbe kommen einzeln: Wer nur faerbt, schickt keinen Namen mit,
+  // und wer nur umbenennt, keine Farbe.
+  const aenderung: { name?: string; farbe?: string } = {};
+
+  if (body.name !== undefined) {
+    aenderung.name = requireString(body.name, 'Name der Gruppe', 80);
+  }
+
+  if (body.farbe !== undefined) {
+    const farbe = requireString(body.farbe, 'Farbe', 7);
+    // Nur #RRGGBB. Die Farbe geht ungeprueft in ein style-Attribut – was hier
+    // durchkommt, steht spaeter im Bildschirm des Lieferanten.
+    if (!/^#[0-9a-fA-F]{6}$/.test(farbe)) {
+      throw new ApiError('Das ist keine Farbe in der Form #RRGGBB.', 400);
+    }
+    aenderung.farbe = farbe;
+  }
+
+  if (!Object.keys(aenderung).length) {
+    throw new ApiError('Es war nichts zu ändern.', 400);
+  }
 
   const { data, error } = await db
     .from('project_groups')
-    .update({ name })
+    .update(aenderung)
     .eq('id', id)
-    .select('id, name, order_index')
+    .select('id, name, order_index, farbe')
     .single();
 
-  if (error) throw new ApiError(`Nicht umbenannt: ${error.message}`, 500);
+  if (error) {
+    throw new ApiError(
+      aenderung.farbe
+        ? `Die Farbe wurde nicht gespeichert: ${error.message}. Fehlt Migration 0045?`
+        : `Nicht umbenannt: ${error.message}`,
+      500,
+    );
+  }
+
   return ok({ gruppe: data as ProjektGruppe });
 });
 

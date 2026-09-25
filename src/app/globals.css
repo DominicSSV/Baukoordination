@@ -5394,7 +5394,13 @@ button:disabled {
 /* PVA, BESS, Heizung … Die Phasen (In Planung, In Umsetzung) stehen darin,
    eingerückt – zwei Ebenen, damit man auf einen Blick sieht, was wozu gehört. */
 .sparte {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  /* Die Farbe liegt an der linken Kante des ganzen Blocks – also am Kopf
+     ebenso wie am Inhalt. Vorher trug nur der Inhalt den Strich; eine
+     zugeklappte Sparte hatte damit gar keinen und sah aus wie jede andere,
+     obwohl gerade dann, wenn alles zu ist, die Farbe am meisten hilft. */
+  padding-left: 7px;
+  border-left: 3px solid var(--line);
 }
 
 .sparte-kopf {
@@ -5407,9 +5413,9 @@ button:disabled {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
-  padding: 7px 8px;
+  padding: 7px 6px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -5436,8 +5442,17 @@ button:disabled {
 .sparte-werkzeuge {
   display: flex;
   gap: 1px;
+  flex-shrink: 0;
   opacity: 0.45;
   transition: opacity 0.12s;
+}
+
+/* Ein langer Name endet mit … statt unter den Werkzeugen zu verschwinden.
+   "Abrechnungsmodell" ist länger, als die Leiste breit ist. */
+.sparte-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sparte-kopf:hover .sparte-werkzeuge,
@@ -5446,16 +5461,25 @@ button:disabled {
 }
 
 .sparte-werkzeuge .icon-btn {
-  width: 24px;
-  height: 24px;
-  font-size: 11px;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  line-height: 1;
 }
 
-/* Eingerückt, damit die Phase sichtbar unter der Sparte hängt. */
+/* Offen: Der Knopf bleibt angetippt stehen, damit man sieht, wozu die Zeile
+   darunter gehört. */
+.sparte-werkzeuge .icon-btn.an {
+  background: var(--bg);
+  color: var(--accent);
+}
+
+/* Eingerückt, damit die Phase sichtbar unter der Sparte hängt. Ohne eigenen
+   Strich: Den trägt jetzt der ganze Block, und zwei Linien nebeneinander
+   verengen die schmale Leiste nur. */
 .sparte-inhalt {
-  padding-left: 10px;
-  margin-left: 6px;
-  border-left: 2px solid var(--line);
+  padding-left: 8px;
+  margin-left: 4px;
 }
 
 .sparte-neu {
@@ -5483,8 +5507,8 @@ button:disabled {
   }
 
   .sparte-werkzeuge .icon-btn {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     font-size: 13px;
   }
 }
@@ -5593,4 +5617,87 @@ button:disabled {
 
 .rechnung-zeilen > div {
   display: block;
+}
+
+/* --- Farbe je Projektgruppe ---------------------------------------------- */
+/* Gegliedert war die Seitenleiste schon; unterscheidbar noch nicht – beim
+   Überfliegen sahen alle Überschriften gleich aus. Die Farbe steht als
+   Variable am Block und wird darin mehrfach benutzt. */
+.sparte-punkt {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.sparte-punkt.gross {
+  width: 13px;
+  height: 13px;
+}
+
+/* Der Strich an der linken Kante zeigt, wo eine Sparte anfängt und wo die
+   nächste – deutlicher als ein Abstand, ruhiger als eine Fläche. Er steht am
+   Block selbst, damit er auch bei zugeklappter Sparte da ist. */
+.sparte {
+  border-left-color: var(--sparte-farbe, var(--line));
+}
+
+.sparte-titel:hover {
+  background: var(--bg);
+}
+
+/* Die Werkzeuge klappen unter dem Kopf auf: verschieben, umbenennen,
+   entfernen und die acht Farben – die gleichen wie im Terminplan, damit die
+   App eine Palette hat und nicht zwei. */
+.sparte-werkzeugzeile {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px 4px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.sparte-werkzeugzeile .icon-btn {
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.sparte-werkzeugzeile .icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sparte-farben {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-left: 4px;
+}
+
+.sparte-farbe {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sparte-farbe:hover {
+  transform: scale(1.15);
+}
+
+.sparte-farbe.gewaehlt {
+  border-color: var(--ink);
+  /* Ein Ring mit Abstand: Der Rahmen allein verschwindet auf der dunklen
+     Farbe, die er umgibt. */
+  box-shadow: 0 0 0 2px var(--surface) inset;
 }

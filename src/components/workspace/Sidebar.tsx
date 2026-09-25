@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { api, del, patch, post } from '@/lib/client/api';
+import { gruppenFarbe } from '@/lib/gruppenfarben';
+import { PLAN_FARBEN } from '@/lib/schedule';
 import {
   PROJEKT_STATUS,
   type Project,
@@ -101,6 +103,16 @@ export default function Sidebar({
   const [benennt, setBenennt] = useState<string | null>(null);
   const [entwurf, setEntwurf] = useState('');
   const [neueGruppe, setNeueGruppe] = useState<string | null>(null);
+  /**
+   * Welche Sparte gerade ihre Werkzeuge zeigt.
+   *
+   * Frueher standen Verschieben, Farbe, Umbenennen und Entfernen als fuenf
+   * Knoepfe neben dem Namen. In einer 280 Pixel schmalen Leiste blieb davon
+   * fuer den Namen so wenig uebrig, dass aus "Photovoltaik" ein "Photovolt…"
+   * wurde - die Leiste zeigte ihre Knoepfe und verschwieg, wozu sie gehoeren.
+   * Jetzt oeffnet ein einzelnes ⋯ die Werkzeuge in einer Zeile darunter.
+   */
+  const [farbWahl, setFarbWahl] = useState<string | null>(null);
 
   /**
    * Auf dem Handy eingeklappt, sobald ein Projekt offen ist.
@@ -154,7 +166,9 @@ export default function Sidebar({
   const sparten = useMemo(() => {
     // Gibt es gar keine Sparten, steht alles unter "Alle Projekte" – so sieht
     // die Seitenleiste vor Migration 0043 aus wie bisher.
-    if (!gruppen.length) return [{ id: OHNE_SPARTE, name: 'Alle Projekte' }];
+    if (!gruppen.length) {
+      return [{ id: OHNE_SPARTE, name: 'Alle Projekte', farbe: '#929291' }];
+    }
 
     /**
      * Leere Sparten sehen nur wir.
@@ -165,12 +179,14 @@ export default function Sidebar({
      * Ohne sichtbare leere Sparte liesse sich kein Projekt hineinziehen, und
      * eine neu angelegte Gruppe waere im selben Moment wieder verschwunden.
      */
-    const liste: Array<{ id: string; name: string }> = gruppen
+    const liste: Array<{ id: string; name: string; farbe: string }> = gruppen
       .filter((g) => isAdmin || (nachSparte.get(g.id) ?? []).length > 0)
-      .map((g) => ({ id: g.id, name: g.name }));
+      .map((g) => ({ id: g.id, name: g.name, farbe: gruppenFarbe(g) }));
 
     if ((nachSparte.get(OHNE_SPARTE) ?? []).length) {
-      liste.push({ id: OHNE_SPARTE, name: 'Ohne Gruppe' });
+      // Bewusst grau: "Ohne Gruppe" ist keine Sparte, sondern die Sammelstelle
+      // fuer das, was noch keiner zugeteilt ist.
+      liste.push({ id: OHNE_SPARTE, name: 'Ohne Gruppe', farbe: '#929291' });
     }
     return liste;
   }, [gruppen, nachSparte, isAdmin]);
@@ -419,6 +435,20 @@ export default function Sidebar({
     }
   }
 
+  async function farbeSetzen(id: string, farbe: string) {
+    setFarbWahl(null);
+    // Sofort anzeigen, danach speichern: Eine Farbe, die erst nach dem
+    // Nachladen erscheint, laesst einen zweimal klicken.
+    setGruppen((aktuell) => aktuell.map((g) => (g.id === id ? { ...g, farbe } : g)));
+
+    try {
+      await patch('/api/groups', { id, farbe });
+    } catch (error) {
+      reportError(error, 'Die Farbe konnte nicht gespeichert werden.');
+      await laden();
+    }
+  }
+
   /** Den Entwurf speichern – leer oder unveraendert heisst: nichts tun. */
   async function umbenennenSpeichern(id: string, alterName: string) {
     const name = entwurf.trim();
@@ -509,7 +539,11 @@ export default function Sidebar({
           const zuS = sparteZu.has(sp.id);
 
           return (
-            <div className="sparte" key={sp.id}>
+            <div
+              className="sparte"
+              key={sp.id}
+              style={{ ['--sparte-farbe' as string]: sp.farbe }}
+            >
               <div className="sparte-kopf">
                 {benennt === sp.id ? (
                   <input
@@ -532,7 +566,15 @@ export default function Sidebar({
                     aria-expanded={!zuS}
                   >
                     <span className={`gruppe-pfeil ${zuS ? 'zu' : ''}`}>▾</span>
-                    {sp.name}
+                    {/* Der Punkt traegt die Farbe der Sparte – beim
+                        Ueberfliegen findet man sie daran schneller als am
+                        Namen. */}
+                    <span
+                      className="sparte-punkt"
+                      style={{ background: sp.farbe }}
+                      aria-hidden="true"
+                    />
+                    <span className="sparte-name">{sp.name}</span>
                     <span className="gruppe-anzahl">{drin.length}</span>
                   </button>
                 )}
@@ -540,44 +582,74 @@ export default function Sidebar({
                   <span className="sparte-werkzeuge">
                     <button
                       type="button"
-                      className="icon-btn"
-                      title="Nach oben"
-                      onClick={() => void verschieben(sp.id, -1)}
-                      disabled={sparten[0]?.id === sp.id}
+                      className={`icon-btn ${farbWahl === sp.id ? 'an' : ''}`}
+                      title="Gruppe bearbeiten"
+                      aria-expanded={farbWahl === sp.id}
+                      onClick={() => setFarbWahl(farbWahl === sp.id ? null : sp.id)}
                     >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Nach unten"
-                      onClick={() => void verschieben(sp.id, 1)}
-                      disabled={echteSparten[echteSparten.length - 1]?.id === sp.id}
-                    >
-                      ▼
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Umbenennen"
-                      onClick={() => {
-                        setEntwurf(sp.name);
-                        setBenennt(sp.id);
-                      }}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      title="Gruppe entfernen"
-                      onClick={() => gruppeEntfernen(sp)}
-                    >
-                      🗑️
+                      ⋯
                     </button>
                   </span>
                 )}
               </div>
+
+              {farbWahl === sp.id && (
+                <div className="sparte-werkzeugzeile">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Nach oben"
+                    onClick={() => void verschieben(sp.id, -1)}
+                    disabled={sparten[0]?.id === sp.id}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Nach unten"
+                    onClick={() => void verschieben(sp.id, 1)}
+                    disabled={echteSparten[echteSparten.length - 1]?.id === sp.id}
+                  >
+                    ▼
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Umbenennen"
+                    onClick={() => {
+                      setEntwurf(sp.name);
+                      setBenennt(sp.id);
+                    }}
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Gruppe entfernen"
+                    onClick={() => gruppeEntfernen(sp)}
+                  >
+                    🗑️
+                  </button>
+
+                  {/* Die Farben stehen gleich daneben: Wer die Gruppe ohnehin
+                      gerade bearbeitet, will sie meist auch faerben. */}
+                  <span className="sparte-farben">
+                    {PLAN_FARBEN.map((f) => (
+                      <button
+                        key={f.wert}
+                        type="button"
+                        className={`sparte-farbe ${sp.farbe === f.wert ? 'gewaehlt' : ''}`}
+                        style={{ background: f.wert }}
+                        title={f.name}
+                        aria-label={`Farbe ${f.name}`}
+                        onClick={() => void farbeSetzen(sp.id, f.wert)}
+                      />
+                    ))}
+                  </span>
+                </div>
+              )}
 
               {!zuS && (
                 <div className="sparte-inhalt">
