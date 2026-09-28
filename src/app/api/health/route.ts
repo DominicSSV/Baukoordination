@@ -311,18 +311,42 @@ export async function GET() {
 
       const passwoerter = await db
         .from('suppliers')
-        .select('id')
+        .select('id, name, firma, mail_an')
         .not('passwort_hash', 'is', null);
+
+      /**
+       * Wer hereinkommt, aber nie gerufen wird.
+       *
+       * Ein Lieferant mit Passwort und ohne Mailfreigabe kann sich anmelden,
+       * erfaehrt aber nie, dass es etwas zu tun gibt – er muesste von sich aus
+       * nachschauen. Das ist fast immer ein Versehen beim Einrichten und von
+       * aussen unsichtbar: Beim Lieferanten kommt schlicht nichts an.
+       */
+      const stumm = passwoerter.error
+        ? []
+        : ((passwoerter.data ?? []) as unknown as Array<{
+            name: string | null;
+            firma: string | null;
+            mail_an: boolean | null;
+          }>)
+            .filter((z) => !z.mail_an)
+            .map((z) => z.name?.trim() || z.firma?.trim() || '(ohne Namen)');
 
       report.migration_0028 = {
         anmeldung_mit_passwort: !passwoerter.error,
         lieferanten_mit_passwort: passwoerter.error
           ? undefined
           : (passwoerter.data ?? []).length,
+        anmelden_aber_keine_post: stumm.length ? stumm : undefined,
         hinweis: passwoerter.error
           ? 'Migration 0028 fehlt. Ohne sie kann sich kein Lieferant anmelden – ' +
             'die Anmeldung läuft nur noch über E-Mail und Passwort.'
-          : undefined,
+          : stumm.length
+            ? 'Die unter "anmelden_aber_keine_post" genannten Lieferanten haben '
+              + 'ein Passwort, aber keine Mailfreigabe: Sie kommen herein, '
+              + 'erfahren aber nie von einer neuen Aufgabe. Freigabe in den '
+              + 'Kontakten beim Lieferanten.'
+            : undefined,
       };
 
       const [objektinfos, vorOrt] = await Promise.all([
@@ -457,27 +481,68 @@ export async function GET() {
       };
 
       const [stillePause, stilleSpalte] = await Promise.all([
-        db.from('notify_pause').select('user_id').limit(50),
+        db.from('notify_pause').select('user_id, project_id, seit').limit(50),
         db.from('activity').select('leise').limit(1),
       ]);
 
+      /**
+       * Nicht nur zaehlen, sondern benennen.
+       *
+       * "gerade_abgestellt: 2" liess offen, welche zwei – und eine Stille, die
+       * man vor drei Tagen eingeschaltet und dann vergessen hat, ist genau
+       * das, was man hier finden will.
+       */
+      const stilleProjekte: Array<{ projekt: string; seit_tagen: number }> = [];
+
+      if (!stillePause.error && (stillePause.data ?? []).length) {
+        const pausen = (stillePause.data ?? []) as unknown as Array<{
+          project_id: string;
+          seit: string;
+        }>;
+
+        const namen = await db
+          .from('projects')
+          .select('id, name')
+          .in('id', pausen.map((p) => p.project_id));
+
+        const nachId = new Map(
+          ((namen.data ?? []) as unknown as Array<{ id: string; name: string }>).map(
+            (p) => [p.id, p.name] as const,
+          ),
+        );
+
+        for (const p of pausen) {
+          stilleProjekte.push({
+            projekt: nachId.get(p.project_id) ?? 'unbekanntes Projekt',
+            seit_tagen: Math.floor(
+              (Date.now() - new Date(p.seit).getTime()) / 86_400_000,
+            ),
+          });
+        }
+      }
+
       report.migration_0038 = {
         benachrichtigungen_abstellbar: !stillePause.error && !stilleSpalte.error,
-        gerade_abgestellt: stillePause.error
-          ? undefined
-          : (stillePause.data ?? []).length,
+        gerade_abgestellt: stillePause.error ? undefined : stilleProjekte.length,
+        still: stilleProjekte.length ? stilleProjekte : undefined,
         hinweis:
           stillePause.error || stilleSpalte.error
             ? 'Migration 0038 fehlt. Der Knopf "Benachrichtigungen ausschalten" '
               + 'ist zwar da, bewirkt aber nichts.'
-            : 'Der Knopf steht im Projekt zwischen der Projektkarte und den '
-              + 'Registern – nicht in der Startansicht "Meine Woche".',
+            : stilleProjekte.some((p) => p.seit_tagen >= 1)
+              ? 'In den unter "still" genannten Projekten geht seit mindestens '
+                + 'einem Tag keine Meldung hinaus – weder Mail noch Glocke. '
+                + 'Wieder einschalten im Projekt zwischen Projektkarte und '
+                + 'Registern.'
+              : 'Der Knopf steht im Projekt zwischen der Projektkarte und den '
+                + 'Registern – nicht in der Startansicht "Meine Woche".',
       };
 
-      const [zuweisung, gruppen, rechnung] = await Promise.all([
+      const [zuweisung, gruppen, rechnung, farben] = await Promise.all([
         db.from('files').select('sichtbar_fuer').limit(1),
         db.from('project_groups').select('id, name').order('order_index'),
         db.from('projects').select('rechnung_name').limit(1),
+        db.from('project_groups').select('name, farbe').order('order_index'),
       ]);
 
       report.migration_0042 = {
@@ -497,6 +562,30 @@ export async function GET() {
           ? 'Migration 0043 fehlt. Die Seitenleiste gliedert nur nach Phase, '
             + 'ohne Sparten darueber.'
           : undefined,
+      };
+
+      const gefaerbt = farben.error
+        ? []
+        : ((farben.data ?? []) as unknown as Array<{ name: string; farbe: string | null }>);
+
+      report.migration_0045 = {
+        gruppenfarben: !farben.error,
+        farben: farben.error
+          ? undefined
+          : Object.fromEntries(
+              gefaerbt.map((g) => [
+                g.name,
+                g.farbe ?? 'keine gewaehlt – aus dem Namen abgeleitet',
+              ]),
+            ),
+        hinweis: farben.error
+          ? 'Migration 0045 fehlt. Die Projektgruppen sind zwar farbig, die '
+            + 'Farbe laesst sich aber nicht auswaehlen – sie wird aus dem Namen '
+            + 'abgeleitet und geht beim Umbenennen verloren.'
+          : gefaerbt.every((g) => g.farbe)
+            ? undefined
+            : 'Fuer die unter "farben" ohne Farbwert genannten Gruppen ist noch '
+              + 'keine gewaehlt. Ueber das ⋯ neben dem Gruppennamen.',
       };
 
       report.migration_0044 = {
