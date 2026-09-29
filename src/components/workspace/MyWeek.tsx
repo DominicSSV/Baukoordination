@@ -10,6 +10,7 @@ import { assigneeLabel } from '@/lib/assignee';
 import { assigneePerson, personLabel } from '@/lib/people';
 import Avatar from '@/components/Avatar';
 import Spinner from '@/components/Spinner';
+import WocheBearbeiten from '@/components/workspace/WocheBearbeiten';
 import type { MeineAufgabe } from '@/app/api/mytasks/route';
 import type { AdminProfile, Supplier } from '@/types';
 
@@ -117,6 +118,13 @@ export default function MyWeek({
   const { reportError, toast } = useFeedback();
   const [aufgaben, setAufgaben] = useState<MeineAufgabe[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  /**
+   * Welche Zeile gerade aufgeklappt ist – hoechstens eine.
+   *
+   * Mehrere gleichzeitig waeren schnell eine zweite, unuebersichtliche Liste;
+   * und wer eine Frist verschiebt, tut das an einer Aufgabe, nicht an fuenf.
+   */
+  const [bearbeitet, setBearbeitet] = useState<string | null>(null);
   /**
    * Die Leute, die in diesen Aufgaben vorkommen.
    *
@@ -283,7 +291,8 @@ export default function MyWeek({
             </div>
 
             {liste.map((a) => (
-              <div className={`woche-zeile ${a.done ? 'erledigt' : ''}`} key={a.id}>
+              <div key={a.id}>
+              <div className={`woche-zeile ${a.done ? 'erledigt' : ''}`}>
                 {/* Auch zurück: Ein Fehlklick wäre sonst nur im Projekt zu
                     beheben, und die Aufgabe ist ja hier gerade vor der Nase. */}
                 <button
@@ -352,6 +361,34 @@ export default function MyWeek({
                     </div>
                   )}
                 </div>
+
+                {/* Aendern, ohne den Umweg ueber das Projekt: Frist,
+                    Zustaendige, Text und Kommentare stehen eine Zeile
+                    tiefer. */}
+                <button
+                  type="button"
+                  className={`woche-stift ${bearbeitet === a.id ? 'an' : ''}`}
+                  onClick={() => setBearbeitet(bearbeitet === a.id ? null : a.id)}
+                  aria-expanded={bearbeitet === a.id}
+                  title={bearbeitet === a.id ? 'Schliessen' : 'Bearbeiten'}
+                >
+                  {bearbeitet === a.id ? '✕' : '✏️'}
+                </button>
+              </div>
+
+              {bearbeitet === a.id && (
+                <WocheBearbeiten
+                  todoId={a.id}
+                  onGespeichert={() => void laden(zeigeErledigte)}
+                  onGeloescht={() => {
+                    setBearbeitet(null);
+                    setAufgaben((current) =>
+                      (current ?? []).filter((x) => x.id !== a.id),
+                    );
+                  }}
+                  onSchliessen={() => setBearbeitet(null)}
+                />
+              )}
               </div>
             ))}
           </div>

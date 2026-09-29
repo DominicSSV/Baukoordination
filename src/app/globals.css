@@ -4852,6 +4852,173 @@ button:disabled {
   margin-top: 5px;
 }
 
+/* --- Aufgabe direkt in der Übersicht ändern -------------------------------- */
+/* Bis hierher führte jede Änderung über das Projekt: aufklappen, Register
+   suchen, Aufgabe wiederfinden, ändern, zurück. Bei einer Frist, die um einen
+   Tag verschoben wird, ist das mehr Weg als Arbeit. */
+.woche-stift {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-faint);
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.woche-zeile:hover .woche-stift,
+.woche-stift:focus-visible,
+.woche-stift.an {
+  opacity: 1;
+}
+
+.woche-stift.an {
+  background: var(--bg);
+}
+
+.woche-bearbeiten {
+  margin: 0 0 12px 34px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.woche-bearbeiten.laedt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.woche-feldname {
+  display: block;
+  margin: 10px 0 3px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.woche-feldname:first-child {
+  margin-top: 0;
+}
+
+.woche-feld {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.woche-feld:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.woche-fristreihe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.woche-kleinknopf {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.woche-kleinknopf:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.woche-knopfreihe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Steht abseits, am rechten Rand: Wegwerfen soll nicht neben dem Speichern
+   liegen, wo die Hand ohnehin schon ist. */
+.woche-loeschen {
+  margin-left: auto;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.woche-loeschen:hover {
+  opacity: 1;
+  background: var(--danger-soft);
+}
+
+.woche-nurlesen {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.woche-kommentare {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.woche-kommentar {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.woche-kommentar-kopf {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+}
+
+.woche-kommentar-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+.woche-kommentar-neu {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.woche-kommentar-neu .btn {
+  flex-shrink: 0;
+}
+
 /* --- Offerten: Betrag und Stand -------------------------------------------- */
 .offer-betrag {
   display: flex;
@@ -5700,4 +5867,23 @@ button:disabled {
   /* Ein Ring mit Abstand: Der Rahmen allein verschwindet auf der dunklen
      Farbe, die er umgibt. */
   box-shadow: 0 0 0 2px var(--surface) inset;
+}
+
+/* --- Aufgabe in der Übersicht ändern: auf dem Handy --------------------- */
+/* Die Einrückung unter dem Häkchen kostet auf 390 Pixel zu viel Breite – der
+   Kasten steht dort über die ganze Zeile. */
+@media (max-width: 760px) {
+  .woche-bearbeiten {
+    margin-left: 0;
+    padding: 10px;
+  }
+
+  .woche-stift {
+    opacity: 1;
+  }
+
+  .woche-fristreihe,
+  .woche-kommentar-neu {
+    flex-wrap: wrap;
+  }
 }
