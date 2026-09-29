@@ -18,3 +18,5 @@ yarn-error.log*
 next-env.d.ts
 .eslintcache
 sicherung/
+scripts/pruefung-sicherung.txt
+scripts/sicherung.log

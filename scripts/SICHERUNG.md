@@ -177,8 +177,8 @@ Eingetragen werden zwei Auslöser in einem Auftrag:
 
 | Auslöser | wofür |
 |---|---|
-| **Täglich 19:00** | der Normalfall |
-| **Bei Anmeldung, +2 Minuten** | falls der Rechner um 19:00 aus war |
+| **Täglich 08:00** | der Normalfall |
+| **Bei Anmeldung, +2 Minuten** | falls der Rechner um 08:00 aus war |
 
 Dazu zwei Einstellungen, die man in der „Einfachen Aufgabe" nicht bekommt:
 **Nachholen nach verpasstem Start** und **nur starten, wenn Netz da ist**. Die
@@ -189,8 +189,8 @@ Was dabei herauskommt:
 
 | Situation | Was passiert |
 |---|---|
-| Rechner läuft um 19:00 | Sicherung um 19:00 |
-| Rechner war um 19:00 aus | Sicherung beim nächsten Hochfahren |
+| Rechner läuft um 08:00 | Sicherung um 08:00 |
+| Rechner war um 08:00 aus | Sicherung beim nächsten Hochfahren |
 | Mehrmals am Tag angemeldet | Nur beim ersten Mal |
 | Eine Woche nicht eingeschaltet | Beim nächsten Einschalten |
 | Kein Internet | Kein Lauf, Nachholung beim nächsten Mal |
@@ -206,6 +206,34 @@ der Eingabeaufforderung:
 ```cmd
 schtasks /delete /tn "Baukoordination Sicherung" /f
 ```
+
+### Wenn keine Sicherung mehr entsteht
+
+**`scripts\sicherung-pruefen.cmd` doppelklicken.** Das Fenster bleibt offen und
+sagt, woran es liegt. Es sieht der Reihe nach nach:
+
+1. Gibt es den Auftrag überhaupt, und ist er eingeschaltet?
+2. Wann lief er zuletzt, und mit welchem Ergebnis? (Die Zahlen der
+   Aufgabenplanung sind übersetzt – `2147942402` heisst „Datei nicht
+   gefunden".)
+3. Zeigt der Auftrag auf das Skript, das wirklich hier liegt? Ist das Projekt
+   umgezogen, zeigt er ins Leere – dann `automatik-einrichten.cmd` nochmals
+   doppelklicken.
+4. Node.js, `.env.local`, Bausteine.
+5. Gibt es den Zielordner – und wenn nicht, **ab welcher Stelle** der Pfad
+   nicht mehr stimmt. Wird ein OneDrive- oder SharePoint-Ordner umbenannt,
+   bricht der Pfad genau dort, und der Rest des Namens steht daneben.
+6. Welche Sicherungen aktuell da sind und wie alt die neuste ist.
+7. Das Protokoll des letzten Laufs.
+
+Alles steht danach auch in `scripts\pruefung-sicherung.txt` – diese Datei lässt
+sich verschicken.
+
+**Das Protokoll:** Jeder Lauf schreibt in `scripts\sicherung.log` mit, mit
+Datum, Zielordner und allem, was das Skript ausgegeben hat. Über die
+Aufgabenplanung läuft die Sicherung unsichtbar – ohne Protokoll stünde man
+Tage später vor einem leeren Ordner und hätte nichts, woran man sehen könnte,
+warum.
 
 ### Wenn die Sicherung am falschen Ort landet
 
@@ -226,8 +254,8 @@ stillschweigend einen zweiten anzulegen.
 
 ```bash
 crontab -e
-# Jeden Tag um 19:00:
-0 19 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
+# Jeden Tag um 08:00:
+0 8 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
 ```
 
 ## Vollständige Sicherung der Datenbank
