@@ -48,18 +48,32 @@ Titel 'Auftrag in der Aufgabenplanung'
 
 # Die Ergebniszahlen der Aufgabenplanung sind nicht lesbar gemeint. Die
 # haeufigsten uebersetzt, damit nicht jeder Befund eine Suchmaschine braucht.
+# Nachgeschlagen wird ueber die Hexadezimalschreibweise, weil Windows die Zahl
+# je nach Weg als negative Zahl zurueckgibt.
 $bedeutung = @{
-  0          = 'OK - der letzte Lauf war erfolgreich.'
-  1          = 'Das Skript endete mit einem Fehler (Zielordner? .env.local?).'
-  2          = 'Datei nicht gefunden.'
-  267008     = 'Die Aufgabe wurde noch nie ausgefuehrt.'
-  267009     = 'Die Aufgabe laeuft gerade.'
-  267010     = 'Die Aufgabe ist noch nicht gelaufen (Ausloeser noch offen).'
-  267011     = 'Die Aufgabe wurde noch nie ausgefuehrt.'
-  267014     = 'Die Aufgabe wurde abgebrochen.'
-  2147942402 = 'Datei nicht gefunden - der Auftrag zeigt auf ein Skript, das es nicht (mehr) gibt.'
-  2147942667 = 'Der Startordner im Auftrag stimmt nicht.'
-  2147943711 = 'Windows hat den Start verweigert (Rechte).'
+  '0x00000000' = 'OK - der letzte Lauf war erfolgreich.'
+  '0x00000001' = 'Das Skript endete mit einem Fehler (Zielordner? .env.local?).'
+  '0x00000002' = 'Datei nicht gefunden.'
+  '0x0000000A' = 'Der Zielordner wurde nicht gefunden.'
+  '0x0000000B' = 'Node.js wurde nicht gefunden.'
+  '0x00041300' = 'Die Aufgabe ist bereit und wurde noch nicht ausgefuehrt.'
+  '0x00041301' = 'Die Aufgabe laeuft gerade.'
+  '0x00041302' = 'Die Aufgabe ist ausgeschaltet.'
+  '0x00041303' = 'Die Aufgabe wurde noch nie ausgefuehrt.'
+  '0x00041304' = 'Es sind keine weiteren Laeufe geplant.'
+  '0x00041306' = 'Die Aufgabe wurde abgebrochen.'
+  '0x8004131F' = 'Es lief bereits eine Ausfuehrung - die zweite wurde abgewiesen.'
+  '0x80070002' = 'Datei nicht gefunden - der Auftrag zeigt auf ein Skript, das es nicht (mehr) gibt.'
+  '0x8007010B' = 'Der Startordner im Auftrag stimmt nicht.'
+  '0x800704DD' = 'Niemand war angemeldet, als die Aufgabe starten sollte.'
+  '0x800710E0' = 'Windows hat die Anforderung abgewiesen - meist, weil derselbe '
+               + 'Auftrag zur selben Zeit schon lief. Passiert, wenn mehrere '
+               + 'Auftraege eingetragen sind.'
+  '0xC000013A' = 'Der Lauf wurde beendet, bevor er fertig war. Fast immer: Das '
+               + 'Skript blieb am Ende mit "Weiter mit beliebiger Taste" stehen '
+               + 'und wartete auf jemanden, der nicht davorsass. Behoben ab der '
+               + 'Fassung vom 29.09.2026 - automatik-einrichten.cmd nochmals '
+               + 'doppelklicken.'
 }
 
 $gefunden = $false
@@ -83,7 +97,17 @@ try {
     foreach ($aktion in $a.Actions) {
       $ziel = $aktion.Execute
       Sag ('  Startet:    ' + $ziel)
+      if ($aktion.Arguments) { Sag ('  Mit:        ' + $aktion.Arguments) }
       if ($aktion.WorkingDirectory) { Sag ('  Startordner:' + ' ' + $aktion.WorkingDirectory) }
+
+      # Ohne dieses Wort haelt das Skript am Ende an und wartet auf einen
+      # Tastendruck, den im Auftrag niemand gibt.
+      if ($ziel -and $ziel -like '*sicherung-windows.cmd*' -and $aktion.Arguments -notlike '*automatik*') {
+        Sag '              ^^^ ohne "/automatik" - der Auftrag bleibt am Ende stehen'
+        [void]$befunde.Add('Der Auftrag "' + $a.TaskName + '" startet das Skript ohne "/automatik". '
+                           + 'Dann haelt es am Ende mit "Weiter mit beliebiger Taste" an und wartet, '
+                           + 'bis Windows es abbricht. Loesung: automatik-einrichten.cmd doppelklicken.')
+      }
 
       if ($ziel) {
         $sauber = $ziel.Trim('"')
@@ -108,19 +132,35 @@ try {
 
     if ($info) {
       Sag ('  Zuletzt:    ' + $info.LastRunTime)
-      $code = [int64]$info.LastTaskResult
-      $text = $bedeutung[[int]$code]
-      if (-not $text) { $text = ('unbekannte Rueckmeldung (0x' + ('{0:X}' -f $code) + ')') }
-      Sag ('  Ergebnis:   ' + $code + '  = ' + $text)
+
+      # Windows gibt die Rueckmeldung je nach Weg als negative Zahl zurueck.
+      $roh = [int64]$info.LastTaskResult
+      if ($roh -lt 0) { $roh += 4294967296 }
+      $hex = ('0x{0:X8}' -f $roh)
+
+      $text = $bedeutung[$hex]
+      if (-not $text) { $text = 'unbekannte Rueckmeldung.' }
+      Sag ('  Ergebnis:   ' + $hex + '  = ' + $text)
       Sag ('  Naechster:  ' + $info.NextRunTime)
 
-      if ($code -ne 0 -and $code -ne 267011 -and $code -ne 267008 -and $code -ne 267010) {
-        [void]$befunde.Add('Der letzte Lauf endete mit ' + $code + ': ' + $text)
+      $harmlos = @('0x00000000', '0x00041300', '0x00041301', '0x00041302', '0x00041303')
+      if ($harmlos -notcontains $hex) {
+        [void]$befunde.Add('Der letzte Lauf von "' + $a.TaskName + '" endete mit ' + $hex + ': ' + $text)
       }
       if (-not $info.NextRunTime) {
-        [void]$befunde.Add('Es ist kein naechster Lauf geplant - der Auftrag hat keinen gueltigen Ausloeser mehr.')
+        [void]$befunde.Add('Fuer "' + $a.TaskName + '" ist kein naechster Lauf geplant - '
+                           + 'der Auftrag hat keinen gueltigen Ausloeser mehr.')
       }
     }
+  }
+
+  # Mehrere Auftraege feuern zur selben Zeit; weil nur eine Ausfuehrung
+  # zugelassen ist, weist Windows die zweite ab. Im Verlauf steht dann ein
+  # Fehler, obwohl gar nichts kaputt ist.
+  if (@($aufgaben).Count -gt 1) {
+    [void]$befunde.Add('Es sind ' + @($aufgaben).Count + ' Auftraege eingetragen. Einer genuegt - '
+                       + 'mehrere stoeren sich gegenseitig. automatik-einrichten.cmd doppelklicken, '
+                       + 'es raeumt die alten weg.')
   }
 }
 catch {

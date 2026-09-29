@@ -173,12 +173,14 @@ endet es sofort wieder. Deshalb darf es bei jeder Anmeldung starten.
 alles. Die Datei trägt den Auftrag selbst in die Windows-Aufgabenplanung ein –
 kein Klicken durch acht Dialoge, keine Verwaltungsrechte nötig.
 
-Eingetragen werden zwei Auslöser in einem Auftrag:
+Eingetragen werden drei Auslöser in **einem** Auftrag – mehrere Aufträge
+stören sich gegenseitig:
 
 | Auslöser | wofür |
 |---|---|
-| **Täglich 08:00** | der Normalfall |
-| **Bei Anmeldung, +2 Minuten** | falls der Rechner um 08:00 aus war |
+| **Täglich 10:00** | der Normalfall |
+| **Täglich 13:00** | falls der Rechner um 10:00 aus war |
+| **Bei Anmeldung, +2 Minuten** | falls beides verpasst wurde |
 
 Dazu zwei Einstellungen, die man in der „Einfachen Aufgabe" nicht bekommt:
 **Nachholen nach verpasstem Start** und **nur starten, wenn Netz da ist**. Die
@@ -189,8 +191,9 @@ Was dabei herauskommt:
 
 | Situation | Was passiert |
 |---|---|
-| Rechner läuft um 08:00 | Sicherung um 08:00 |
-| Rechner war um 08:00 aus | Sicherung beim nächsten Hochfahren |
+| Rechner läuft um 10:00 | Sicherung um 10:00 |
+| Rechner war um 10:00 aus | Sicherung um 13:00 |
+| Rechner war beide Male aus | Sicherung beim nächsten Hochfahren |
 | Mehrmals am Tag angemeldet | Nur beim ersten Mal |
 | Eine Woche nicht eingeschaltet | Beim nächsten Einschalten |
 | Kein Internet | Kein Lauf, Nachholung beim nächsten Mal |
@@ -254,8 +257,8 @@ stillschweigend einen zweiten anzulegen.
 
 ```bash
 crontab -e
-# Jeden Tag um 08:00:
-0 8 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
+# Jeden Tag um 10:00 und 13:00:
+0 10,13 * * * cd /PFAD/ZU/Baukoordination && /usr/local/bin/node scripts/sicherung.mjs --ziel "$HOME/OneDrive/Baukoordination" >> "$HOME/sicherung.log" 2>&1
 ```
 
 ## Vollständige Sicherung der Datenbank

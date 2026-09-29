@@ -1,19 +1,21 @@
 # ===========================================================================
 #  Baukoordination – taegliche Sicherung automatisch einrichten (Windows)
 #
-#  Traegt einen Auftrag mit zwei Ausloesern in die Aufgabenplanung ein:
+#  Traegt einen Auftrag mit mehreren Ausloesern in die Aufgabenplanung ein:
 #
-#    1. Taeglich um 08:00
-#    2. Bei jeder Anmeldung, zwei Minuten verzoegert
+#    1. Taeglich um 10:00
+#    2. Taeglich um 13:00
+#    3. Bei jeder Anmeldung, zwei Minuten verzoegert
 #
-#  Zwei Ausloeser und nicht einer, weil das genau die Frage beantwortet, die
-#  bei einem festen Termin offen bleibt: Was, wenn der Rechner um 08:00 aus
-#  war? Dann greift der zweite beim naechsten Einschalten. Dazu kommt
+#  Mehrere und nicht einer, weil das die Frage beantwortet, die bei einem
+#  festen Termin offen bleibt: Was, wenn der Rechner um 10:00 aus war? Dann
+#  greift 13:00, und sonst die naechste Anmeldung. Dazu kommt
 #  "StartWhenAvailable" – Windows holt einen verpassten Termin von sich aus
 #  nach.
 #
-#  Doppelt gesichert wird deswegen nicht: Das Sicherungsskript prueft, ob
-#  heute schon gesichert wurde, und endet dann sofort.
+#  Gesichert wird deswegen trotzdem nur einmal am Tag: Das Sicherungsskript
+#  prueft, ob heute schon eine Sicherung entstanden ist, und endet dann
+#  sofort. Die weiteren Termine sind Auffangnetze, keine zweite Sicherung.
 #
 #  Frueher entstand dieser Auftrag aus einer XML-Datei, die per "echo" in den
 #  Temp-Ordner geschrieben wurde. Die trug im Kopf "UTF-16", war aber in
@@ -48,9 +50,31 @@ if (-not (Test-Path -LiteralPath $skript)) {
 }
 
 try {
-  $aktion = New-ScheduledTaskAction -Execute $skript -WorkingDirectory $projekt
+  # --- Alte Auftraege wegraeumen --------------------------------------------
+  #
+  # Es sammelten sich mehrere an: einer aus einem frueheren Einrichten, einer
+  # von Hand angelegt. Sie feuerten zur selben Zeit, und weil immer nur eine
+  # Ausfuehrung zugelassen ist, wies Windows die zweite ab
+  # ("0x800710E0") – im Verlauf sah das aus wie ein Fehler der Sicherung.
+  # Ein Auftrag genuegt.
+  $alte = Get-ScheduledTask -ErrorAction SilentlyContinue |
+          Where-Object { $_.TaskName -like 'Baukoordination*' }
 
-  $morgens = New-ScheduledTaskTrigger -Daily -At '08:00'
+  foreach ($a in $alte) {
+    Write-Host ('  Alter Auftrag entfernt: ' + $a.TaskName)
+    Unregister-ScheduledTask -TaskName $a.TaskName -Confirm:$false -ErrorAction SilentlyContinue
+  }
+
+  # Das Kennwort "/automatik" sagt dem Skript, dass niemand davorsitzt.
+  #
+  # Ohne diesen Hinweis kann es das nicht wissen: Die Aufgabenplanung startet
+  # eine .cmd-Datei genauso ueber "cmd /c" wie ein Doppelklick. Das Skript
+  # hielt deshalb auch im Auftrag am Ende mit "Weiter mit beliebiger Taste"
+  # an – und blieb dort stehen, bis Windows es abbrach ("0xC000013A").
+  $aktion = New-ScheduledTaskAction -Execute $skript -Argument '/automatik' -WorkingDirectory $projekt
+
+  $morgens = New-ScheduledTaskTrigger -Daily -At '10:00'
+  $mittags = New-ScheduledTaskTrigger -Daily -At '13:00'
 
   # Zwei Minuten Verzoegerung: Direkt nach dem Hochfahren ist oft noch kein
   # Netz da, und ohne Netz kommt das Skript nicht an die Daten.
@@ -73,7 +97,7 @@ try {
   Register-ScheduledTask `
     -TaskName $name `
     -Action $aktion `
-    -Trigger $morgens, $anmeldung `
+    -Trigger $morgens, $mittags, $anmeldung `
     -Settings $einstellungen `
     -Principal $prinzipal `
     -Description 'Sichert die Baukoordination taeglich in den OneDrive-Ordner.' `
@@ -96,8 +120,9 @@ Write-Host '==========================================================='
 Write-Host '  Eingerichtet.'
 Write-Host ''
 Write-Host '  Gesichert wird ab jetzt:'
-Write-Host '    - taeglich um 08:00'
-Write-Host '    - beim naechsten Hochfahren, falls 08:00 verpasst wurde'
+Write-Host '    - taeglich um 10:00'
+Write-Host '    - nochmals um 13:00, falls 10:00 nicht geklappt hat'
+Write-Host '    - beim naechsten Hochfahren, falls beides verpasst wurde'
 Write-Host '    - hoechstens einmal pro Tag'
 if ($info -and $info.NextRunTime) {
   Write-Host ''

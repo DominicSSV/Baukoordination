@@ -28,12 +28,21 @@ set "LOG=%~dp0sicherung.log"
 set "AUSGABE=%TEMP%\baukoordination-lauf.txt"
 set "FEHLER=0"
 
-rem  Doppelklick oder Aufgabenplanung? Beim Doppelklick soll man zusehen
-rem  koennen, wie die Sicherung laeuft; die Aufgabenplanung schaut niemandem
-rem  zu und bekommt dafuer alles ins Protokoll.
-set "INTERAKTIV="
-echo %cmdcmdline% | find /i "/c" >nul
-if not errorlevel 1 set "INTERAKTIV=1"
+rem --- Doppelklick oder Aufgabenplanung? -------------------------------------
+rem  Beim Doppelklick soll man zusehen koennen und das Fenster am Ende offen
+rem  bleiben; die Aufgabenplanung schaut niemandem zu und bekommt dafuer alles
+rem  ins Protokoll.
+rem
+rem  Erkannt wird das am Wort "/automatik", das die Aufgabenplanung mitgibt.
+rem  Frueher stand hier eine Pruefung auf "/c" in der Befehlszeile – die ist
+rem  falsch: Die Aufgabenplanung startet eine .cmd-Datei genauso ueber
+rem  "cmd /c" wie ein Doppelklick. Das Skript hielt deshalb auch im Auftrag am
+rem  Ende mit "Weiter mit beliebiger Taste" an und blieb dort stehen, bis
+rem  Windows es nach zwei Stunden abbrach. Im Verlauf sah das aus wie ein
+rem  Fehler der Sicherung ("0xC000013A"), war aber ein wartendes Fenster,
+rem  das niemand sah.
+set "INTERAKTIV=1"
+if /i "%~1"=="/automatik" set "INTERAKTIV="
 
 rem --- In den Projektordner wechseln -----------------------------------------
 rem  %~dp0 ist der Ordner dieser Datei, also ...\Baukoordination\scripts\.
