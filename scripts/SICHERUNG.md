@@ -182,10 +182,16 @@ stören sich gegenseitig:
 | **Täglich 13:00** | falls der Rechner um 10:00 aus war |
 | **Bei Anmeldung, +2 Minuten** | falls beides verpasst wurde |
 
-Dazu zwei Einstellungen, die man in der „Einfachen Aufgabe" nicht bekommt:
-**Nachholen nach verpasstem Start** und **nur starten, wenn Netz da ist**. Die
-zwei Minuten Verzögerung sind nötig, weil direkt nach dem Hochfahren oft noch
-keine Verbindung steht.
+Dazu **Nachholen nach verpasstem Start** – eine Einstellung, die man in der
+„Einfachen Aufgabe" nicht bekommt. Die zwei Minuten Verzögerung sind nötig,
+weil direkt nach dem Hochfahren oft noch keine Verbindung steht.
+
+Bewusst **nicht** gesetzt ist „nur starten, wenn eine Netzwerkverbindung
+verfügbar ist". Die Bedingung klingt vernünftig, ist aber die häufigste
+Ursache für Aufträge, die stillschweigend nie laufen: Windows erkennt ein
+Firmennetz mit VPN oder ein WLAN mit Anmeldeseite oft als „kein Netz" und
+überspringt den Lauf wortlos. Das Skript merkt selbst, wenn es nicht an die
+Daten kommt, und schreibt es ins Protokoll.
 
 Was dabei herauskommt:
 
@@ -211,6 +217,17 @@ schtasks /delete /tn "Baukoordination Sicherung" /f
 ```
 
 ### Wenn keine Sicherung mehr entsteht
+
+**Der kurze Weg: `scripts\sicherung-reparieren.cmd` doppelklicken.** Es räumt
+alle alten Aufträge weg, trägt einen sauberen ein, **startet ihn sofort** und
+sagt am Ende, ob wirklich eine Sicherung von heute im Zielordner liegt.
+
+Dass es den Auftrag selbst auslöst, ist der Punkt. Ein Doppelklick auf
+`sicherung-windows.cmd` beweist wenig: Dabei sitzt jemand davor, das Fenster
+ist offen, der Arbeitsordner stimmt. Die Aufgabenplanung startet dasselbe
+Skript ohne all das – und genau dort lagen bisher die Fehler.
+
+### Der lange Weg: nachsehen, was nicht stimmt
 
 **`scripts\sicherung-pruefen.cmd` doppelklicken.** Das Fenster bleibt offen und
 sagt, woran es liegt. Es sieht der Reihe nach nach:

@@ -81,11 +81,18 @@ try {
   $anmeldung = New-ScheduledTaskTrigger -AtLogOn
   $anmeldung.Delay = 'PT2M'
 
+  # Bewusst OHNE "nur starten, wenn Netz da ist".
+  #
+  # Die Bedingung klingt vernuenftig, ist aber die haeufigste Ursache fuer
+  # Auftraege, die stillschweigend nie laufen: Windows erkennt ein Firmennetz
+  # mit VPN oder einen WLAN-Zugang mit Anmeldeseite oft als "kein Netz" und
+  # ueberspringt den Lauf wortlos. Das Skript merkt selbst, wenn es nicht an
+  # die Daten kommt – und schreibt es dann ins Protokoll, statt gar nicht
+  # erst anzutreten.
   $einstellungen = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
-    -RunOnlyIfNetworkAvailable `
     -MultipleInstances IgnoreNew `
     -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 
