@@ -59,8 +59,12 @@ Baukoordination-2026-09-24/
     Dokumente/<Ordner>/<Unterordner>/
     Fotos/
     Dateien/
+    Liegenschaftsbild.jpg
   _Datenbank/            alle Tabellen als JSON
-  _Bilder/               Profilbilder
+  _Bilder/
+    Profilbild - Dominic Maag.jpg
+    Profilbild - Stive Meier (Melintec AG).jpg
+    Ohne Zuordnung/      was zu keinem Eintrag mehr gehört
 ```
 
 Die Dateien tragen **ihren Namen aus der App**, nicht die Kennung aus dem

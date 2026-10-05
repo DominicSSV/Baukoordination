@@ -468,12 +468,88 @@ async function main() {
     );
   }
 
-  // Profilbilder liegen ausserhalb der Projekte.
+  /**
+   * Profilbilder und Liegenschaftsfotos – unter ihrem Namen, nicht unter
+   * ihrer Kennung.
+   *
+   * Im Speicher heissen sie "admins/5da2f17d-…/6db45ae3-….jpg". Das ist für
+   * die Datenbank richtig und für einen Menschen wertlos: Wer die Sicherung
+   * öffnet, sieht drei Ordner voller Kennungen und muss jedes Bild einzeln
+   * anklicken, um zu erfahren, wen es zeigt.
+   *
+   * Zugeordnet sind die Bilder ja längst – in admins.avatar_path,
+   * suppliers.avatar_path und projects.bild_path. Also wird hier zuerst ein
+   * Verzeichnis gebaut und dann unter dem richtigen Namen abgelegt:
+   *
+   *   _Bilder/Profilbild - Dominic Maag.jpg
+   *   _Bilder/Profilbild - Stive Meier (Melintec AG).jpg
+   *
+   * Das Foto der Liegenschaft wandert gleich ins Projekt, wo man es sucht:
+   *
+   *   Tägerwilen - PVA/Liegenschaftsbild.jpg
+   *
+   * Was sich keinem Eintrag zuordnen lässt – ein altes Bild, das niemand mehr
+   * benutzt –, landet unverändert unter "_Bilder/Ohne Zuordnung". Eine
+   * Sicherung darf aufräumen, aber nichts verschwinden lassen.
+   */
   try {
+    const bildNamen = new Map();
+
+    for (const a of daten.admins ?? []) {
+      if (a.avatar_path) {
+        bildNamen.set(a.avatar_path, {
+          ordner: join(ordner, '_Bilder'),
+          name: `Profilbild - ${sauber(a.name || 'Unbekannt')}`,
+        });
+      }
+    }
+
+    for (const s of daten.suppliers ?? []) {
+      if (!s.avatar_path) continue;
+      const name = s.name?.trim() || s.firma?.trim() || 'Unbekannt';
+      const mitFirma =
+        s.firma?.trim() && s.name?.trim() ? `${name} (${s.firma.trim()})` : name;
+      bildNamen.set(s.avatar_path, {
+        ordner: join(ordner, '_Bilder'),
+        name: `Profilbild - ${sauber(mitFirma)}`,
+      });
+    }
+
+    for (const p of projekte) {
+      if (p.bild_path) {
+        bildNamen.set(p.bild_path, {
+          ordner: join(ordner, sauber(p.name, 'Projekt ohne Namen')),
+          name: 'Liegenschaftsbild',
+        });
+      }
+    }
+
+    const vergebeneBilder = new Set();
+
     for (const o of await alleObjekte(db, 'avatars')) {
       const { data } = await db.storage.from('avatars').download(o.pfad);
       if (!data) continue;
-      const ziel = join(ordner, '_Bilder', o.pfad);
+
+      const treffer = bildNamen.get(o.pfad);
+      let ziel;
+
+      if (treffer) {
+        // Zwei Leute mit demselben Namen gibt es; zwei Dateien mit demselben
+        // Namen im selben Ordner nicht. Dann wird durchnummeriert – eine
+        // Kennung im Namen wäre genau das, was hier abgeschafft wird.
+        const endung = extname(o.pfad) || '.jpg';
+        let name = `${treffer.name}${endung}`;
+        let nummer = 2;
+        while (vergebeneBilder.has(join(treffer.ordner, name).toLowerCase())) {
+          name = `${treffer.name} (${nummer})${endung}`;
+          nummer += 1;
+        }
+        vergebeneBilder.add(join(treffer.ordner, name).toLowerCase());
+        ziel = join(treffer.ordner, name);
+      } else {
+        ziel = join(ordner, '_Bilder', 'Ohne Zuordnung', o.pfad);
+      }
+
       await mkdir(dirname(ziel), { recursive: true });
       await writeFile(ziel, Buffer.from(await data.arrayBuffer()));
       dateienGesamt += 1;
@@ -498,9 +574,13 @@ async function main() {
       '- **Auftragsbestätigungen/**, **Nachträge/** – die Verträge',
       '- **Dokumente/** – wie in der App gegliedert',
       '- **Fotos/**, **Dateien/** – der Rest',
+      '- **Liegenschaftsbild.jpg** – das Foto aus der Projektkarte',
       '',
       'Daneben **_Datenbank/** mit allen Tabellen als JSON und **_Bilder/** mit',
-      'den Profilbildern.',
+      'den Profilbildern, je unter dem Namen der Person:',
+      '`Profilbild - Dominic Maag.jpg`. Was sich keinem Eintrag mehr zuordnen',
+      'lässt, liegt unter **_Bilder/Ohne Zuordnung/** – weggeräumt, aber nicht',
+      'verschwunden.',
       '',
       'Die .md-Dateien sind Text und lassen sich mit jedem Editor öffnen; in',
       'Word oder einem Markdown-Programm sehen sie formatiert aus.',
