@@ -3455,9 +3455,11 @@ button:disabled {
   background: var(--bg);
 }
 
-/* Bilder bekommen etwas Rand, PDF nutzen die Fläche vollständig. */
+/* Bilder bekommen etwas Rand, PDF nutzen die Fläche vollständig.
+   relative, damit die Blätterpfeile darin sitzen können. */
 .viewer-inhalt.bild {
   padding: 16px;
+  position: relative;
 }
 
 .viewer-img {
@@ -3878,6 +3880,112 @@ button:disabled {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* --- Mehrere Bilder je Liegenschaft ---------------------------------------- */
+/* Eine Liegenschaft hat ein Dach, eine Zufahrt, einen Zählerkasten und eine
+   Stelle für den Wechselrichter. Die Pfeile liegen auf dem Bild und nicht
+   darunter: Dort sind sie da, wo die Hand ohnehin hinfährt, und kosten keine
+   Zeile Höhe. */
+.liegenschaft-rahmen {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+
+.liegenschaft-pfeil {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  /* Dunkel hinterlegt, weil darunter mal ein helles Dach und mal ein dunkler
+     Asphalt liegt – ein Pfeil in nur einer Farbe verschwindet auf dem einen
+     oder dem anderen. */
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.liegenschaft-pfeil:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.liegenschaft-pfeil.links {
+  left: 8px;
+}
+
+.liegenschaft-pfeil.rechts {
+  right: 8px;
+}
+
+/* Im Vollbild grösser – dort ist Platz, und man blättert der Reihe nach. */
+.liegenschaft-pfeil.gross {
+  width: 48px;
+  height: 48px;
+  font-size: 30px;
+}
+
+/* "2 / 5" in der Ecke: Die Frage "sind da noch mehr" beantwortet sich damit,
+   ohne dass man blättern muss. */
+.liegenschaft-zaehler {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.liegenschaft-punkte {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 400px;
+  margin-top: 8px;
+}
+
+.liegenschaft-punkt {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+}
+
+.liegenschaft-punkt:hover {
+  transform: scale(1.3);
+}
+
+.liegenschaft-punkt.an {
+  background: var(--accent);
+}
+
+/* Die Zählung neben dem Projektnamen im Vollbild. */
+.viewer-zaehler {
+  margin-left: 10px;
+  font-family: var(--font-body), sans-serif;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--ink-soft);
 }
 
 /* Solange keines da ist: eine grosse, gestrichelte Fläche. Ein kleiner Knopf

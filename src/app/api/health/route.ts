@@ -408,18 +408,29 @@ export async function GET() {
       // Die vier jüngsten Migrationen. Sie prüfen je eine Spalte oder Tabelle,
       // die es ohne sie nicht gäbe – so beantwortet die Diagnose die Frage
       // "habe ich alles eingespielt?", ohne dass man in Supabase nachsieht.
-      const [liegenschaft, erinnerungen, daumen, warteschlange] = await Promise.all([
-        db.from('projects').select('bild_path').limit(1),
-        db.from('todos').select('erinnert_am, erinnert_heute_am').limit(1),
-        db.from('comment_kudos').select('id').limit(1),
-        db.from('mail_queue').select('id, created_at').is('gesendet_am', null).limit(500),
-      ]);
+      const [liegenschaft, erinnerungen, daumen, warteschlange, mehrBilder] =
+        await Promise.all([
+          db.from('projects').select('bild_path').limit(1),
+          db.from('todos').select('erinnert_am, erinnert_heute_am').limit(1),
+          db.from('comment_kudos').select('id').limit(1),
+          db.from('mail_queue').select('id, created_at').is('gesendet_am', null).limit(500),
+          db.from('project_bilder').select('id, project_id').limit(500),
+        ]);
 
       report.migration_0034 = {
         liegenschaftsbild: !liegenschaft.error,
         hinweis: liegenschaft.error
           ? 'Migration 0034 fehlt. Bei den Projektinfos lässt sich kein Bild der '
             + 'Liegenschaft hinterlegen.'
+          : undefined,
+      };
+
+      report.migration_0047 = {
+        mehrere_bilder: !mehrBilder.error,
+        bilder_gesamt: mehrBilder.error ? undefined : (mehrBilder.data ?? []).length,
+        hinweis: mehrBilder.error
+          ? 'Migration 0047 fehlt. Je Liegenschaft ist nur ein Bild möglich, und '
+            + 'ein zweites Hochladen ersetzt das erste.'
           : undefined,
       };
 

@@ -1,7 +1,7 @@
 import 'server-only';
 import { STORAGE_BUCKET } from '@/lib/env';
 import { serviceClient } from '@/lib/supabase/service';
-import { signAvatar, signAvatars } from '@/lib/avatars';
+import { signAvatars } from '@/lib/avatars';
 import { ladeDaumen } from '@/lib/kudos';
 import type { Ctx } from '@/lib/auth/guards';
 
@@ -12,6 +12,7 @@ import type {
   FileComment,
   Project,
   ProjectDetail,
+  ProjektBild,
   ProjectFile,
   ScheduleNote,
   ScheduleTask,
@@ -195,11 +196,45 @@ export async function loadProjectDetail(
     bild_path?: string | null;
   };
 
+  /**
+   * Die Fotos der Liegenschaft.
+   *
+   * Ohne Migration 0047 gibt es die Tabelle nicht; dann bleibt es bei dem
+   * einen Bild aus projects.bild_path – die Ansicht zeigt eben eines statt
+   * mehrerer, statt gar nicht zu laden.
+   */
+  const bilderRes = await db
+    .from('project_bilder')
+    .select('id, pfad, titel')
+    .eq('project_id', projectId)
+    .order('order_index', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  const bildZeilen = bilderRes.error
+    ? (projektZeile.bild_path
+        ? [{ id: projektZeile.bild_path, pfad: projektZeile.bild_path, titel: null }]
+        : [])
+    : ((bilderRes.data ?? []) as unknown as Array<{
+        id: string;
+        pfad: string;
+        titel: string | null;
+      }>);
+
+  // Das Bild liegt beim selben Ablageort wie die Profilbilder und wird wie
+  // diese nur kurzlebig signiert – nie öffentlich.
+  const bildUrls = await signAvatars(bildZeilen.map((b) => b.pfad));
+
+  const bilder: ProjektBild[] = bildZeilen.map((b) => ({
+    id: b.id,
+    pfad: b.pfad,
+    url: bildUrls.get(b.pfad) ?? null,
+    titel: b.titel,
+  }));
+
   const project: Project = {
     ...projektZeile,
-    // Das Bild liegt beim selben Ablageort wie die Profilbilder und wird wie
-    // diese nur kurzlebig signiert – nie öffentlich.
-    bild_url: await signAvatar(projektZeile.bild_path),
+    bild_url: bilder[0]?.url ?? null,
+    bilder,
   };
 
   const [todosRes, filesRes, activityRes, accessRes] = await Promise.all([

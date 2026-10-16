@@ -2,6 +2,7 @@
 
 import { api, post } from '@/lib/client/api';
 import { browserClient } from '@/lib/supabase/browser';
+import type { ProjektBild } from '@/types';
 
 type Vorbereitet = { bucket: string; path: string; token: string };
 
@@ -60,11 +61,17 @@ async function quadratischVerkleinern(file: File, kante = 1200): Promise<Blob> {
   return blob;
 }
 
-/** Lädt das Bild der Liegenschaft hoch und gibt die Anzeige-URL zurück. */
+/**
+ * Lädt ein Bild der Liegenschaft hoch und gibt die vollständige Liste zurück.
+ *
+ * Angehängt, nicht ersetzt: Eine Liegenschaft hat ein Dach, eine Zufahrt und
+ * einen Zählerkasten. Wer früher das zweite Foto hochlud, löschte damit das
+ * erste.
+ */
 export async function uploadProjektBild(
   projectId: string,
   file: File,
-): Promise<string | null> {
+): Promise<ProjektBild[]> {
   const blob = await quadratischVerkleinern(file);
 
   const vorbereitet = await post<Vorbereitet>(`/api/projects/${projectId}/bild`, {});
@@ -77,14 +84,39 @@ export async function uploadProjektBild(
 
   if (upload.error) throw new Error(upload.error.message);
 
-  const { bildUrl } = await api<{ bildUrl: string | null }>(
+  const { bilder } = await api<{ bilder: ProjektBild[] }>(
     `/api/projects/${projectId}/bild`,
     { method: 'PUT', body: JSON.stringify({ path: vorbereitet.path }) },
   );
 
-  return bildUrl;
+  return bilder ?? [];
 }
 
-export async function removeProjektBild(projectId: string): Promise<void> {
-  await api(`/api/projects/${projectId}/bild`, { method: 'DELETE' });
+/** Ein einzelnes Bild entfernen. */
+export async function removeProjektBild(
+  projectId: string,
+  bildId?: string,
+): Promise<ProjektBild[]> {
+  const { bilder } = await api<{ bilder: ProjektBild[] }>(
+    `/api/projects/${projectId}/bild`,
+    { method: 'DELETE', body: JSON.stringify(bildId ? { id: bildId } : {}) },
+  );
+  return bilder ?? [];
+}
+
+/**
+ * Die Reihenfolge neu setzen – damit auch: ein anderes Bild nach vorn.
+ *
+ * Als vollständige Liste und nicht als "schiebe dieses eine": Bricht ein
+ * Tausch auf halbem Weg ab, hätten zwei Bilder dieselbe Nummer.
+ */
+export async function ordneProjektBilder(
+  projectId: string,
+  reihenfolge: string[],
+): Promise<ProjektBild[]> {
+  const { bilder } = await api<{ bilder: ProjektBild[] }>(
+    `/api/projects/${projectId}/bild`,
+    { method: 'PATCH', body: JSON.stringify({ reihenfolge }) },
+  );
+  return bilder ?? [];
 }

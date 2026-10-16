@@ -23,8 +23,30 @@ export type Project = {
   /**
    * Bild der Liegenschaft – kurzlebige Signatur, null = keines hinterlegt.
    * Gefüllt nur in der Projektansicht, nicht in der Liste der Seitenleiste.
+   *
+   * Das ist das Titelbild, also das erste aus bilder. Es bleibt eigens
+   * stehen, weil Projektliste, Sicherung und Gesundheitsprüfung danach
+   * fragen.
    */
   bild_url?: string | null;
+  /** Alle Fotos der Liegenschaft, in ihrer Reihenfolge. */
+  bilder?: ProjektBild[];
+};
+
+/**
+ * Ein Foto einer Liegenschaft.
+ *
+ * Eine Liegenschaft hat ein Dach, eine Zufahrt, einen Zählerkasten und eine
+ * Stelle, an der der Wechselrichter hängen soll. Mit einem Bild war das nicht
+ * zu machen: Wer das zweite hochlud, löschte damit das erste.
+ */
+export type ProjektBild = {
+  id: string;
+  /** Pfad im Ablageort – nur für den Server interessant. */
+  pfad: string;
+  /** Kurzlebig signiert. null = die Signatur klappte nicht. */
+  url: string | null;
+  titel?: string | null;
 };
 
 export type ProjektStatus = 'planung' | 'umsetzung' | 'abschluss' | 'abgeschlossen';

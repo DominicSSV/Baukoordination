@@ -1,15 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFeedback } from '@/components/Feedback';
 import { api, del, patch, post } from '@/lib/client/api';
 import Spinner from '@/components/Spinner';
 import Avatar from '@/components/Avatar';
 import WhatsAppButton from '@/components/workspace/WhatsAppButton';
 import { waNummer } from '@/lib/whatsapp';
-import { removeProjektBild, uploadProjektBild } from '@/lib/client/bildUpload';
+import {
+  ordneProjektBilder,
+  removeProjektBild,
+  uploadProjektBild,
+} from '@/lib/client/bildUpload';
 import { WOCHENTAGE, istHeuteVorOrt, tageText } from '@/lib/tage';
-import type { ProjectDetail, ProjektInfo, ProjektKontakt } from '@/types';
+import type {
+  ProjectDetail,
+  ProjektBild,
+  ProjektInfo,
+  ProjektKontakt,
+} from '@/types';
 
 type Entwurf = {
   rolle: string;
@@ -184,35 +193,80 @@ export default function ProjectInfoTab({
 
   const bildWahl = useRef<HTMLInputElement>(null);
 
-  const bildUrl = detail.project.bild_url ?? null;
+  /**
+   * Die Fotos der Liegenschaft und das gerade gezeigte.
+   *
+   * Ältere Datenbanken ohne Migration 0047 liefern keine Liste; dann wird aus
+   * dem einen Bild eine mit einem Eintrag gebaut, und die Ansicht zeigt eben
+   * eines statt mehrerer.
+   */
+  const bilder: ProjektBild[] = useMemo(() => {
+    const liste = detail.project.bilder;
+    if (liste?.length) return liste;
+    const url = detail.project.bild_url;
+    return url ? [{ id: 'eines', pfad: '', url, titel: null }] : [];
+  }, [detail.project.bilder, detail.project.bild_url]);
 
-  // Mit Escape schliessen – im Vollbild ist das der schnellste Weg zurück.
+  const [bildNr, setBildNr] = useState(0);
+
+  // Wird ein Bild entfernt, zeigt der Zeiger ins Leere – dann an den Rand
+  // zurück, statt eine weisse Fläche zu zeigen.
+  const aktuell = Math.min(bildNr, Math.max(0, bilder.length - 1));
+  const bildUrl = bilder[aktuell]?.url ?? null;
+
+  const blaettern = useCallback(
+    (richtung: -1 | 1) => {
+      if (bilder.length < 2) return;
+      // Im Kreis: Vom letzten weiter kommt das erste. Auf dem Handy wischt
+      // man sich sonst in eine Sackgasse.
+      setBildNr((n) => (n + richtung + bilder.length) % bilder.length);
+    },
+    [bilder.length],
+  );
+
+  // Mit Escape schliessen, mit den Pfeiltasten blättern – im Vollbild ist das
+  // der schnellste Weg, und dort schaut man die Bilder ohnehin der Reihe nach
+  // an.
   useEffect(() => {
     if (!vollbild) return;
 
     function beiTaste(e: KeyboardEvent) {
       if (e.key === 'Escape') setVollbild(false);
+      if (e.key === 'ArrowLeft') blaettern(-1);
+      if (e.key === 'ArrowRight') blaettern(1);
     }
     document.addEventListener('keydown', beiTaste);
     return () => document.removeEventListener('keydown', beiTaste);
-  }, [vollbild]);
+  }, [vollbild, blaettern]);
 
   /**
-   * Bild der Liegenschaft setzen oder austauschen.
+   * Ein Bild der Liegenschaft hinzufügen.
    *
    * Darf jeder mit Zugriff auf das Projekt – dieselbe Regel wie bei den übrigen
    * Angaben. Wer vor Ort steht, hat das Foto ohnehin schon auf dem Handy; es
    * erst über uns laufen zu lassen hiesse, dass es nie hochgeladen wird.
    */
-  async function bildSetzen(file: File | null) {
-    if (!file || bildLaeuft) return;
+  async function bildSetzen(dateien: FileList | null) {
+    if (!dateien?.length || bildLaeuft) return;
     setBildLaeuft(true);
     try {
-      await uploadProjektBild(projectId, file);
+      // Der Reihe nach und nicht alle auf einmal: Auf der Baustelle über
+      // Mobilfunk bringt ein Schwung gleichzeitiger Uploads die Verbindung
+      // eher zum Erliegen, als dass er etwas beschleunigt.
+      for (const datei of Array.from(dateien)) {
+        await uploadProjektBild(projectId, datei);
+      }
       // Neu laden statt die Adresse im Zustand zu halten: Sie ist kurzlebig
       // signiert und gehört deshalb dorthin, wo sie herkommt.
       await reload();
-      toast('✓ Bild gespeichert.');
+      // Das zuletzt hinzugefügte zeigen – es ist das, was man gerade
+      // ansehen will.
+      setBildNr(bilder.length + dateien.length - 1);
+      toast(
+        dateien.length === 1
+          ? '✓ Bild gespeichert.'
+          : `✓ ${dateien.length} Bilder gespeichert.`,
+      );
     } catch (error) {
       reportError(error, 'Das Bild konnte nicht gespeichert werden.');
     } finally {
@@ -221,11 +275,41 @@ export default function ProjectInfoTab({
   }
 
   function bildEntfernen() {
-    confirm('Das Bild der Liegenschaft entfernen?', async () => {
-      await removeProjektBild(projectId);
+    const bild = bilder[aktuell];
+    if (!bild) return;
+
+    confirm(
+      bilder.length > 1
+        ? `Dieses Bild entfernen? Die übrigen ${bilder.length - 1} bleiben.`
+        : 'Das Bild der Liegenschaft entfernen?',
+      async () => {
+        await removeProjektBild(projectId, bild.pfad ? bild.id : undefined);
+        await reload();
+        setBildNr((n) => Math.max(0, n - 1));
+        toast('🗑️ Bild entfernt.');
+      },
+    );
+  }
+
+  /** Das gezeigte Bild nach vorn – es wird damit zum Titelbild. */
+  async function alsTitelbild() {
+    const bild = bilder[aktuell];
+    if (!bild || !bild.pfad || aktuell === 0) return;
+
+    setBildLaeuft(true);
+    try {
+      await ordneProjektBilder(projectId, [
+        bild.id,
+        ...bilder.filter((b) => b.id !== bild.id).map((b) => b.id),
+      ]);
       await reload();
-      toast('🗑️ Bild entfernt.');
-    });
+      setBildNr(0);
+      toast('✓ Ist jetzt das Titelbild.');
+    } catch (error) {
+      reportError(error, 'Die Reihenfolge konnte nicht geändert werden.');
+    } finally {
+      setBildLaeuft(false);
+    }
   }
 
   const laden = useCallback(async () => {
@@ -501,19 +585,66 @@ export default function ProjectInfoTab({
               {/* Anklickbar, weil auf einem Luftbild die Einzelheiten zählen –
                   wo der Kran hinkommt, wie die Module liegen. In der Kachel
                   erkennt man das nicht, im Vollbild schon. */}
-              <button
-                type="button"
-                className="liegenschaft-link"
-                onClick={() => setVollbild(true)}
-                title="Gross ansehen"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className="liegenschaft-bild"
-                  src={bildUrl}
-                  alt={detail.project.name}
-                />
-              </button>
+              <div className="liegenschaft-rahmen">
+                <button
+                  type="button"
+                  className="liegenschaft-link"
+                  onClick={() => setVollbild(true)}
+                  title="Gross ansehen"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className="liegenschaft-bild"
+                    src={bildUrl}
+                    alt={`${detail.project.name} – Bild ${aktuell + 1} von ${bilder.length}`}
+                  />
+                </button>
+
+                {/* Die Pfeile und der Zähler erscheinen nur, wenn es etwas zu
+                    blättern gibt. Bei einem einzigen Bild wären sie eine
+                    Verheissung, die ins Leere führt. */}
+                {bilder.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      className="liegenschaft-pfeil links"
+                      onClick={() => blaettern(-1)}
+                      aria-label="Vorheriges Bild"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className="liegenschaft-pfeil rechts"
+                      onClick={() => blaettern(1)}
+                      aria-label="Nächstes Bild"
+                    >
+                      ›
+                    </button>
+                    <span className="liegenschaft-zaehler">
+                      {aktuell + 1} / {bilder.length}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Punkte unter dem Bild: Sie beantworten auf einen Blick, wie
+                  viele es sind und wo man steht – und springen direkt hin. */}
+              {bilder.length > 1 && (
+                <div className="liegenschaft-punkte">
+                  {bilder.map((b, i) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      className={`liegenschaft-punkt ${i === aktuell ? 'an' : ''}`}
+                      onClick={() => setBildNr(i)}
+                      aria-label={`Bild ${i + 1}`}
+                      aria-current={i === aktuell}
+                    />
+                  ))}
+                </div>
+              )}
+
               <div className="liegenschaft-knoepfe">
                 <button
                   type="button"
@@ -521,8 +652,19 @@ export default function ProjectInfoTab({
                   onClick={() => bildWahl.current?.click()}
                   disabled={bildLaeuft}
                 >
-                  {bildLaeuft ? 'Wird geladen…' : '📷 Bild austauschen'}
+                  {bildLaeuft ? 'Wird geladen…' : '📷 Bild hinzufügen'}
                 </button>
+                {bilder.length > 1 && aktuell > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => void alsTitelbild()}
+                    disabled={bildLaeuft}
+                    title="Dieses Bild zuerst zeigen"
+                  >
+                    ⭐ Als Titelbild
+                  </button>
+                )}
                 {isAdmin && (
                   <button
                     type="button"
@@ -530,7 +672,7 @@ export default function ProjectInfoTab({
                     onClick={bildEntfernen}
                     disabled={bildLaeuft}
                   >
-                    🗑️ Entfernen
+                    🗑️ {bilder.length > 1 ? 'Dieses entfernen' : 'Entfernen'}
                   </button>
                 )}
               </div>
@@ -562,9 +704,10 @@ export default function ProjectInfoTab({
             ref={bildWahl}
             type="file"
             accept="image/*"
+            multiple
             style={{ display: 'none' }}
             onChange={(e) => {
-              void bildSetzen(e.target.files?.[0] ?? null);
+              void bildSetzen(e.target.files);
               e.target.value = '';
             }}
           />
@@ -1116,7 +1259,14 @@ export default function ProjectInfoTab({
         >
           <div className="viewer">
             <div className="viewer-kopf">
-              <h3>{detail.project.name}</h3>
+              <h3>
+                {detail.project.name}
+                {bilder.length > 1 && (
+                  <span className="viewer-zaehler">
+                    Bild {aktuell + 1} von {bilder.length}
+                  </span>
+                )}
+              </h3>
               <div className="viewer-aktionen">
                 <a
                   className="btn btn-ghost btn-sm"
@@ -1141,6 +1291,30 @@ export default function ProjectInfoTab({
             <div className="viewer-inhalt bild">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="viewer-img" src={bildUrl} alt={detail.project.name} />
+
+              {/* Auch hier blättern – gerade hier: Im Vollbild sieht man die
+                  Einzelheiten, und genau dann will man das nächste Foto
+                  derselben Sache sehen. Mit den Pfeiltasten geht es ebenso. */}
+              {bilder.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="liegenschaft-pfeil links gross"
+                    onClick={() => blaettern(-1)}
+                    aria-label="Vorheriges Bild"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    className="liegenschaft-pfeil rechts gross"
+                    onClick={() => blaettern(1)}
+                    aria-label="Nächstes Bild"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

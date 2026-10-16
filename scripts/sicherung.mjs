@@ -40,7 +40,8 @@ const TABELLEN = [
   'app_settings', 'comment_kudos', 'document_folders', 'file_comments',
   'files', 'mail_queue', 'mail_templates', 'milestone_template_items',
   'milestone_templates', 'notify_pause', 'project_access', 'project_admins',
-  'project_contacts', 'project_infos', 'projects', 'schedule_notes',
+  'project_bilder', 'project_contacts', 'project_infos', 'projects',
+  'schedule_notes',
   'schedule_tasks', 'supplier_sessions', 'suppliers', 'todo_comments', 'todos',
 ];
 
@@ -515,13 +516,37 @@ async function main() {
       });
     }
 
+    /**
+     * Die Fotos der Liegenschaft – alle, nicht nur das Titelbild.
+     *
+     * Seit Migration 0047 hat ein Projekt beliebig viele. Sie stehen in
+     * project_bilder; projects.bild_path zeigt zusätzlich auf das erste. Hier
+     * wird zuerst die Liste genommen und nur ersatzweise die Spalte – sonst
+     * läge in der Sicherung ein Bild von fünfen.
+     */
+    const bilderJeProjekt = new Map();
+    for (const b of daten.project_bilder ?? []) {
+      if (!bilderJeProjekt.has(b.project_id)) bilderJeProjekt.set(b.project_id, []);
+      bilderJeProjekt.get(b.project_id).push(b);
+    }
+
     for (const p of projekte) {
-      if (p.bild_path) {
-        bildNamen.set(p.bild_path, {
+      const eigene = (bilderJeProjekt.get(p.id) ?? []).sort(
+        (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0),
+      );
+
+      const pfade = eigene.length
+        ? eigene.map((b) => b.pfad)
+        : (p.bild_path ? [p.bild_path] : []);
+
+      pfade.forEach((pfad, i) => {
+        bildNamen.set(pfad, {
           ordner: join(ordner, sauber(p.name, 'Projekt ohne Namen')),
-          name: 'Liegenschaftsbild',
+          // Das erste ohne Nummer: Bei einem einzigen Bild sähe
+          // "Liegenschaftsbild 1" nach einem fehlenden zweiten aus.
+          name: i === 0 ? 'Liegenschaftsbild' : `Liegenschaftsbild ${i + 1}`,
         });
-      }
+      });
     }
 
     const vergebeneBilder = new Set();
