@@ -2466,6 +2466,71 @@ button:disabled {
   outline-offset: 1px;
 }
 
+/* --- Termine mit der Maus verschieben -------------------------------------- */
+/* Bisher führte jede Terminänderung über das Formular: Zeile aufklappen, zwei
+   Datumsfelder tippen, speichern. Auf einem Balkenplan ist das der Umweg –
+   man sieht ja, wohin die Arbeit soll. Nur wir dürfen ziehen; ein Lieferant
+   schlägt weiterhin vor. */
+.plan-balken.ziehbar {
+  cursor: grab;
+  touch-action: none;
+}
+
+.plan-balken.ziehbar:active,
+.plan-balken.zieht {
+  cursor: grabbing;
+}
+
+/* Beim Ziehen hebt sich der Balken ab und liegt über den anderen – sonst
+   verschwindet er unter dem Nachbarn, sobald er ihn überholt. */
+.plan-balken.zieht {
+  z-index: 5;
+  opacity: 0.9;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* Die Griffe an den beiden Rändern. Schmal, damit in der Mitte genug zum
+   Verschieben bleibt, aber mit eigenem Mauszeiger – daran erkennt man, dass
+   hier etwas anderes geschieht. */
+.plan-griff {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.plan-griff.links {
+  left: 0;
+  border-radius: 5px 0 0 5px;
+}
+
+.plan-griff.rechts {
+  right: 0;
+  border-radius: 0 5px 5px 0;
+}
+
+/* Erst beim Darüberfahren sichtbar: Ein Balken mit zwei hellen Enden sähe
+   aus, als fehlte ihm etwas. */
+.plan-balken.ziehbar:hover .plan-griff {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* Die neuen Termine stehen während des Ziehens neben dem Namen. Man
+   verschiebt auf ein Datum hin, nicht um eine Anzahl Pixel. */
+.plan-balken-neu {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
 .balken-notiz {
   margin-left: 6px;
   background: rgba(255, 255, 255, 0.35);

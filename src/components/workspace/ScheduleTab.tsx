@@ -107,6 +107,38 @@ export default function ScheduleTab({
   const [vorlage, setVorlage] = useState<Vorlage>(leerVorlage);
   const labelRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * Einen Balken mit der Maus verschieben oder verlängern.
+   *
+   * Bisher führte jede Terminänderung über das Formular: Zeile aufklappen,
+   * zwei Datumsfelder tippen, speichern. Auf einem Balkenplan ist das der
+   * Umweg – man sieht ja, wohin die Arbeit soll, und zeigt mit dem Finger
+   * darauf.
+   *
+   * Nur wir dürfen das. Ein Lieferant schlägt weiterhin vor: Er weiss, wann
+   * sein Gerüst steht, aber nicht, was davor und danach hängt. Eine Baustelle
+   * mit zwölf Firmen, die alle am Plan ziehen, ist kein Plan mehr.
+   *
+   * Die Daten des laufenden Ziehens stehen in einer Referenz und nicht im
+   * Zustand: Sie ändern sich bei jeder Mausbewegung, und ein Neuzeichnen je
+   * Pixel braucht niemand. Gezeichnet wird aus "vorschau" – darin steht nur,
+   * um wie viele ganze Tage es gerade verschoben ist.
+   */
+  const ziehRef = useRef<{
+    task: ScheduleTask;
+    modus: 'verschieben' | 'start' | 'ende';
+    startX: number;
+    minVersatz: number;
+    maxVersatz: number;
+    bewegt: boolean;
+  } | null>(null);
+
+  const [vorschau, setVorschau] = useState<{
+    taskId: string;
+    modus: 'verschieben' | 'start' | 'ende';
+    versatz: number;
+  } | null>(null);
+
   // Zeilen umsortieren: gezogene Zeile, Zeile darunter/darüber als Ziel und die
   // schon angezeigte neue Abfolge, damit es beim Ablegen nicht kurz zurückspringt.
   const [zeileGezogen, setZeileGezogen] = useState<string | null>(null);
@@ -398,6 +430,136 @@ export default function ScheduleTab({
     setAuswahl((a) => (a && a.zeile === zeile ? { ...a, bisIdx: idx } : a));
   }
 
+  /**
+   * Ziehen beginnen – am Balken selbst oder an einem seiner beiden Ränder.
+   *
+   * Die Grenzen werden hier einmal ausgerechnet und nicht bei jeder Bewegung:
+   * Ein Balken darf nicht aus dem dargestellten Zeitraum hinauswandern (sonst
+   * wäre er im nächsten Moment unsichtbar) und nicht kürzer werden als ein
+   * Tag.
+   */
+  function starteZiehen(
+    e: React.PointerEvent,
+    task: ScheduleTask,
+    modus: 'verschieben' | 'start' | 'ende',
+  ) {
+    if (!isAdmin) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const vonIdx = tageZwischen(von, task.start_date) - 1;
+    const bisIdx = tageZwischen(von, task.end_date) - 1;
+    const letzter = tage - 1;
+
+    let minVersatz: number;
+    let maxVersatz: number;
+
+    if (modus === 'verschieben') {
+      minVersatz = -vonIdx;
+      maxVersatz = letzter - bisIdx;
+    } else if (modus === 'start') {
+      // Nach rechts höchstens bis an den eigenen Schluss – ein Balken, dessen
+      // Beginn hinter dem Ende läge, ist keine Arbeit mehr.
+      minVersatz = -vonIdx;
+      maxVersatz = bisIdx - vonIdx;
+    } else {
+      minVersatz = vonIdx - bisIdx;
+      maxVersatz = letzter - bisIdx;
+    }
+
+    ziehRef.current = {
+      task,
+      modus,
+      startX: e.clientX,
+      minVersatz,
+      maxVersatz,
+      bewegt: false,
+    };
+    setVorschau({ taskId: task.id, modus, versatz: 0 });
+  }
+
+  /**
+   * Was während des Ziehens geschieht, und was beim Loslassen gespeichert wird.
+   *
+   * Die Zuhörer hängen am Fenster und nicht am Balken: Wer schnell zieht, ist
+   * mit der Maus längst neben dem Balken, bevor der nächste Pixel gezeichnet
+   * ist. Am Balken selbst bliebe das Ziehen hängen, sobald der Zeiger ihn
+   * verlässt.
+   */
+  const ziehtBalken = Boolean(vorschau);
+
+  useEffect(() => {
+    if (!ziehtBalken) return;
+
+    function bewegen(e: PointerEvent) {
+      const z = ziehRef.current;
+      if (!z) return;
+
+      const dx = e.clientX - z.startX;
+      if (Math.abs(dx) > 3) z.bewegt = true;
+
+      // Auf ganze Tage gerundet: Ein Balken steht immer auf einer Tagesgrenze,
+      // und ein halber Tag wäre im Plan nicht darstellbar.
+      const roh = Math.round(dx / TAG_BREITE);
+      const versatz = Math.max(z.minVersatz, Math.min(z.maxVersatz, roh));
+
+      setVorschau((v) => (v && v.versatz !== versatz ? { ...v, versatz } : v));
+    }
+
+    function loslassen() {
+      const z = ziehRef.current;
+      ziehRef.current = null;
+
+      setVorschau((v) => {
+        if (!z || !v) return null;
+
+        // Nur ein Klick, kein Ziehen: Dann öffnet sich wie bisher die
+        // Anmerkung zu dieser Arbeit.
+        if (!z.bewegt || v.versatz === 0) {
+          if (!z.bewegt) {
+            setNotizTaskId((a) => (a === z.task.id ? null : z.task.id));
+          }
+          return null;
+        }
+
+        const neu =
+          v.modus === 'verschieben'
+            ? {
+                startDate: tagPlus(z.task.start_date, v.versatz),
+                endDate: tagPlus(z.task.end_date, v.versatz),
+              }
+            : v.modus === 'start'
+              ? { startDate: tagPlus(z.task.start_date, v.versatz) }
+              : { endDate: tagPlus(z.task.end_date, v.versatz) };
+
+        void run(async () => {
+          await patch(`/api/schedule/${z.task.id}`, neu);
+          await reload();
+          toast(
+            v.modus === 'verschieben'
+              ? `✓ "${z.task.label}" verschoben.`
+              : `✓ "${z.task.label}" angepasst.`,
+          );
+        }, 'Der Termin konnte nicht geändert werden.');
+
+        return null;
+      });
+    }
+
+    window.addEventListener('pointermove', bewegen);
+    window.addEventListener('pointerup', loslassen);
+    window.addEventListener('pointercancel', loslassen);
+
+    return () => {
+      window.removeEventListener('pointermove', bewegen);
+      window.removeEventListener('pointerup', loslassen);
+      window.removeEventListener('pointercancel', loslassen);
+    };
+    // Bewusst nur am Beginn und Ende des Ziehens: Die Zuhörer sollen nicht bei
+    // jeder Mausbewegung neu angemeldet werden.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ziehtBalken]);
+
   /** Monatsbeschriftungen über dem Tagesraster. */
   const monate = useMemo(() => {
     const gruppen: Array<{ name: string; anzahl: number }> = [];
@@ -627,7 +789,9 @@ export default function ScheduleTab({
         </label>
         {isAdmin && (
           <span className="plan-hinweis">
-            Im Raster über die Tage ziehen, um eine Arbeit anzulegen.
+            Im Raster über die Tage ziehen, um eine Arbeit anzulegen. Einen
+            Balken ziehen verschiebt den Termin, an den Rändern ziehen macht ihn
+            länger oder kürzer.
           </span>
         )}
       </div>
@@ -803,24 +967,77 @@ export default function ScheduleTab({
                       const oben = spurNr * SPUR_HOEHE + 6;
                       const offen = task.notes.some((n) => n.status === 'offen');
 
+                      /**
+                       * Der Balken folgt beim Ziehen sofort der Maus – noch
+                       * bevor gespeichert ist. Ohne diese Vorschau zöge man
+                       * ins Leere und sähe das Ergebnis erst nach dem
+                       * Loslassen.
+                       */
+                      const zieh = vorschau?.taskId === task.id ? vorschau : null;
+                      const schub = (zieh?.versatz ?? 0) * TAG_BREITE;
+
+                      const zLinks =
+                        zieh && zieh.modus !== 'ende' ? links + schub : links;
+                      const zBreite =
+                        zieh?.modus === 'start'
+                          ? breite - schub
+                          : zieh?.modus === 'ende'
+                            ? breite + schub
+                            : breite;
+
                       return (
                         <Fragment key={task.id}>
                           <div
                             className={`plan-balken ${
                               notizTaskId === task.id ? 'aktiv' : ''
-                            }`}
+                            } ${isAdmin ? 'ziehbar' : ''} ${zieh ? 'zieht' : ''}`}
                             style={{
-                              left: links,
-                              width: breite,
+                              left: zLinks,
+                              width: zBreite,
                               top: oben,
                               background: task.color,
                               color: schriftfarbeAuf(task.color),
                             }}
-                            title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
-                            onClick={() =>
-                              setNotizTaskId((a) => (a === task.id ? null : task.id))
+                            title={
+                              isAdmin
+                                ? `${task.label} · ${task.start_date} bis ${task.end_date}`
+                                  + ' – ziehen zum Verschieben, an den Rändern zum Verlängern'
+                                : `${task.label} · ${task.start_date} bis ${task.end_date}`
                             }
-                          />
+                            onPointerDown={(e) => {
+                              if (!isAdmin) return;
+                              starteZiehen(e, task, 'verschieben');
+                            }}
+                            onClick={() => {
+                              // Für uns erledigt das Loslassen das Öffnen –
+                              // sonst würde die Anmerkung nach jedem Ziehen
+                              // zweimal umgeschaltet. Ein Lieferant klickt
+                              // weiterhin ganz gewöhnlich; auf dem Handy darf
+                              // ein Wisch zum Scrollen nicht schon beim
+                              // Aufsetzen etwas aufklappen.
+                              if (!isAdmin) {
+                                setNotizTaskId((a) => (a === task.id ? null : task.id));
+                              }
+                            }}
+                          >
+                            {/* Die Griffe an den Rändern. Schmal, aber mit
+                                eigenem Mauszeiger – daran erkennt man, dass
+                                hier etwas anderes passiert als in der Mitte. */}
+                            {isAdmin && (
+                              <>
+                                <span
+                                  className="plan-griff links"
+                                  onPointerDown={(e) => starteZiehen(e, task, 'start')}
+                                  title="Beginn verschieben"
+                                />
+                                <span
+                                  className="plan-griff rechts"
+                                  onPointerDown={(e) => starteZiehen(e, task, 'ende')}
+                                  title="Ende verschieben"
+                                />
+                              </>
+                            )}
+                          </div>
 
                           {/* Der Name steht immer rechts neben dem Balken –
                               gleich für alle Arbeiten, nie abgeschnitten. */}
@@ -828,7 +1045,10 @@ export default function ScheduleTab({
                             className={`plan-balken-text ${
                               notizTaskId === task.id ? 'aktiv' : ''
                             }`}
-                            style={{ left: links + breite + TEXT_ABSTAND, top: oben }}
+                            style={{
+                              left: zLinks + zBreite + TEXT_ABSTAND,
+                              top: oben,
+                            }}
                             title={`${task.label} · ${task.start_date} bis ${task.end_date}`}
                             onClick={() =>
                               setNotizTaskId((a) => (a === task.id ? null : task.id))
@@ -839,6 +1059,20 @@ export default function ScheduleTab({
                               style={{ background: task.color }}
                             />
                             {task.label}
+                            {/* Beim Ziehen die neuen Termine statt der alten:
+                                Man verschiebt auf ein Datum hin, nicht um eine
+                                Anzahl Pixel. */}
+                            {zieh && zieh.versatz !== 0 && (
+                              <span className="plan-balken-neu">
+                                {zieh.modus !== 'ende'
+                                  ? fmtDate(tagPlus(task.start_date, zieh.versatz))
+                                  : fmtDate(task.start_date)}
+                                {' – '}
+                                {zieh.modus !== 'start'
+                                  ? fmtDate(tagPlus(task.end_date, zieh.versatz))
+                                  : fmtDate(task.end_date)}
+                              </span>
+                            )}
                             {task.notes.length > 0 && (
                               <span className={`balken-notiz ${offen ? 'offen' : ''}`}>
                                 💬{task.notes.length}
