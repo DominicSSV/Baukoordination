@@ -24,6 +24,7 @@ import StorageBadge from '@/components/workspace/StorageBadge';
 import ContactsModal from '@/components/workspace/ContactsModal';
 import MailTemplatesModal from '@/components/workspace/MailTemplatesModal';
 import ProjectInfoTab from '@/components/workspace/ProjectInfoTab';
+import TimeTab from '@/components/workspace/TimeTab';
 import MilestonesModal from '@/components/workspace/MilestonesModal';
 import SearchModal from '@/components/workspace/SearchModal';
 import Avatar from '@/components/Avatar';
@@ -40,6 +41,7 @@ export type TabKey =
   | 'offerten'
   | 'dokumente'
   | 'dateien'
+  | 'zeiterfassung'
   | 'aktivitaet';
 
 const REGISTER: TabKey[] = [
@@ -50,6 +52,7 @@ const REGISTER: TabKey[] = [
   'offerten',
   'dokumente',
   'dateien',
+  'zeiterfassung',
   'aktivitaet',
 ];
 
@@ -333,6 +336,22 @@ function WorkspaceInner({
   const offerten = detail?.files.filter((f) => f.offer_folder).length ?? 0;
   const dokumente = detail?.files.filter((f) => f.document_folder).length ?? 0;
 
+  /**
+   * Das Register "Zeiterfassung" erscheint nicht für alle.
+   *
+   * Wir sehen es immer – wir müssen ja freigeben können. Ein Lieferant nur,
+   * wenn er für dieses Projekt freigeschaltet ist. Ein Register, das beim
+   * Anklicken "nicht freigegeben" sagt, ist schlechter als keines: Es
+   * verrät, dass es andere gibt, die im Stundenlohn arbeiten.
+   *
+   * Ohne Migration 0048 ist die Liste leer – dann sehen nur wir das Register,
+   * und dort steht, was fehlt.
+   */
+  const zeitSichtbar =
+    isAdmin ||
+    (session.kind === 'supplier' &&
+      (detail?.zeiterfassung ?? []).includes(session.supplierId));
+
   return (
     <div className="app-shell">
       {isAdmin && !session.rlsEnforced && (
@@ -602,6 +621,19 @@ function WorkspaceInner({
                 >
                   Dateien <span className="tab-count">{detail.files.length}</span>
                 </button>
+                {/* Zeiterfassung sieht nur, wer sie auch benutzen darf.
+                    Wer pauschal offeriert hat, geht sie nichts an - und ein
+                    Register, das beim Anklicken "nicht freigegeben" sagt, ist
+                    schlechter als keines. */}
+                {zeitSichtbar && (
+                  <button
+                    type="button"
+                    className={`tab-btn ${tab === 'zeiterfassung' ? 'active' : ''}`}
+                    onClick={() => setTab('zeiterfassung')}
+                  >
+                    Zeiterfassung
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`tab-btn ${tab === 'aktivitaet' ? 'active' : ''}`}
@@ -665,6 +697,14 @@ function WorkspaceInner({
               )}
               {tab === 'kontakte' && (
                 <ProjectInfoTab detail={detail} isAdmin={isAdmin} reload={reload} />
+              )}
+              {tab === 'zeiterfassung' && zeitSichtbar && (
+                <TimeTab
+                  detail={detail}
+                  session={session}
+                  isAdmin={isAdmin}
+                  reload={reload}
+                />
               )}
               {tab === 'aktivitaet' && (
                 <ActivityTab

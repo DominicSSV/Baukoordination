@@ -427,4 +427,31 @@ export type ProjectDetail = {
   admins: AdminProfile[];
   /** Balkenplan des Projekts. */
   schedule: ScheduleTask[];
+  /**
+   * Wer in diesem Projekt Zeit erfassen darf.
+   *
+   * Leer, solange Migration 0048 fehlt. Für einen Lieferanten steht hier
+   * höchstens die eigene Kennung – wer sonst noch im Stundenlohn arbeitet,
+   * geht ihn nichts an.
+   */
+  zeiterfassung: string[];
+};
+
+/**
+ * Eine erfasste Arbeitszeit.
+ *
+ * Der Satz steht in jeder Zeile und nicht nur beim Lieferanten: Wer im März
+ * zu 95 Franken gearbeitet hat und im Juli auf 105 erhöht, hat im März
+ * trotzdem zu 95 gearbeitet.
+ */
+export type ZeitEintrag = {
+  id: string;
+  project_id: string;
+  supplier_id: string;
+  datum: string;
+  stunden: number;
+  beschreibung: string | null;
+  satz: number | null;
+  erfasst_von: string | null;
+  created_at: string;
 };

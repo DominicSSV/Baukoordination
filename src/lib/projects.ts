@@ -440,6 +440,32 @@ export async function loadProjectDetail(
   );
 
   /**
+   * Wer in diesem Projekt Zeit erfassen darf.
+   *
+   * Entscheidet darüber, ob das Register "Zeiterfassung" überhaupt erscheint.
+   * Ein Lieferant bekommt höchstens die eigene Kennung zu sehen – wer sonst
+   * noch im Stundenlohn arbeitet, geht ihn nichts an. Ohne Migration 0048
+   * gibt es die Spalte nicht; dann bleibt die Liste leer und das Register
+   * verborgen.
+   */
+  const zeitRes = await serviceClient()
+    .from('project_access')
+    .select('supplier_id, zeiterfassung')
+    .eq('project_id', projectId);
+
+  const zeiterfassung = (
+    (zeitRes.error ? [] : (zeitRes.data ?? [])) as Array<{
+      supplier_id: string;
+      zeiterfassung: boolean | null;
+    }>
+  )
+    .filter((z) => z.zeiterfassung)
+    .map((z) => z.supplier_id)
+    .filter(
+      (id) => isAdmin || (ctx.session.kind === 'supplier' && id === ctx.session.supplierId),
+    );
+
+  /**
    * Wer von uns dieses Projekt betreut.
    *
    * Gelesen mit dem Dienstschlüssel, weil auch ein Lieferant die Liste sehen
@@ -624,6 +650,7 @@ export async function loadProjectDetail(
     documentFolders,
     activity: (activityRes.data ?? []) as ActivityEntry[],
     accessIds,
+    zeiterfassung,
     adminIds,
     suppliers,
     otherSuppliers,
