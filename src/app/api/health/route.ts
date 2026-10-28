@@ -425,6 +425,66 @@ export async function GET() {
           : undefined,
       };
 
+      /**
+       * Zeiterfassung und der neue Firmenname.
+       *
+       * Beide standen bisher nicht im Bericht – und was hier nicht steht,
+       * lässt sich nicht bestätigen. Genau das ist der Zweck dieser Seite.
+       */
+      const [zeiten, freigaben, alterName] = await Promise.all([
+        db.from('time_entries').select('id, stunden').limit(1000),
+        db.from('project_access').select('supplier_id, zeiterfassung').limit(500),
+        db.from('admins').select('user_id').like('firma', '%Swiss Solar%').limit(20),
+      ]);
+
+      const stundenGesamt = zeiten.error
+        ? 0
+        : ((zeiten.data ?? []) as unknown as Array<{ stunden: number | null }>).reduce(
+            (summe, z) => summe + Number(z.stunden ?? 0),
+            0,
+          );
+
+      const darfErfassen = freigaben.error
+        ? 0
+        : (
+            (freigaben.data ?? []) as unknown as Array<{ zeiterfassung: boolean | null }>
+          ).filter((z) => z.zeiterfassung).length;
+
+      report.migration_0048 = {
+        zeiterfassung: !zeiten.error && !freigaben.error,
+        freigegebene_firmen: freigaben.error ? undefined : darfErfassen,
+        erfasste_stunden: zeiten.error ? undefined : Math.round(stundenGesamt * 100) / 100,
+        hinweis: zeiten.error || freigaben.error
+          ? 'Migration 0048 fehlt. Das Register "Zeiterfassung" ist da, lässt '
+            + 'sich aber weder freigeben noch benutzen.'
+          : darfErfassen === 0
+            ? 'Noch keine Firma freigegeben – darum sieht ausser uns niemand '
+              + 'das Register. Freigabe im Projekt unten im Register '
+              + '"Zeiterfassung".'
+            : undefined,
+      };
+
+      /**
+       * Steht in den Profilen noch der alte Firmenname?
+       *
+       * Im Programmcode ist er geändert, in der Datenbank erst nach Migration
+       * 0049. Beides muss stimmen: Der Name aus der Datenbank steht in den
+       * Kontakten und unter jeder Zuweisung.
+       */
+      report.migration_0049 = {
+        firmenname_aktualisiert: !alterName.error && (alterName.data ?? []).length === 0,
+        profile_mit_altem_namen: alterName.error
+          ? undefined
+          : (alterName.data ?? []).length,
+        hinweis: alterName.error
+          ? undefined
+          : (alterName.data ?? []).length
+            ? 'Migration 0049 fehlt noch. In den Profilen steht weiterhin '
+              + '"Swiss Solar Ventures AG" – sichtbar in den Kontakten und '
+              + 'unter jeder Zuweisung.'
+            : undefined,
+      };
+
       report.migration_0047 = {
         mehrere_bilder: !mehrBilder.error,
         bilder_gesamt: mehrBilder.error ? undefined : (mehrBilder.data ?? []).length,
