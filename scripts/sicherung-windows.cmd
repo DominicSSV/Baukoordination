@@ -23,12 +23,16 @@ rem  Anpassen, falls der Ordner umzieht. Anfuehrungszeichen gehoeren NICHT in
 rem  die Zeile – der Pfad enthaelt Leerzeichen, darum steht er unten in
 rem  Anfuehrungszeichen, wenn er benutzt wird.
 rem
-rem  Zwei Pfade, weil die Firma umbenannt wurde: Ob der Ordner in SharePoint
-rem  mitumbenannt wird, entscheidet jemand anderes und womoeglich erst spaeter.
-rem  Das Skript nimmt den neuen, wenn es ihn gibt, und sonst den alten – statt
-rem  an einem Namen zu scheitern, der mit der Sicherung nichts zu tun hat.
-set "ZIEL=C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Sustainable Ventures AG\7. Baukoordination\2. Backup"
-set "ZIEL_ALT=C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Solar Ventures AG\7. Baukoordination\2. Backup"
+rem  Der Ordner traegt weiterhin den alten Firmennamen, und das bleibt so: Die
+rem  Umbenennung der Firma hat mit der Ablage in SharePoint nichts zu tun, und
+rem  einen Ordner umzubenennen, in dem Monate an Sicherungen liegen, waere
+rem  Arbeit ohne Gewinn.
+rem
+rem  ZIEL_NEU steht nur fuer den Fall bereit, dass ihn doch einmal jemand
+rem  umbenennt. Dann findet das Skript ihn von selbst, statt an einem Namen zu
+rem  scheitern, der mit der Sicherung nichts zu tun hat.
+set "ZIEL=C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Solar Ventures AG\7. Baukoordination\2. Backup"
+set "ZIEL_NEU=C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Sustainable Ventures AG\7. Baukoordination\2. Backup"
 
 set "LOG=%~dp0sicherung.log"
 set "AUSGABE=%TEMP%\baukoordination-lauf.txt"
@@ -79,15 +83,14 @@ rem  Das Skript wuerde ihn selbst anlegen. Genau das ist hier aber gefaehrlich:
 rem  Ist der OneDrive-Pfad falsch geschrieben, entstuende stillschweigend ein
 rem  zweiter Ordner irgendwo, und die Sicherung laege monatelang am falschen
 rem  Ort, ohne je in die Cloud zu kommen.
-if not exist "%ZIEL%" goto altenpfad
+if not exist "%ZIEL%" goto andererpfad
 goto sichern
 
-:altenpfad
-rem  Den Ordner unter dem alten Firmennamen nehmen, solange es ihn noch gibt.
-if not exist "%ZIEL_ALT%" goto keinziel
-set "ZIEL=%ZIEL_ALT%"
-call :sag "Hinweis: Der Ordner heisst noch auf den alten Firmennamen."
-call :sag "         Wird er umbenannt, findet das Skript den neuen von selbst."
+:andererpfad
+rem  Nur falls der Ordner doch einmal auf den neuen Firmennamen umbenannt wird.
+if not exist "%ZIEL_NEU%" goto keinziel
+set "ZIEL=%ZIEL_NEU%"
+call :sag "Hinweis: Der Ordner traegt neu den neuen Firmennamen."
 
 :sichern
 rem --- Sichern ---------------------------------------------------------------
