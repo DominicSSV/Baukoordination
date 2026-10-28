@@ -26,7 +26,7 @@
 -- anmeldet – auch mit einer Weiterleitung auf dieselbe Person –, ist für die
 -- App jemand anderes.
 insert into public.admin_seed (email, name, firma, funktion) values
-  ('c.fuchs@swiss-sv.ch', 'Chantal Fuchs', 'Swiss Solar Ventures AG', 'Projekt Trainee')
+  ('c.fuchs@swiss-sv.ch', 'Chantal Fuchs', 'Swiss Sustainable Ventures AG', 'Projekt Trainee')
 on conflict (email) do update
   set name = excluded.name,
       firma = excluded.firma,

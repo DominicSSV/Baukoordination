@@ -42,7 +42,7 @@ begin
 
   if hat_profilspalten then
     update public.admins a
-    set firma = 'Swiss Solar Ventures AG',
+    set firma = 'Swiss Sustainable Ventures AG',
         name = case lower(a.email)
                  when 'dominic.maag@swiss-sv.ch' then 'Dominic Maag'
                  when 'm.maerki@swiss-sv.ch'     then 'Maurice Märki'

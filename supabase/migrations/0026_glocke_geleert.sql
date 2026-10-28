@@ -36,7 +36,7 @@ comment on column public.suppliers.glocke_geleert_bis is
 -- Einmalig: die Glocke aller anderen leeren, die eigene stehen lassen.
 --
 -- Trage unten deine eigene Adresse ein. Alle Lieferanten und alle übrigen
--- Personen der Swiss Solar Ventures AG starten damit bei null; du behältst
+-- Personen der Swiss Sustainable Ventures AG starten damit bei null; du behältst
 -- deinen Verlauf.
 --
 -- Dasselbe geht danach jederzeit in der App: Glocke öffnen, "Alle anzeigen",

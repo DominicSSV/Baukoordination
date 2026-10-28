@@ -21,8 +21,8 @@ type Zeile = {
  * Firmen bei uns hinterlegt sind – auch ohne je hineinzukommen.
  */
 const ABGELEHNT =
-  'E-Mail oder Passwort stimmt nicht. Die Passwörter vergibt die Swiss Solar ' +
-  'Ventures AG – melde dich bei uns, wenn du keines hast.';
+  'E-Mail oder Passwort stimmt nicht. Die Passwörter vergibt die Swiss ' +
+  'Sustainable Ventures AG – melde dich bei uns, wenn du keines hast.';
 
 /**
  * Der einzige Weg hinein: Mailadresse und das von uns vergebene Passwort.
@@ -43,7 +43,7 @@ async function anmelden(email: string, passwort: string): Promise<Zeile> {
   if (error) {
     throw new ApiError(
       'Die Anmeldung ist noch nicht eingerichtet (Datenbank-Aktualisierung 0028 ' +
-        'fehlt). Bitte melde dich bei der Swiss Solar Ventures AG.',
+        'fehlt). Bitte melde dich bei der Swiss Sustainable Ventures AG.',
       500,
     );
   }
@@ -55,7 +55,7 @@ async function anmelden(email: string, passwort: string): Promise<Zeile> {
   if (treffer.length > 1) {
     throw new ApiError(
       'Diese Adresse ist mehrfach hinterlegt. Bitte melde dich bei der Swiss ' +
-        'Solar Ventures AG – wir bereinigen das.',
+        'Sustainable Ventures AG – wir bereinigen das.',
       409,
     );
   }

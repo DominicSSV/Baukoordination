@@ -67,7 +67,7 @@ export default function ActivityTab({
     setGewaehlt(alleGewaehlt ? new Set() : new Set(eintraege.map((a) => a.id)));
   }
 
-  /** Nur die Swiss Solar Ventures AG darf Einträge aus dem Protokoll entfernen. */
+  /** Nur die Swiss Sustainable Ventures AG darf Einträge aus dem Protokoll entfernen. */
   function removeEntry(id: string) {
     confirm('Diesen Eintrag aus der Aktivität löschen?', async () => {
       await del(`/api/activity/${id}`);

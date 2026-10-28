@@ -13,7 +13,7 @@ import type { AdminProfile, Supplier } from '@/types';
  *
  * Ein einfaches Mehrfach-Auswahlfeld des Browsers wäre auf dem Handy kaum
  * bedienbar, deshalb eine Liste zum Ankreuzen. Ohne Auswahl bleibt die Aufgabe
- * bei der Swiss Solar Ventures AG – eine Aufgabe ohne Zuständigen sieht niemand.
+ * bei der Swiss Sustainable Ventures AG – eine Aufgabe ohne Zuständigen sieht niemand.
  */
 export default function AssigneePicker({
   value,

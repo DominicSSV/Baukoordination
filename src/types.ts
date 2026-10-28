@@ -263,7 +263,7 @@ export const OFFERTEN_STAENDE: Array<{ wert: OffertenStand; name: string }> = [
 
 /**
  * Eine Person im Register "Kontakte" – wir und die Lieferanten in einer Liste.
- * Nur für die Swiss Solar Ventures AG: Hier stehen die Zugänge und die
+ * Nur für die Swiss Sustainable Ventures AG: Hier stehen die Zugänge und die
  * Kontaktdaten sämtlicher Firmen beieinander.
  */
 export type Kontakt = {

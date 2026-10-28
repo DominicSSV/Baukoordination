@@ -19,7 +19,7 @@ import { APP_HERKUNFT } from '@/lib/branding';
  * Mail zu suchen. Mit E-Mail und Passwort bietet das Handy an, die Anmeldung zu
  * speichern – danach ist es ein Fingerabdruck.
  *
- * Die Passwörter vergibt die Swiss Solar Ventures AG. Wer keines hat, bekommt
+ * Die Passwörter vergibt die Swiss Sustainable Ventures AG. Wer keines hat, bekommt
  * eines von uns; selbst setzen kann es niemand.
  */
 export default function SupplierLogin() {
@@ -60,12 +60,12 @@ export default function SupplierLogin() {
         <div className="stripe-bar" />
         <div className="auth-body">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="auth-logo" src="/logo.png" alt="Swiss Solar Ventures AG" />
+          <img className="auth-logo" src="/logo.png" alt="Swiss Sustainable Ventures AG" />
           <div className="eyebrow">Baukoordination</div>
           <h1>Als Lieferant anmelden</h1>
           <p>
             Melde dich mit deiner E-Mail-Adresse und dem Passwort an, das du von
-            der Swiss Solar Ventures AG bekommen hast. Du siehst danach nur die
+            der Swiss Sustainable Ventures AG bekommen hast. Du siehst danach nur die
             Projekte, für die du freigegeben bist.
           </p>
 
@@ -110,8 +110,8 @@ export default function SupplierLogin() {
             </button>
 
             <p className="auth-hinweis">
-              Kein Passwort oder vergessen? Melde dich bei der Swiss Solar
-              Ventures AG, wir geben dir eines.
+              Kein Passwort oder vergessen? Melde dich bei der Swiss
+              Sustainable Ventures AG, wir geben dir eines.
             </p>
           </form>
         </div>

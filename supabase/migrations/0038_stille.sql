@@ -54,7 +54,7 @@ create table if not exists public.notify_pause (
 alter table public.notify_pause enable row level security;
 
 -- Keine Regel, also kein Zugriff ausser über den Dienstschlüssel. Die App
--- prüft vorher, dass nur wir von der Swiss Solar Ventures AG umschalten
+-- prüft vorher, dass nur wir von der Swiss Sustainable Ventures AG umschalten
 -- dürfen – ein Lieferant könnte sonst seine eigenen Änderungen verstecken.
 
 comment on table public.notify_pause is

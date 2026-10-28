@@ -6,7 +6,7 @@ import { api, del, patch, post, put } from '@/lib/client/api';
 import type { Project } from '@/types';
 
 /**
- * Kopf des Projekts mit dem Gelb-Grün-Balken. Für die Swiss Solar Ventures AG
+ * Kopf des Projekts mit dem Gelb-Grün-Balken. Für die Swiss Sustainable Ventures AG
  * zusätzlich mit Umbenennen und Duplizieren.
  */
 export default function ProjectHeader({

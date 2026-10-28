@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Baukoordination – Migration 31: Das vergebene Startpasswort nachlesen können
 --
--- Bei der Einführung vergibt die Swiss Solar Ventures AG die Passwörter und
+-- Bei der Einführung vergibt die Swiss Sustainable Ventures AG die Passwörter und
 -- teilt sie den Firmen mit. Bei zwanzig Firmen weiss man nach drei Tagen nicht
 -- mehr, wer welches bekommen hat – und "setz halt ein neues" heisst jedes Mal
 -- ein Anruf.

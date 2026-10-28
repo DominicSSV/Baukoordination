@@ -9,7 +9,7 @@ export default function SetupNotice({ missing }: { missing: string[] }) {
         <div className="stripe-bar" />
         <div className="auth-body">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="auth-logo" src="/logo.png" alt="Swiss Solar Ventures AG" />
+          <img className="auth-logo" src="/logo.png" alt="Swiss Sustainable Ventures AG" />
           <h1>Einrichtung fehlt noch</h1>
           <p>
             Die App ist bereit, es fehlen aber die Zugangsdaten zu Supabase. Lege im

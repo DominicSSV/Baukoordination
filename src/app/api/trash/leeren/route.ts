@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * dasselbe Symbol zu klicken ist keine Sorgfalt, sondern nur mühsam –
  * nach dem zehnten Mal sieht ohnehin niemand mehr hin, was er wegklickt.
  *
- * Nur für die Swiss Solar Ventures AG, und nur mit der Anzahl als
+ * Nur für die Swiss Sustainable Ventures AG, und nur mit der Anzahl als
  * Bestätigung: Der Aufrufer schickt mit, wie viele Einträge er gesehen hat.
  * Stimmt die Zahl nicht mehr mit dem überein, was gerade im Papierkorb
  * liegt, bricht der Vorgang ab. So lässt sich nicht versehentlich etwas

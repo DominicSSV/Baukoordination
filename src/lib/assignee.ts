@@ -6,8 +6,8 @@ import type { AdminProfile, Supplier } from '@/types';
  * Eine Aufgabe kann drei Arten von Zuständigen haben. Der Wert in
  * todos.assigned_to trägt deshalb ein Präfix:
  *
- *   'internal'        – Swiss Solar Ventures AG allgemein
- *   'admin:<uuid>'    – eine bestimmte Person der Swiss Solar Ventures AG
+ *   'internal'        – Swiss Sustainable Ventures AG allgemein
+ *   'admin:<uuid>'    – eine bestimmte Person der Swiss Sustainable Ventures AG
  *   'supplier:<uuid>' – ein Lieferant
  *
  * Altbestand ohne Präfix wird als Lieferant gelesen; Migration 0002 schreibt ihn

@@ -12,8 +12,8 @@ const SPALTEN = 'id, titel, text, sortierung';
  * Angaben zum Objekt: Zugang, Standort, Parkieren, Besonderheiten.
  *
  * Sehen dürfen sie alle Beteiligten – ohne den Zugangscode zur Tiefgarage
- * steht der Elektriker vor dem Tor. Pflegen darf sie nur die Swiss Solar
- * Ventures AG.
+ * steht der Elektriker vor dem Tor. Pflegen darf sie nur die Swiss
+ * Sustainable Ventures AG.
  */
 export const GET = handler(async (_request: Request, { params }: Params) => {
   const { id: projectId } = await params;

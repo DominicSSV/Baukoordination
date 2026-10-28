@@ -25,7 +25,7 @@ type Belegung = {
 /**
  * Wie viel Speicher belegen die hochgeladenen Dateien.
  *
- * Nur für die Swiss Solar Ventures AG: Ein Lieferant erführe hieraus, wie viel
+ * Nur für die Swiss Sustainable Ventures AG: Ein Lieferant erführe hieraus, wie viel
  * die anderen Firmen eingestellt haben.
  */
 export default function StorageModal({ onClose }: { onClose: () => void }) {

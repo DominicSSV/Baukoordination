@@ -20,7 +20,7 @@ const FEHLT =
 /**
  * Ordner anlegen, umbenennen und löschen.
  *
- * Nur die Swiss Solar Ventures AG: Die Gliederung ist die Ordnung des Projekts.
+ * Nur die Swiss Sustainable Ventures AG: Die Gliederung ist die Ordnung des Projekts.
  * Sehen dürfen sie alle Beteiligten – das regelt die Policy in Migration 0019,
  * gelesen werden sie mit dem Projekt selbst.
  */

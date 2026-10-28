@@ -30,7 +30,7 @@ type Vorlage = {
 /**
  * Die Texte der verschickten Mails ändern.
  *
- * Nur für die Swiss Solar Ventures AG – hier steht, was in unserem Namen
+ * Nur für die Swiss Sustainable Ventures AG – hier steht, was in unserem Namen
  * hinausgeht. Bearbeitet wird reiner Text; die Gestaltung (Logo, Rahmen,
  * Farben) hängt die App an. So kann eine Formulierung das Aussehen der Mail
  * nicht durcheinanderbringen.

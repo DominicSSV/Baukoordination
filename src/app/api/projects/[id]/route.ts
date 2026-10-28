@@ -24,7 +24,7 @@ export const GET = handler(async (_request: Request, { params }: Params) => {
   return ok({ detail: await loadProjectDetail(ctx, id) });
 });
 
-/** Projektname und Ort ändern – nur die Swiss Solar Ventures AG. */
+/** Projektname und Ort ändern – nur die Swiss Sustainable Ventures AG. */
 export const PATCH = handler(async (request: Request, { params }: Params) => {
   const { id } = await params;
   const ctx = await requireAdmin();

@@ -11,7 +11,7 @@ import type { PapierkorbEintrag } from '@/types';
  * Papierkorb über alle Projekte: weggeworfene Aufgaben und Dateien zurückholen
  * oder endgültig entfernen.
  *
- * Nur für die Swiss Solar Ventures AG – ein Lieferant sähe hier sonst, was die
+ * Nur für die Swiss Sustainable Ventures AG – ein Lieferant sähe hier sonst, was die
  * anderen Firmen eingereicht und wieder entfernt haben.
  */
 export default function TrashModal({

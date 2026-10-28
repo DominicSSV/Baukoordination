@@ -10,7 +10,7 @@
 -- ein Eintrag auf Firmen beschränkt werden:
 --
 --   supplier_ids ist null  → für alle mit Projektzugriff sichtbar
---   supplier_ids ist '{}'  → nur für die Swiss Solar Ventures AG
+--   supplier_ids ist '{}'  → nur für die Swiss Sustainable Ventures AG
 --   supplier_ids gefüllt   → für uns und die Firmen dieser Lieferanten
 --
 -- Im Supabase SQL-Editor ausführen. Mehrfaches Ausführen ist unschädlich.

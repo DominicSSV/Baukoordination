@@ -67,8 +67,8 @@ create policy milestone_template_items_admin on public.milestone_template_items
   for all using (public.is_admin()) with check (public.is_admin());
 
 comment on table public.milestone_templates is
-  'Schrittfolge eines Projekts zum Wiederverwenden. Nur für die Swiss Solar '
-  'Ventures AG.';
+  'Schrittfolge eines Projekts zum Wiederverwenden. Nur für die '
+  'Swiss Sustainable Ventures AG.';
 
 -- Kontrolle:
 --   select v.name, count(*) as schritte

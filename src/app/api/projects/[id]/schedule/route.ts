@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Neue Zeile im Terminplan. Den Plan pflegt allein die Swiss Solar Ventures AG. */
+/** Neue Zeile im Terminplan. Den Plan pflegt allein die Swiss Sustainable Ventures AG. */
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: projectId } = await params;
   const ctx = await requireAdmin();

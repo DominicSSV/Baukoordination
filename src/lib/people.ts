@@ -5,7 +5,7 @@ import type { AdminProfile, Supplier } from '@/types';
 
 export type Person = {
   name: string;
-  /** Firma, für die diese Person arbeitet – bei uns immer die Swiss Solar Ventures AG. */
+  /** Firma, für die diese Person arbeitet – bei uns immer die Swiss Sustainable Ventures AG. */
   firma: string | null;
   avatarUrl: string | null;
 };

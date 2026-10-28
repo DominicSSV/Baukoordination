@@ -3,7 +3,7 @@
 --
 -- Bisher stand links nur das Gewerk als Text ("Gärtner", "Kran"). Neu kommt die
 -- Person dazu, die es organisiert hat – ihr Profilbild steht ganz links in der
--- Zeile. Das kann jemand der Swiss Solar Ventures AG oder ein Lieferant sein.
+-- Zeile. Das kann jemand der Swiss Sustainable Ventures AG oder ein Lieferant sein.
 --
 -- Im Supabase SQL-Editor ausführen. Idempotent.
 -- =============================================================================

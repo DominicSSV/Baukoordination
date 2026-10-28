@@ -14,7 +14,7 @@ type Params = { params: Promise<{ id: string }> };
  * Angezeigt wird der Papierkorb projektübergreifend (/api/trash); ausgeführt
  * wird hier, wo die Projektkennung im Pfad steht und damit mitgeprüft wird.
  *
- * Nur für die Swiss Solar Ventures AG: Zurückholen greift in etwas ein, das
+ * Nur für die Swiss Sustainable Ventures AG: Zurückholen greift in etwas ein, das
  * jemand anders weggeworfen hat.
  */
 export const POST = handler(async (request: Request, { params }: Params) => {

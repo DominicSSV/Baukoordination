@@ -107,7 +107,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
       (t: { text: string; assigned_to: string }, index: number) => ({
         project_id: project.id,
         text: t.text,
-        // Zuweisungen an Personen der Swiss Solar Ventures AG bleiben bestehen.
+        // Zuweisungen an Personen der Swiss Sustainable Ventures AG bleiben bestehen.
         // Zuweisungen an Lieferanten nur dann, wenn diese im neuen Projekt auch
         // freigegeben sind – sonst stünde dort ein Zuständiger ohne Zugriff.
         assigned_to:

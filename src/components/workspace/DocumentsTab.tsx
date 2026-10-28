@@ -25,7 +25,7 @@ import type {
  *
  * Anders als bei den Offerten sieht hier jeder alles, der Zugriff auf das
  * Projekt hat – der Elektriker muss das DC-Schema lesen können. Die Gliederung
- * verwaltet allein die Swiss Solar Ventures AG; die Sperre dafür steht in der
+ * verwaltet allein die Swiss Sustainable Ventures AG; die Sperre dafür steht in der
  * Datenbank (Migrationen 0019 und 0021) und nicht erst in dieser Ansicht.
  */
 export default function DocumentsTab({

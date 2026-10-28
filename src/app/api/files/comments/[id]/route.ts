@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Eigene Anmerkungen sind löschbar, fremde nur für die Swiss Solar Ventures AG. */
+/** Eigene Anmerkungen sind löschbar, fremde nur für die Swiss Sustainable Ventures AG. */
 export const DELETE = handler(async (_request: Request, { params }: Params) => {
   const { id } = await params;
   const ctx = await requireSession();

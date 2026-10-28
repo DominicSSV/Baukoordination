@@ -179,7 +179,7 @@ function wrapHtml(title: string, bodyHtml: string): string {
       <td style="padding:22px 24px;">
         <!-- Absolute Adresse, weil das Bild im Mailprogramm des Empfängers
              geladen wird. Wer Bilder blockiert, sieht den Alternativtext. -->
-        <img src="${escapeHtml(appBaseUrl())}/logo.png" alt="Swiss Solar Ventures AG"
+        <img src="${escapeHtml(appBaseUrl())}/logo.png" alt="Swiss Sustainable Ventures AG"
              width="150" style="display:block;border:0;margin:0 0 14px;height:auto;" />
         <div style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:#929291;">Baukoordination</div>
         <h1 style="font-size:20px;margin:4px 0 16px;color:#262624;">${escapeHtml(title)}</h1>
@@ -187,7 +187,7 @@ function wrapHtml(title: string, bodyHtml: string): string {
         <!-- Derselbe Hinweis wie in der Nur-Text-Fassung, damit beide Fassungen
              der Mail nicht Unterschiedliches behaupten. -->
         <p style="margin:22px 0 0;font-size:11.5px;color:#929291;border-top:1px solid #D9D9D9;padding-top:12px;">
-          Swiss Solar Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination
+          Swiss Sustainable Ventures AG · Diese Nachricht wurde automatisch aus der Baukoordination
           versendet.<br />
           <strong>${escapeHtml(hinweis.warnung)}</strong> ${escapeHtml(hinweis.erklaerung)}<br />
           <!-- Geht an jeden Empfänger und kostet eine Zeile: Wer die App nutzt,
@@ -233,7 +233,7 @@ function keineAntwort(): { warnung: string; erklaerung: string } {
     erklaerung:
       'Hinter dieser Adresse gibt es kein Postfach, eine Antwort kommt nicht an. ' +
       'Schreib deine Rückmeldung direkt in der App als Kommentar oder melde dich ' +
-      'bei deiner Ansprechperson bei der Swiss Solar Ventures AG.',
+      'bei deiner Ansprechperson bei der Swiss Sustainable Ventures AG.',
   };
 }
 

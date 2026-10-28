@@ -90,7 +90,7 @@ function namensbuch(admins, suppliers) {
     // Ohne Vorsatz kommt dieselbe Kennung ebenfalls vor.
     map.set(s.id, mitFirma);
   }
-  map.set('internal', 'Swiss Solar Ventures AG');
+  map.set('internal', 'Swiss Sustainable Ventures AG');
   return (wert) => map.get(wert) ?? (wert ? `Unbekannt (${wert})` : 'niemand');
 }
 

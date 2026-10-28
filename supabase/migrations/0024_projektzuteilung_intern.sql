@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Baukoordination – Migration 24: Wer von uns wird für welches Projekt benachrichtigt
 --
--- Bisher bekam jede Person der Swiss Solar Ventures AG Post zu jedem Projekt.
+-- Bisher bekam jede Person der Swiss Sustainable Ventures AG Post zu jedem Projekt.
 -- Bei fünf Baustellen geht das; bei zwanzig liest es niemand mehr.
 --
 -- Neu lässt sich jede und jeder von uns einzelnen Projekten zuteilen. Das
@@ -42,7 +42,7 @@ create policy project_admins_delete on public.project_admins
   for delete using (public.is_admin());
 
 comment on table public.project_admins is
-  'Wer von der Swiss Solar Ventures AG für welches Projekt Post bekommt. '
+  'Wer von der Swiss Sustainable Ventures AG für welches Projekt Post bekommt. '
   'Kein Zugriffsrecht – gesehen wird überall alles.';
 
 -- Kontrolle:

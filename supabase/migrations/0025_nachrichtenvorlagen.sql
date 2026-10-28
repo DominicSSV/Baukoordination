@@ -23,7 +23,7 @@ create table if not exists public.mail_templates (
 
 alter table public.mail_templates enable row level security;
 
--- Nur wir: Hier steht, was im Namen der Swiss Solar Ventures AG hinausgeht.
+-- Nur wir: Hier steht, was im Namen der Swiss Sustainable Ventures AG hinausgeht.
 drop policy if exists mail_templates_select on public.mail_templates;
 create policy mail_templates_select on public.mail_templates
   for select using (public.is_admin());

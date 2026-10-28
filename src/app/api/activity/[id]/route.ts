@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Protokolleintrag löschen. Ausschliesslich für die Swiss Solar Ventures AG –
+ * Protokolleintrag löschen. Ausschliesslich für die Swiss Sustainable Ventures AG –
  * ein Lieferant darf das Protokoll weder bereinigen noch Spuren daraus entfernen.
  * Dieselbe Sperre steht als Policy activity_admin_delete in der Datenbank.
  */

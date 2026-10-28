@@ -24,6 +24,7 @@ import StorageBadge from '@/components/workspace/StorageBadge';
 import ContactsModal from '@/components/workspace/ContactsModal';
 import MailTemplatesModal from '@/components/workspace/MailTemplatesModal';
 import ProjectInfoTab from '@/components/workspace/ProjectInfoTab';
+import NamensWechsel from '@/components/NamensWechsel';
 import TimeTab from '@/components/workspace/TimeTab';
 import MilestonesModal from '@/components/workspace/MilestonesModal';
 import SearchModal from '@/components/workspace/SearchModal';
@@ -354,6 +355,9 @@ function WorkspaceInner({
 
   return (
     <div className="app-shell">
+      {/* Einmal je Sitzung: das alte Logo wird zum neuen. */}
+      <NamensWechsel />
+
       {isAdmin && !session.rlsEnforced && (
         <div className="storage-warning">
           ⚠️ SUPABASE_JWT_SECRET fehlt – die Lieferanten-Zugriffe werden nur von der App
@@ -364,13 +368,13 @@ function WorkspaceInner({
       <div className="topbar">
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="brand-logo" src="/logo.png" alt="Swiss Solar Ventures AG" />
+          <img className="brand-logo" src="/logo.png" alt="Swiss Sustainable Ventures AG" />
           <div className="brand-titles">
             {/* Auf dem Handy bleibt nur "Baukoordination" stehen – für den
                 Firmennamen ist neben Glocke und Bild kein Platz. */}
             <div className="brand-name">
               Baukoordination
-              <span className="brand-firma"> – Swiss Solar Ventures AG</span>
+              <span className="brand-firma"> – Swiss Sustainable Ventures AG</span>
             </div>
             <div className="brand-sub">Projekte · Lieferanten · To-Dos · Dateien</div>
           </div>
@@ -540,7 +544,7 @@ function WorkspaceInner({
                   ? 'Wähle links ein Projekt aus.'
                   : isAdmin
                     ? 'Leg links dein erstes Projekt an, z.B. „Tägerwilen“.'
-                    : 'Dir wurde noch kein Projekt zugewiesen. Bitte wende dich an die Swiss Solar Ventures AG.'}
+                    : 'Dir wurde noch kein Projekt zugewiesen. Bitte wende dich an die Swiss Sustainable Ventures AG.'}
               </p>
             </div>
           ) : (

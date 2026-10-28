@@ -97,7 +97,7 @@ const STANDARD_ANGABEN = [
  *
  * Sehen dürfen beides alle Beteiligten: Wer vor verschlossener Tür steht,
  * braucht den Code oder die Nummer des Hauswarts sofort und nicht auf
- * Rückfrage. Pflegen darf sie nur die Swiss Solar Ventures AG.
+ * Rückfrage. Pflegen darf sie nur die Swiss Sustainable Ventures AG.
  */
 export default function ProjectInfoTab({
   detail,
@@ -562,7 +562,7 @@ export default function ProjectInfoTab({
       <p className="pkontakt-erklaerung">
         Alles, was man wissen muss, bevor man hinfährt. Alle Beteiligten sehen die
         Angaben und dürfen sie ergänzen und ändern – wer vor Ort ist, kennt den
-        Zugangscode oft zuerst. Entfernen kann nur die Swiss Solar Ventures AG.
+        Zugangscode oft zuerst. Entfernen kann nur die Swiss Sustainable Ventures AG.
       </p>
 
       {ohneTabelle && (
@@ -822,7 +822,7 @@ export default function ProjectInfoTab({
                   </button>
                 </>
               ) : (
-                ' Die Swiss Solar Ventures AG trägt sie ein.'
+                ' Die Swiss Sustainable Ventures AG trägt sie ein.'
               )}
             </p>
           )}
@@ -987,7 +987,7 @@ export default function ProjectInfoTab({
       {/* Steht vor den Kontakten vor Ort: Wer eine Frage zum Projekt hat,
           fragt zuerst uns. Ohne Bearbeiten-Knopf – die Liste ergibt sich aus
           der Zuteilung im Register "Kontakte". */}
-      <h4 className="pkontakt-titel">Swiss Solar Ventures AG</h4>
+      <h4 className="pkontakt-titel">Swiss Sustainable Ventures AG</h4>
 
       <div className="kontakt-karten">
         {unsere.map((a) => {

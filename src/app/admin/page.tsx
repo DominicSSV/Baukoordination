@@ -33,7 +33,7 @@ export default async function AdminPage() {
           <div className="stripe-bar" />
           <div className="auth-body">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="auth-logo" src="/logo.png" alt="Swiss Solar Ventures AG" />
+            <img className="auth-logo" src="/logo.png" alt="Swiss Sustainable Ventures AG" />
             <h1>Konto noch nicht freigeschaltet</h1>
             <p>
               Du bist als <strong>{user.email}</strong> angemeldet, dieses Konto ist aber

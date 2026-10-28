@@ -21,7 +21,7 @@ function farbe(anteil: number): string {
  * Speicherkarte in der Leiste oben: Sie füllt sich von unten mit dem belegten
  * Anteil und wechselt die Farbe, wenn es knapp wird.
  *
- * Nur für die Swiss Solar Ventures AG – die Route dahinter verlangt ebenfalls
+ * Nur für die Swiss Sustainable Ventures AG – die Route dahinter verlangt ebenfalls
  * Adminrechte, hier wird das Symbol lediglich gar nicht erst gezeigt.
  */
 export default function StorageBadge({

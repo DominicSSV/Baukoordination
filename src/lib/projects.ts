@@ -94,7 +94,7 @@ async function loadAdminProfiles(): Promise<AdminProfile[]> {
   return (basic.data ?? []).map((a: { user_id: string; name: string | null }) => ({
     user_id: a.user_id,
     name: a.name?.trim() || 'Bauherrenvertreter',
-    firma: 'Swiss Solar Ventures AG',
+    firma: 'Swiss Sustainable Ventures AG',
     funktion: null,
   }));
 }

@@ -8,7 +8,7 @@ const MAX = 200;
 
 /**
  * Mehrere Protokolleinträge auf einmal löschen. Wie beim einzelnen Eintrag der
- * Swiss Solar Ventures AG vorbehalten; die Datenbank setzt dieselbe Sperre.
+ * Swiss Sustainable Ventures AG vorbehalten; die Datenbank setzt dieselbe Sperre.
  */
 export const POST = handler(async (request: Request) => {
   const ctx = await requireAdmin();

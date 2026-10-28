@@ -21,7 +21,7 @@ function pruefeSchluessel(wert: unknown): VorlagenSchluessel {
 /**
  * Die Texte der verschickten Mails.
  *
- * Nur für die Swiss Solar Ventures AG: Hier steht, was in unserem Namen
+ * Nur für die Swiss Sustainable Ventures AG: Hier steht, was in unserem Namen
  * hinausgeht. Geliefert wird zu jeder Vorlage der Standard und – falls
  * vorhanden – die angepasste Fassung, damit sich beides vergleichen lässt.
  */

@@ -1,4 +1,4 @@
-# Baukoordination – Swiss Solar Ventures AG
+# Baukoordination – Swiss Sustainable Ventures AG
 
 Produktivversion des Artifact-Prototyps: gleiche Oberfläche und gleiche Abläufe, aber mit
 echtem Backend (Supabase), echter Authentifizierung, echtem Mailversand und ohne
@@ -6,8 +6,8 @@ Grössenbeschränkung für Dateien.
 
 **Stack:** Next.js 16 (App Router) · Supabase (Postgres, Auth, Storage) · Resend · Vercel
 
-**Entwickelt von Dominic Maag** für die Swiss Solar Ventures AG, Baar.
-© 2026 Swiss Solar Ventures AG – alle Rechte vorbehalten. Proprietäre Software,
+**Entwickelt von Dominic Maag** für die Swiss Sustainable Ventures AG, Baar.
+© 2026 Swiss Sustainable Ventures AG – alle Rechte vorbehalten. Proprietäre Software,
 siehe [`LICENSE`](LICENSE). Die Einsicht in dieses Repository begründet kein
 Nutzungsrecht.
 
@@ -180,7 +180,7 @@ Der Versand läuft über [Resend](https://resend.com).
   Bezeichnung). Kommentare, Statuswechsel und Erledigt-Haken erscheinen nur in der
   Glocke. Welche Stelle Post auslöst, steht dort als `logActivity({ notify: true })`;
   wer nichts sagt, bleibt still.
-- **Wer bekommt sie:** die dem Projekt zugeteilten Personen der Swiss Solar Ventures AG
+- **Wer bekommt sie:** die dem Projekt zugeteilten Personen der Swiss Sustainable Ventures AG
   (Kontakte → Merkzeichen; ohne Zuteilung alle). Lieferanten erhalten keine
   automatischen Mails – nur die von Hand ausgelöste Einladung. Mit
   `MAIL_AN_LIEFERANTEN=true` lässt sich das aufdrehen.
@@ -242,7 +242,7 @@ npm run typecheck   # TypeScript ohne Ausgabe
 
 ## Rechte
 
-Diese Software ist Eigentum der Swiss Solar Ventures AG und wurde von
+Diese Software ist Eigentum der Swiss Sustainable Ventures AG und wurde von
 Dominic Maag entwickelt. Sie steht unter keiner freien Lizenz; die Bedingungen
 stehen vollständig in [`LICENSE`](LICENSE).
 

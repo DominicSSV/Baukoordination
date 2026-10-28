@@ -1,5 +1,5 @@
 -- =============================================================================
--- Baukoordination – Swiss Solar Ventures AG
+-- Baukoordination – Swiss Sustainable Ventures AG
 -- Schema, Rollen-Helfer und Row Level Security
 --
 -- Einmal komplett im Supabase SQL-Editor ausführen (Dashboard > SQL Editor).

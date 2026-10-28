@@ -24,7 +24,7 @@ type Ziel =
  * Ohne Angabe immer das eigene. Mit supplierId das eines Lieferanten – das darf
  * der Bauherrenvertreter, der die Kartei führt, und der Lieferant bei sich
  * selbst. Mit adminId das einer Kollegin oder eines Kollegen; das bleibt der
- * Swiss Solar Ventures AG vorbehalten, damit die Kartei an einer Stelle
+ * Swiss Sustainable Ventures AG vorbehalten, damit die Kartei an einer Stelle
  * gepflegt werden kann. Ein Lieferant kommt an fremde Bilder nie heran.
  */
 function zielBestimmen(

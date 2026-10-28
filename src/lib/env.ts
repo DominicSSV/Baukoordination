@@ -75,7 +75,7 @@ export function resendApiKey(): string | null {
 export function mailFrom(): string {
   return (
     process.env.MAIL_FROM ||
-    'Swiss Solar Ventures AG - Baukoordination <onboarding@resend.dev>'
+    'Swiss Sustainable Ventures AG - Baukoordination <onboarding@resend.dev>'
   );
 }
 

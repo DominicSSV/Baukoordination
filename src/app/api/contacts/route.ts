@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * Die ganze Projektmannschaft an einer Stelle – wir und alle Lieferanten,
  * samt vergebenem Passwort und der Angabe, wer auf welches Projekt zugreifen darf.
  *
- * Nur für die Swiss Solar Ventures AG: Hier stehen die Zugänge und die
+ * Nur für die Swiss Sustainable Ventures AG: Hier stehen die Zugänge und die
  * Kontaktdaten sämtlicher Firmen beieinander. Ein Lieferant hat auf dieser
  * Ansicht nichts verloren.
  */
@@ -184,7 +184,7 @@ export const GET = handler(async () => {
 });
 
 /**
- * Angaben zu einer Person der Swiss Solar Ventures AG ändern.
+ * Angaben zu einer Person der Swiss Sustainable Ventures AG ändern.
  *
  * Die Lieferanten laufen weiter über /api/suppliers/<id>; dort hängen
  * Zugangscode und Projektfreigaben mit dran.
@@ -208,7 +208,7 @@ export const PATCH = handler(async (request: Request) => {
 
   const felder: Record<string, unknown> = {
     name,
-    firma: optionalString(body.firma, 200) ?? 'Swiss Solar Ventures AG',
+    firma: optionalString(body.firma, 200) ?? 'Swiss Sustainable Ventures AG',
     funktion: optionalString(body.funktion, 120),
   };
 

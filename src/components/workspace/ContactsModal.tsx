@@ -26,7 +26,7 @@ type Entwurf = {
  * alle Lieferanten, mit Bild, Telefon, vergebenem Passwort und der Angabe, wer
  * auf welches Projekt zugreifen darf.
  *
- * Nur für die Swiss Solar Ventures AG. Hier stehen die Passwörter und die
+ * Nur für die Swiss Sustainable Ventures AG. Hier stehen die Passwörter und die
  * Kontaktdaten sämtlicher Firmen beieinander; die Route verlangt deshalb
  * ebenfalls Adminrechte und verlässt sich nicht darauf, dass dieser Dialog
  * gar nicht erst geöffnet wird.
@@ -601,7 +601,7 @@ export default function ContactsModal({
               </p>
             )}
 
-            <div className="kontakt-gruppe-titel">Swiss Solar Ventures AG</div>
+            <div className="kontakt-gruppe-titel">Swiss Sustainable Ventures AG</div>
             <p className="kontakt-erklaerung">
               Die Merkzeichen steuern nur, wer für welches Projekt Post bekommt.
               Sehen tun wir überall alles. Ist niemand zugeteilt, gehen die

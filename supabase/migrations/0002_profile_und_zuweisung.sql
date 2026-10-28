@@ -14,7 +14,7 @@
 -- -----------------------------------------------------------------------------
 
 alter table public.admins
-  add column if not exists firma text not null default 'Swiss Solar Ventures AG';
+  add column if not exists firma text not null default 'Swiss Sustainable Ventures AG';
 
 alter table public.admins
   add column if not exists funktion text;
@@ -25,14 +25,14 @@ alter table public.admins
 create table if not exists public.admin_seed (
   email    text primary key,
   name     text not null,
-  firma    text not null default 'Swiss Solar Ventures AG',
+  firma    text not null default 'Swiss Sustainable Ventures AG',
   funktion text
 );
 
 insert into public.admin_seed (email, name, firma, funktion) values
-  ('dominic.maag@swiss-sv.ch', 'Dominic Maag',    'Swiss Solar Ventures AG', 'Projektmanagement'),
-  ('m.maerki@swiss-sv.ch',     'Maurice Märki',   'Swiss Solar Ventures AG', 'CEO'),
-  ('v.gantner@swiss-sv.ch',    'Valentin Gantner','Swiss Solar Ventures AG', 'Administration')
+  ('dominic.maag@swiss-sv.ch', 'Dominic Maag',    'Swiss Sustainable Ventures AG', 'Projektmanagement'),
+  ('m.maerki@swiss-sv.ch',     'Maurice Märki',   'Swiss Sustainable Ventures AG', 'CEO'),
+  ('v.gantner@swiss-sv.ch',    'Valentin Gantner','Swiss Sustainable Ventures AG', 'Administration')
 on conflict (email) do update
   set name = excluded.name,
       firma = excluded.firma,
@@ -122,8 +122,8 @@ grant select on public.admin_public to anon, authenticated;
 -- todos.assigned_to kannte bisher 'internal' oder eine blanke Lieferanten-ID.
 -- Neu mit eindeutigem Präfix, damit Personen und Firmen unterscheidbar sind:
 --
---   'internal'         -> Swiss Solar Ventures AG allgemein
---   'admin:<uuid>'     -> eine bestimmte Person der Swiss Solar Ventures AG
+--   'internal'         -> Swiss Sustainable Ventures AG allgemein
+--   'admin:<uuid>'     -> eine bestimmte Person der Swiss Sustainable Ventures AG
 --   'supplier:<uuid>'  -> ein Lieferant
 -- -----------------------------------------------------------------------------
 

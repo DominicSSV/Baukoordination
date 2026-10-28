@@ -2,8 +2,8 @@
 -- Baukoordination – Migration 12: Offerten
 --
 -- Neues Register "Offerten" mit vier Ordnern. Lieferanten laden dort ihre
--- Unterlagen hoch und sehen ausschliesslich ihre eigenen; die Swiss Solar
--- Ventures AG sieht alle – auch im Register "Dateien".
+-- Unterlagen hoch und sehen ausschliesslich ihre eigenen; die Swiss
+-- Sustainable Ventures AG sieht alle – auch im Register "Dateien".
 --
 -- Im Supabase SQL-Editor ausführen. Mehrfaches Ausführen ist unschädlich.
 -- =============================================================================

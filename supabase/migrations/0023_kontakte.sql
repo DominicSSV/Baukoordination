@@ -14,7 +14,7 @@ alter table public.admins
   add column if not exists kontakt text;
 
 comment on column public.admins.kontakt is
-  'Telefonnummer, wie bei den Lieferanten. Sichtbar nur für die Swiss Solar Ventures AG.';
+  'Telefonnummer, wie bei den Lieferanten. Sichtbar nur für die Swiss Sustainable Ventures AG.';
 
 -- Kontrolle:
 --   select name, funktion, kontakt from public.admins order by name;

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Der Papierkorb über alle Projekte hinweg.
  *
- * Nur für die Swiss Solar Ventures AG: Zurückholen greift in etwas ein, das
+ * Nur für die Swiss Sustainable Ventures AG: Zurückholen greift in etwas ein, das
  * jemand anders weggeworfen hat – und ein Lieferant sähe hier ausserdem, was
  * die anderen Firmen eingereicht und wieder entfernt haben.
  *

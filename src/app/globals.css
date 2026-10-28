@@ -6354,3 +6354,90 @@ button:disabled {
     width: 90px;
   }
 }
+
+/* --- Namenswechsel: das alte Logo wird zum neuen --------------------------- */
+/* Aus der Swiss Solar Ventures AG ist die Swiss Sustainable Ventures AG
+   geworden. Beim Öffnen der App erscheint kurz das alte Logo und wechselt auf
+   das neue. Einmal je Sitzung – eine Einblendung, die man zehnmal am Tag
+   wegwartet, ist keine Mitteilung mehr, sondern eine Hürde. */
+.namenswechsel {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+  background: var(--surface);
+  cursor: pointer;
+  animation: namenswechsel-auf 0.25s ease-out;
+}
+
+@keyframes namenswechsel-auf {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.namenswechsel.weg {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease-in;
+}
+
+/* Die Bühne ist so breit wie das breitere der beiden Logos. Beide liegen
+   übereinander und links bündig: Das Haus steht in beiden an derselben
+   Stelle, also bleibt es beim Überblenden stehen – es sieht aus, als würde
+   nur das mittlere Wort ausgetauscht. */
+.namenswechsel-buehne {
+  position: relative;
+  width: min(560px, 84vw);
+  /* Das neue Logo ist das breitere; seine Proportion gibt die Höhe vor. */
+  aspect-ratio: 1920 / 736;
+}
+
+.namenswechsel-logo {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  /* An der Höhe ausgerichtet, nicht an der Breite: Nur so ist das Haus in
+     beiden gleich gross. Das alte Logo ist schmaler und endet einfach
+     früher. */
+  height: 100%;
+  width: auto;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.9s ease-in-out;
+}
+
+.namenswechsel-logo.da {
+  opacity: 1;
+}
+
+.namenswechsel-text {
+  font-size: 15px;
+  color: var(--ink-soft);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.6s ease-out 0.3s, transform 0.6s ease-out 0.3s;
+}
+
+.namenswechsel-text.da {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.namenswechsel-text strong {
+  color: var(--ink);
+}
+
+/* Wer im Betriebssystem weniger Bewegung eingestellt hat, bekommt sie gar
+   nicht erst zu sehen – das regelt die Komponente selbst. Hier zur
+   Sicherheit nochmals, falls sie doch gezeichnet wird. */
+@media (prefers-reduced-motion: reduce) {
+  .namenswechsel {
+    display: none;
+  }
+}

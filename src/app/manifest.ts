@@ -11,10 +11,10 @@ import type { MetadataRoute } from 'next';
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Baukoordination – Swiss Solar Ventures AG',
+    name: 'Baukoordination – Swiss Sustainable Ventures AG',
     short_name: 'Baukoordination',
     description:
-      'Projekte, Lieferanten, To-Dos und Dateien der Swiss Solar Ventures AG',
+      'Projekte, Lieferanten, To-Dos und Dateien der Swiss Sustainable Ventures AG',
     start_url: '/',
     display: 'browser',
     background_color: '#ffffff',

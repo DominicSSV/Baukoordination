@@ -3,7 +3,7 @@
 --
 -- 1. Gelöschte Aufgaben und Dateien wandern in einen Papierkorb und lassen sich
 --    30 Tage lang zurückholen. Endgültig entfernt wird erst danach – oder von
---    Hand durch die Swiss Solar Ventures AG.
+--    Hand durch die Swiss Sustainable Ventures AG.
 -- 2. Zu jeder eingereichten Unterlage lassen sich Betrag und Stand erfassen,
 --    damit sich Angebote vergleichen lassen.
 --
@@ -81,7 +81,7 @@ begin
      or new.storage_path is distinct from old.storage_path
      or new.uploaded_by_supplier_id is distinct from old.uploaded_by_supplier_id
   then
-    raise exception 'Diese Angabe darf nur die Swiss Solar Ventures AG ändern.';
+    raise exception 'Diese Angabe darf nur die Swiss Sustainable Ventures AG ändern.';
   end if;
 
   return new;

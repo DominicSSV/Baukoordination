@@ -85,7 +85,7 @@ export function einladungsText(
     ``,
     `Das Passwort gilt nur für diese App.`,
     ``,
-    `Swiss Solar Ventures AG`,
+    `Swiss Sustainable Ventures AG`,
   ].join('\n');
 }
 
@@ -105,6 +105,6 @@ export function todoText(
     ``,
     `In der App: ${link}`,
     ``,
-    `Swiss Solar Ventures AG`,
+    `Swiss Sustainable Ventures AG`,
   ].join('\n');
 }

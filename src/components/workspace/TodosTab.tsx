@@ -955,7 +955,7 @@ export default function TodosTab({
       )}
 
       {/* Aufgaben anlegen dürfen beide Seiten – ein Lieferant kann sie aber nur der
-          Swiss Solar Ventures AG zuweisen, nicht einem anderen Lieferanten. */}
+          Swiss Sustainable Ventures AG zuweisen, nicht einem anderen Lieferanten. */}
       <div className="todo-add-row">
           <input
             type="text"

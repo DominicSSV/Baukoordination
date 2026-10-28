@@ -14,7 +14,7 @@ type Params = { params: Promise<{ id: string }> };
  *
  * Ein Vorschlag ändert den Plan bewusst nicht – er landet als Rückmeldung beim
  * Bauherrenvertreter, der ihn übernimmt oder ablehnt. So bleibt der Plan das,
- * was die Swiss Solar Ventures AG verantwortet.
+ * was die Swiss Sustainable Ventures AG verantwortet.
  */
 export const POST = handler(async (request: Request, { params }: Params) => {
   const { id: taskId } = await params;
@@ -73,7 +73,7 @@ export const POST = handler(async (request: Request, { params }: Params) => {
     /**
      * Die Anfrage geht an uns, nicht an die halbe Baustelle.
      *
-     * Wer eine Verschiebung vorschlägt, fragt die Swiss Solar Ventures AG –
+     * Wer eine Verschiebung vorschlägt, fragt die Swiss Sustainable Ventures AG –
      * entschieden wird sie ohnehin nur dort. Die übrigen Firmen erfahren davon,
      * sobald der Plan tatsächlich anders aussieht; vorher wäre es eine Meldung
      * über etwas, das vielleicht gar nicht eintritt.

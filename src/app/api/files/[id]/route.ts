@@ -149,7 +149,7 @@ export const PATCH = handler(async (request: Request, { params }: Params) => {
 
   if (body.stand !== undefined) {
     if (ctx.session.kind !== 'admin') {
-      throw forbidden('Über den Stand einer Offerte entscheidet die Swiss Solar Ventures AG.');
+      throw forbidden('Über den Stand einer Offerte entscheidet die Swiss Sustainable Ventures AG.');
     }
     const erlaubt = ['eingereicht', 'geprueft', 'vergeben', 'abgelehnt'];
     if (body.stand !== null && !erlaubt.includes(body.stand)) {

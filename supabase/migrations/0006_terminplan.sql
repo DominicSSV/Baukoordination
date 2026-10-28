@@ -34,7 +34,7 @@ create index if not exists schedule_tasks_project_idx
 alter table public.schedule_tasks enable row level security;
 
 -- Sehen darf den Plan jeder mit Zugriff auf das Projekt – auch die Lieferanten,
--- für die er ja gedacht ist. Ändern darf ihn nur die Swiss Solar Ventures AG.
+-- für die er ja gedacht ist. Ändern darf ihn nur die Swiss Sustainable Ventures AG.
 drop policy if exists schedule_tasks_select on public.schedule_tasks;
 create policy schedule_tasks_select on public.schedule_tasks
   for select using (public.has_project_access(project_id));

@@ -223,8 +223,8 @@ export default function OffersTab({
         {isAdmin
           ? 'Hier laufen alle Einreichungen zusammen. Ein Lieferant sieht nur die Unterlagen seiner eigenen Firma.'
           : session.firma
-            ? `Diese Unterlagen sehen die Swiss Solar Ventures AG und deine Kolleginnen und Kollegen von ${session.firma} – andere Lieferanten nicht.`
-            : 'Deine Unterlagen sieht nur die Swiss Solar Ventures AG – andere Lieferanten sehen sie nicht.'}
+            ? `Diese Unterlagen sehen die Swiss Sustainable Ventures AG und deine Kolleginnen und Kollegen von ${session.firma} – andere Lieferanten nicht.`
+            : 'Deine Unterlagen sieht nur die Swiss Sustainable Ventures AG – andere Lieferanten sehen sie nicht.'}
       </p>
 
       {ordnerListe.map((ordner) => {
@@ -375,7 +375,7 @@ export default function OffersTab({
                             )
                           )}
 
-                          {/* Stand: setzt allein die Swiss Solar Ventures AG. */}
+                          {/* Stand: setzt allein die Swiss Sustainable Ventures AG. */}
                           {isAdmin ? (
                             <select
                               className={`offer-stand ${f.offer_status ?? 'eingereicht'}`}

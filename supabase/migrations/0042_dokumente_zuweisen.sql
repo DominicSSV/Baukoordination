@@ -40,7 +40,7 @@ alter table public.files
 
 comment on column public.files.sichtbar_fuer is
   'Kennungen der Lieferanten, die dieses Dokument sehen dürfen. Leer = nur '
-  'die Swiss Solar Ventures AG. Null = Altbestand, dann gilt die frühere '
+  'die Swiss Sustainable Ventures AG. Null = Altbestand, dann gilt die frühere '
   'Regel über die Firma des Einreichers.';
 
 create index if not exists files_sichtbar_idx

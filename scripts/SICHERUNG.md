@@ -157,7 +157,7 @@ Datei. Auf **„Weitere Informationen"** → **„Trotzdem ausführen"**.
 Im Explorer nach
 
 ```
-C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Solar Ventures AG\7. Baukoordination\2. Backup
+C:\Users\DominicMaag\Swiss Property Management AG\Liegenschaften - Dokumente\Swiss Sustainable Ventures AG\7. Baukoordination\2. Backup
 ```
 
 Dort muss ein Ordner `Baukoordination-JJJJ-MM-TT` liegen, darin je Projekt

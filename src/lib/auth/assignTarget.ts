@@ -9,7 +9,7 @@ import type { Session } from '@/lib/auth/session';
  * und gibt den bereinigten Wert für todos.assigned_to zurück.
  *
  * Regeln:
- *   - an die Swiss Solar Ventures AG (allgemein oder eine Person): beide Seiten
+ *   - an die Swiss Sustainable Ventures AG (allgemein oder eine Person): beide Seiten
  *   - an einen Lieferanten: nur der Bauherrenvertreter, und nur wenn dieser
  *     Lieferant auch Zugriff auf das Projekt hat
  */
@@ -32,7 +32,7 @@ export async function pruefeZustaendigen(
 /** Klartextname eines Zuständigen, für Protokoll und Benachrichtigung. */
 export async function assigneeDisplayName(value: string): Promise<string> {
   const assignee = parseAssignee(value);
-  if (assignee.kind === 'internal') return 'Swiss Solar Ventures AG';
+  if (assignee.kind === 'internal') return 'Swiss Sustainable Ventures AG';
 
   if (assignee.kind === 'admin') {
     const { data } = await serviceClient()
@@ -40,7 +40,7 @@ export async function assigneeDisplayName(value: string): Promise<string> {
       .select('name')
       .eq('user_id', assignee.id)
       .maybeSingle();
-    return data?.name?.trim() || 'Swiss Solar Ventures AG';
+    return data?.name?.trim() || 'Swiss Sustainable Ventures AG';
   }
 
   const { data } = await serviceClient()
@@ -56,7 +56,7 @@ export async function assigneeDisplayName(value: string): Promise<string> {
  * Mehrere Zuständige prüfen und bereinigen.
  *
  * Doppelte fliegen heraus, die Reihenfolge bleibt. Ist nichts angegeben, gilt
- * die Swiss Solar Ventures AG allgemein – eine Aufgabe ohne Zuständigen wäre
+ * die Swiss Sustainable Ventures AG allgemein – eine Aufgabe ohne Zuständigen wäre
  * eine Aufgabe, die niemand sieht.
  */
 export async function resolveAssignees(
@@ -101,7 +101,7 @@ export async function resolveAssignee(
 
   if (session.kind === 'supplier') {
     throw new ApiError(
-      'Du kannst Aufgaben nur der Swiss Solar Ventures AG zuweisen, nicht einem anderen Lieferanten.',
+      'Du kannst Aufgaben nur der Swiss Sustainable Ventures AG zuweisen, nicht einem anderen Lieferanten.',
       403,
     );
   }

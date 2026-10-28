@@ -40,7 +40,7 @@ export const STANDARD_VORLAGEN: Vorlage[] = [
     beschreibung:
       'Geht raus, wenn du bei einem Lieferanten auf „Einladen“ drückst. '
       + 'Enthält die Anmeldedaten.',
-    betreff: 'Zugriff auf Baukoordination-App / Swiss Solar Ventures AG',
+    betreff: 'Zugriff auf Baukoordination-App / Swiss Sustainable Ventures AG',
     text: [
       'Ciao {vorname}',
       '',

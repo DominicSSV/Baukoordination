@@ -138,11 +138,11 @@ export default function ProfileModal({
             </div>
             <p>
               {session.hatPasswort
-                ? `Du meldest dich mit ${session.email ?? 'deiner E-Mail-Adresse'} und dem Passwort an, das du von der Swiss Solar Ventures AG bekommen hast.`
-                : 'Für dich ist noch kein Passwort hinterlegt. Melde dich bei der Swiss Solar Ventures AG – sie vergibt es.'}
+                ? `Du meldest dich mit ${session.email ?? 'deiner E-Mail-Adresse'} und dem Passwort an, das du von der Swiss Sustainable Ventures AG bekommen hast.`
+                : 'Für dich ist noch kein Passwort hinterlegt. Melde dich bei der Swiss Sustainable Ventures AG – sie vergibt es.'}
             </p>
             <p>
-              Passwörter vergibt die Swiss Solar Ventures AG. Brauchst du ein
+              Passwörter vergibt die Swiss Sustainable Ventures AG. Brauchst du ein
               neues, melde dich bei deiner Ansprechperson.
             </p>
           </div>

@@ -18,8 +18,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Baukoordination – Swiss Solar Ventures AG',
-  description: 'Projekte, Lieferanten, To-Dos und Dateien der Swiss Solar Ventures AG',
+  title: 'Baukoordination – Swiss Sustainable Ventures AG',
+  description: 'Projekte, Lieferanten, To-Dos und Dateien der Swiss Sustainable Ventures AG',
   // Steht in der Seite selbst, nicht nur sichtbar auf dem Bildschirm: Wer den
   // Quelltext ansieht oder die Seite auswertet, findet die Urheberschaft dort,
   // wo man sie sucht.

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Baukoordination – Migration 18: Speicherbelegung aus erster Hand
 --
--- Die App zeigt der Swiss Solar Ventures AG, wie voll der Speicher ist. Bisher
+-- Die App zeigt der Swiss Sustainable Ventures AG, wie voll der Speicher ist. Bisher
 -- zählte sie die Dateien selbst zusammen. Supabase führt darüber aber schon
 -- Buch – dieselbe Quelle, aus der auch das Dashboard seine Zahl nimmt. Diese
 -- Migration macht sie für die App lesbar.
@@ -50,7 +50,7 @@ $$;
 --
 -- Beide Funktionen laufen mit den Rechten ihres Besitzers und dürfen deshalb
 -- nur vom Server aufgerufen werden. Angemeldete Personen und Lieferanten
--- kommen nicht heran – die Prüfung auf die Swiss Solar Ventures AG macht die
+-- kommen nicht heran – die Prüfung auf die Swiss Sustainable Ventures AG macht die
 -- API-Route, aufgerufen wird hier ausschliesslich mit dem Dienstschlüssel.
 revoke all on function public.speicher_pro_bucket() from public, anon, authenticated;
 revoke all on function public.datenbank_groesse() from public, anon, authenticated;

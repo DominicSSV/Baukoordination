@@ -3,7 +3,7 @@
 --
 -- Lieferanten können zu einer Arbeit im Terminplan etwas anmerken und einen
 -- anderen Zeitraum vorschlagen. Der Vorschlag ändert den Plan nicht – die
--- Swiss Solar Ventures AG übernimmt ihn per Klick oder lehnt ihn ab.
+-- Swiss Sustainable Ventures AG übernimmt ihn per Klick oder lehnt ihn ab.
 --
 -- Im Supabase SQL-Editor ausführen. Idempotent.
 -- =============================================================================
@@ -56,7 +56,7 @@ create policy schedule_notes_insert on public.schedule_notes
     )
   );
 
--- Über Vorschläge entscheidet allein die Swiss Solar Ventures AG.
+-- Über Vorschläge entscheidet allein die Swiss Sustainable Ventures AG.
 drop policy if exists schedule_notes_update on public.schedule_notes;
 create policy schedule_notes_update on public.schedule_notes
   for update using (public.is_admin()) with check (public.is_admin());

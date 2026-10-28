@@ -4,7 +4,7 @@
 -- Pläne, Schemas und Datenblätter je Gewerk. Anders als bei den Offerten sind
 -- das Unterlagen, die alle Beteiligten brauchen – der Elektriker muss das
 -- DC-Schema sehen können. Sichtbar ist deshalb alles für jeden, der Zugriff auf
--- das Projekt hat. Die Ordnerstruktur verwaltet nur die Swiss Solar Ventures AG,
+-- das Projekt hat. Die Ordnerstruktur verwaltet nur die Swiss Sustainable Ventures AG,
 -- sonst räumt jede Firma das Projekt nach ihrem Gutdünken um.
 --
 -- Jedes neue Projekt bekommt die fünf üblichen Ordner automatisch.
